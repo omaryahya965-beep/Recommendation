@@ -21,6 +21,5 @@ class WorkflowPolicySerializer(serializers.ModelSerializer):
         model = WorkflowPolicy
         fields = [
             "id", "municipality", "require_plan_with_response",
-            "require_head_review_before_verification",
         ]
         read_only_fields = ["id", "municipality"]
