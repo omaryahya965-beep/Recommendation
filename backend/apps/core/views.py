@@ -4,7 +4,9 @@ The Action Center lists what requires action NOW for the current user, ahead
 of any statistics. Every number is computed from the live database.
 """
 from django.db.models import Count
+from django.http import JsonResponse
 from django.utils import timezone
+from django.views import View
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -13,6 +15,13 @@ from apps.accounts.models import User
 from apps.audits.models import AuditReport, Recommendation
 from apps.audits.serializers import RecommendationListSerializer
 from apps.core.permissions import scope_recommendations
+
+class HealthView(View):
+    """Cheap liveness probe: no DB, no DRF, no Spectacular."""
+
+    def get(self, request):
+        return JsonResponse({"ok": True})
+
 
 S = Recommendation.Status
 

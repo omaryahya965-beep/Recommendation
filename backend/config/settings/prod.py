@@ -41,12 +41,15 @@ DATABASES = {
     )
 }
 
-# WhiteNoise after SecurityMiddleware. Vercel also collectstatic's into
-# STATIC_ROOT and serves /static/ from the CDN automatically.
-_middleware = list(MIDDLEWARE)
-_security = _middleware.index("django.middleware.security.SecurityMiddleware")
-_middleware.insert(_security + 1, "whitenoise.middleware.WhiteNoiseMiddleware")
-MIDDLEWARE = _middleware
+# WhiteNoise after SecurityMiddleware for non-Vercel WSGI hosts. On Vercel,
+# collectstatic output is served from the CDN, not from /var/task/staticfiles,
+# so WhiteNoiseMiddleware would warn and scan a missing directory on every
+# cold start.
+if not os.environ.get("VERCEL"):
+    _middleware = list(MIDDLEWARE)
+    _security = _middleware.index("django.middleware.security.SecurityMiddleware")
+    _middleware.insert(_security + 1, "whitenoise.middleware.WhiteNoiseMiddleware")
+    MIDDLEWARE = _middleware
 
 # Cloudinary media (official SDK). Prefer a single CLOUDINARY_URL; the
 # three-part CLOUDINARY_CLOUD_NAME / API_KEY / API_SECRET form also works.
