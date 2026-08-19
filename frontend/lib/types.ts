@@ -213,7 +213,6 @@ export interface ReminderRule {
 export interface WorkflowPolicy {
   id: number;
   require_plan_with_response: boolean;
-  require_head_review_before_verification: boolean;
 }
 
 export interface FollowUpReport {

@@ -16,4 +16,4 @@ class DepartmentAdmin(admin.ModelAdmin):
 
 @admin.register(WorkflowPolicy)
 class WorkflowPolicyAdmin(admin.ModelAdmin):
-    list_display = ("municipality", "require_plan_with_response", "require_head_review_before_verification")
+    list_display = ("municipality", "require_plan_with_response")

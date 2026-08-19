@@ -41,9 +41,6 @@ class WorkflowPolicy(models.Model):
     # Default False: the action plan is requested AFTER council ratification.
     # True: departments must submit the plan together with their response.
     require_plan_with_response = models.BooleanField(default=False)
-    # Whether the department head must approve employee submissions before
-    # they reach internal audit verification.
-    require_head_review_before_verification = models.BooleanField(default=False)
 
     class Meta:
         verbose_name_plural = "workflow policies"
