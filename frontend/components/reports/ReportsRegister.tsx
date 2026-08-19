@@ -1,0 +1,403 @@
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import { CalendarClock, FileText, LayoutList, Plus, Rows3, Search, X } from "lucide-react";
+import Link from "next/link";
+import { useMemo, useState } from "react";
+
+import { DirForward } from "@/components/i18n/DirIcon";
+import { ReportPipeline, REPORT_STATUS_FAMILY, type ReportStatus } from "@/components/reports/ReportPipeline";
+import { Button, ErrorBanner, Select, TextInput } from "@/components/ui/Base";
+import { EmptyState, TableSkeleton } from "@/components/ui/EmptyState";
+import { LedgerCell, LedgerTable, RecordId } from "@/components/ui/Ledger";
+import { StatusBadge } from "@/components/ui/StampBadge";
+import { api } from "@/lib/api";
+import { cn } from "@/lib/cn";
+import { daysUntil, formatDate, recordCode } from "@/lib/format";
+import { ENGAGEMENT_LABELS, REPORT_STATUS_LABELS, T, useI18n } from "@/lib/i18n";
+import type { AuditReport, Paginated } from "@/lib/types";
+
+const STATUS_FILTERS: Array<ReportStatus | "all"> = [
+  "all",
+  "draft",
+  "pending_response",
+  "under_review",
+  "pending_council",
+  "ratified",
+];
+
+type SortId = "newest" | "oldest" | "deadline" | "title";
+
+function nextAction(report: AuditReport) {
+  if (report.status === "draft") {
+    return report.recommendations_count > 0 ? T.reports.nextDraftReady : T.reports.nextDraftEmpty;
+  }
+  if (report.status === "pending_response") return T.reports.nextPendingResponse;
+  if (report.status === "under_review") return T.reports.nextUnderReview;
+  if (report.status === "pending_council") return T.reports.nextCouncil;
+  return T.reports.nextRatified;
+}
+
+function matchesSearch(report: AuditReport, query: string) {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  const id = String(report.id);
+  const code = recordCode(report.id, "RPT").toLowerCase();
+  const auditor = (report.created_by_detail?.full_name_ar || report.created_by_detail?.username || "").toLowerCase();
+  return (
+    report.title.toLowerCase().includes(q) ||
+    report.department_name.toLowerCase().includes(q) ||
+    auditor.includes(q) ||
+    ENGAGEMENT_LABELS[report.engagement_type].toLowerCase().includes(q) ||
+    REPORT_STATUS_LABELS[report.status].toLowerCase().includes(q) ||
+    id.includes(q) ||
+    code.includes(q) ||
+    code.replace("rpt-", "").includes(q.replace(/^rpt-?/i, ""))
+  );
+}
+
+function deadlineOverdue(report: AuditReport) {
+  if (report.status === "ratified" || !report.response_deadline) return false;
+  const days = daysUntil(report.response_deadline);
+  return days !== null && days < 0;
+}
+
+function ReportCard({ report }: { report: AuditReport }) {
+  useI18n();
+  const late = deadlineOverdue(report);
+  return (
+    <Link
+      href={`/audit/reports/${report.id}`}
+      className={cn(
+        "group block rounded-(--radius-card) border bg-surface p-4 transition-colors hover:border-primary/40 hover:shadow-(--shadow-card)",
+        late ? "border-danger/30" : "border-line"
+      )}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <RecordId id={report.id} prefix="RPT" />
+            <span className="rounded-md bg-subtle px-1.5 py-0.5 text-[11px] text-ink-soft">
+              {ENGAGEMENT_LABELS[report.engagement_type]}
+            </span>
+            {late ? (
+              <span className="rounded-md bg-danger-light px-1.5 py-0.5 text-[11px] font-medium text-danger-dark">
+                {T.reports.overdueDeadline}
+              </span>
+            ) : null}
+          </div>
+          <h3 className="mt-1.5 font-heading text-[15px] font-semibold leading-relaxed text-ink group-hover:text-primary-dark">
+            {report.title}
+          </h3>
+          <p className="mt-1 text-[13px] font-medium text-primary-dark">{nextAction(report)}</p>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-3">
+          <div className="text-end">
+            <StatusBadge
+              status={REPORT_STATUS_FAMILY[report.status]}
+              label={REPORT_STATUS_LABELS[report.status]}
+            />
+            <p className="mt-1.5 font-mono text-[11px] text-muted" dir="ltr">
+              {report.recommendations_count} {T.reports.recCount}
+            </p>
+          </div>
+          <DirForward className="size-4 text-muted" />
+        </div>
+      </div>
+
+      <dl className="mt-3 grid gap-x-4 gap-y-1 border-t border-line pt-3 text-xs text-ink-soft sm:grid-cols-3">
+        <div>
+          <dt className="text-muted">{T.common.department}</dt>
+          <dd className="mt-0.5 text-ink">{report.department_name}</dd>
+        </div>
+        <div>
+          <dt className="text-muted">{T.create.auditor}</dt>
+          <dd className="mt-0.5 text-ink">
+            {report.created_by_detail?.full_name_ar || report.created_by_detail?.username || "—"}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-muted">{T.create.deadline}</dt>
+          <dd className="mt-0.5 inline-flex items-center gap-1.5 text-ink">
+            <CalendarClock className="size-3.5 text-muted" />
+            <time className="font-mono" dir="ltr">
+              {formatDate(report.response_deadline)}
+            </time>
+          </dd>
+        </div>
+      </dl>
+
+      <ReportPipeline status={report.status} compact className="mt-3" />
+    </Link>
+  );
+}
+
+export function ReportsRegister() {
+  useI18n();
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState<ReportStatus | "all">("all");
+  const [department, setDepartment] = useState("");
+  const [engagement, setEngagement] = useState("");
+  const [sort, setSort] = useState<SortId>("newest");
+  const [view, setView] = useState<"list" | "compact">("compact");
+
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ["reports"],
+    queryFn: () => api<Paginated<AuditReport>>("/api/reports/?page_size=100"),
+  });
+
+  const all = data?.results ?? [];
+  const departments = useMemo(() => {
+    const names = [...new Set(all.map((item) => item.department_name))].sort((a, b) => a.localeCompare(b, "ar"));
+    return names;
+  }, [all]);
+
+  const counts = useMemo(() => {
+    const map: Record<string, number> = { all: all.length };
+    for (const report of all) map[report.status] = (map[report.status] ?? 0) + 1;
+    return map;
+  }, [all]);
+
+  const visible = useMemo(() => {
+    const rows = all.filter((report) => {
+      if (status !== "all" && report.status !== status) return false;
+      if (department && report.department_name !== department) return false;
+      if (engagement && report.engagement_type !== engagement) return false;
+      return matchesSearch(report, search);
+    });
+
+    rows.sort((a, b) => {
+      if (sort === "title") return a.title.localeCompare(b.title, "ar");
+      if (sort === "oldest") return a.created_at.localeCompare(b.created_at);
+      if (sort === "deadline") {
+        return (a.response_deadline ?? "9999").localeCompare(b.response_deadline ?? "9999");
+      }
+      return b.created_at.localeCompare(a.created_at);
+    });
+    return rows;
+  }, [all, status, department, engagement, search, sort]);
+
+  const chips = [
+    status !== "all" ? { key: "status", label: REPORT_STATUS_LABELS[status] } : null,
+    department ? { key: "department", label: department } : null,
+    engagement ? { key: "engagement", label: ENGAGEMENT_LABELS[engagement] } : null,
+    search.trim() ? { key: "search", label: `"${search.trim()}"` } : null,
+  ].filter(Boolean) as Array<{ key: string; label: string }>;
+
+  const clearFilters = () => {
+    setSearch("");
+    setStatus("all");
+    setDepartment("");
+    setEngagement("");
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2 rounded-(--radius-card) border border-line bg-surface p-3">
+        <div className="relative min-w-[220px] flex-1">
+          <Search className="pointer-events-none absolute inset-y-0 start-3 my-auto size-4 text-muted" />
+          <TextInput
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder={T.reports.searchPlaceholder}
+            className="ps-9"
+            aria-label={T.common.search}
+          />
+        </div>
+
+        <Select
+          value={department}
+          onChange={(event) => setDepartment(event.target.value)}
+          className="w-auto min-w-[10rem]"
+          aria-label={T.common.department}
+        >
+          <option value="">{T.common.department}: {T.common.all}</option>
+          {departments.map((name) => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
+        </Select>
+
+        <Select
+          value={engagement}
+          onChange={(event) => setEngagement(event.target.value)}
+          className="w-auto min-w-[9rem]"
+          aria-label={T.create.engagement}
+        >
+          <option value="">{T.create.engagement}: {T.common.all}</option>
+          <option value="assurance">{ENGAGEMENT_LABELS.assurance}</option>
+          <option value="advisory">{ENGAGEMENT_LABELS.advisory}</option>
+        </Select>
+
+        <Select
+          value={sort}
+          onChange={(event) => setSort(event.target.value as SortId)}
+          className="w-auto"
+          aria-label={T.register.sortBy}
+        >
+          <option value="newest">{T.reports.sortNewest}</option>
+          <option value="oldest">{T.reports.sortOldest}</option>
+          <option value="deadline">{T.reports.sortDeadline}</option>
+          <option value="title">{T.reports.sortTitle}</option>
+        </Select>
+
+        <div className="flex overflow-hidden rounded-(--radius-btn) border border-line">
+          <button
+            type="button"
+            onClick={() => setView("list")}
+            aria-pressed={view === "list"}
+            aria-label={T.register.viewList}
+            className={cn("p-2 transition-colors", view === "list" ? "bg-primary text-white" : "text-ink-soft")}
+          >
+            <LayoutList className="size-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setView("compact")}
+            aria-pressed={view === "compact"}
+            aria-label={T.register.viewCompact}
+            className={cn("p-2 transition-colors", view === "compact" ? "bg-primary text-white" : "text-ink-soft")}
+          >
+            <Rows3 className="size-4" />
+          </button>
+        </div>
+      </div>
+
+      <div className="scrollbar-thin flex gap-1.5 overflow-x-auto pb-1">
+        {STATUS_FILTERS.map((item) => (
+          <button
+            key={item}
+            type="button"
+            onClick={() => setStatus(item)}
+            aria-pressed={status === item}
+            className={cn(
+              "whitespace-nowrap rounded-full border px-3 py-1.5 text-[12.5px] font-medium transition-colors",
+              status === item
+                ? "border-primary bg-primary text-white"
+                : "border-line bg-surface text-ink-soft hover:border-primary/40 hover:text-primary-dark"
+            )}
+          >
+            {item === "all" ? T.reports.filterAll : REPORT_STATUS_LABELS[item]}
+            <span className="ms-1.5 font-mono text-[11px] opacity-70" dir="ltr">
+              {counts[item] ?? 0}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm text-ink-soft">
+          <span className="font-mono font-semibold text-ink" dir="ltr">
+            {visible.length}
+          </span>{" "}
+          {T.reports.resultCount}
+        </span>
+        {chips.map((chip) => (
+          <button
+            key={chip.key}
+            type="button"
+            onClick={() => {
+              if (chip.key === "status") setStatus("all");
+              if (chip.key === "department") setDepartment("");
+              if (chip.key === "engagement") setEngagement("");
+              if (chip.key === "search") setSearch("");
+            }}
+            className="inline-flex items-center gap-1 rounded-md border border-primary/25 bg-primary-light px-2 py-0.5 text-xs font-medium text-primary-dark hover:bg-primary/15"
+          >
+            {chip.label}
+            <X className="size-3" />
+          </button>
+        ))}
+        {chips.length ? (
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="text-xs font-medium text-ink-soft hover:text-ink hover:underline"
+          >
+            {T.register.clearFilters}
+          </button>
+        ) : null}
+      </div>
+
+      {isLoading ? (
+        <TableSkeleton />
+      ) : isError ? (
+        <ErrorBanner message={T.common.error} onRetry={() => refetch()} />
+      ) : visible.length === 0 ? (
+        <EmptyState
+          icon={<FileText className="size-6" />}
+          title={all.length ? T.empty.search : T.reports.empty}
+          description={all.length ? T.register.clearFilters : T.reports.emptyHint}
+        />
+      ) : view === "list" ? (
+        <div className="space-y-2.5">
+          {visible.map((report) => (
+            <ReportCard key={report.id} report={report} />
+          ))}
+        </div>
+      ) : (
+        <LedgerTable
+          headers={[
+            T.reports.number,
+            T.reports.reportTitle,
+            T.common.department,
+            T.common.status,
+            T.reports.recCount,
+            T.create.deadline,
+            T.workflow.requiredAction,
+          ]}
+        >
+          {visible.map((report) => {
+            const late = deadlineOverdue(report);
+            return (
+              <tr key={report.id} className="transition-colors hover:bg-subtle">
+                <LedgerCell mono>
+                  <Link href={`/audit/reports/${report.id}`} className="text-primary-dark hover:underline">
+                    <RecordId id={report.id} prefix="RPT" />
+                  </Link>
+                </LedgerCell>
+                <LedgerCell>
+                  <Link href={`/audit/reports/${report.id}`} className="hover:text-primary-dark hover:underline">
+                    {report.title}
+                  </Link>
+                  <p className="mt-0.5 text-[11px] text-muted">{ENGAGEMENT_LABELS[report.engagement_type]}</p>
+                </LedgerCell>
+                <LedgerCell>{report.department_name}</LedgerCell>
+                <LedgerCell>
+                  <StatusBadge
+                    status={REPORT_STATUS_FAMILY[report.status]}
+                    label={REPORT_STATUS_LABELS[report.status]}
+                  />
+                </LedgerCell>
+                <LedgerCell mono>
+                  <span dir="ltr">{report.recommendations_count}</span>
+                </LedgerCell>
+                <LedgerCell mono>
+                  <span className={late ? "font-semibold text-danger-dark" : undefined} dir="ltr">
+                    {formatDate(report.response_deadline)}
+                  </span>
+                </LedgerCell>
+                <LedgerCell>
+                  <span className="text-ink">{nextAction(report)}</span>
+                </LedgerCell>
+              </tr>
+            );
+          })}
+        </LedgerTable>
+      )}
+
+      {!all.length && !isLoading && !isError ? (
+        <div className="text-center">
+          <Link href="/audit/reports/new">
+            <Button>
+              <Plus className="size-4" />
+              {T.reports.addReport}
+            </Button>
+          </Link>
+        </div>
+      ) : null}
+    </div>
+  );
+}

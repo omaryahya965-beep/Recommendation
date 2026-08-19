@@ -1,0 +1,216 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Municipal Internal Audit design tokens.
+   Light and dark are two faces of the same system — not an inversion.
+   Logical CSS. Arabic ligatures: never add letter-spacing.
+--------------------------------------------------------------------------- */
+@theme {
+  --color-primary: #176b63;
+  --color-primary-dark: #0f4f49;
+  --color-primary-light: #e7f3f0;
+  --color-secondary: #718355;
+  --color-secondary-light: #eef2e8;
+  --color-navy: #183b4e;
+  --color-navy-hover: #214f4a;
+  --color-bg: #eef1ee;
+  --color-surface: #ffffff;
+  --color-elevated: #ffffff;
+  --color-subtle: #f3f6f5;
+  --color-line: #d3ddd9;
+  --color-ink: #14201e;
+  --color-ink-soft: #4f5f5b;
+  --color-muted: #6e7c78;
+  --color-success: #21845a;
+  --color-success-dark: #186848;
+  --color-success-light: #e6f4ee;
+  --color-warning: #c98a1a;
+  --color-warning-dark: #8a5e10;
+  --color-warning-light: #fbf3e4;
+  --color-danger: #c94b4b;
+  --color-danger-dark: #9a3535;
+  --color-danger-light: #f8eaea;
+  --color-info: #3578a8;
+  --color-info-dark: #285c82;
+  --color-info-light: #e8f1f7;
+  --color-neutral: #6b7772;
+  --color-ai: #7357a6;
+  --color-ai-dark: #5b4385;
+  --color-ai-light: #f3eef8;
+  --color-sidebar: #163544;
+  --color-sidebar-hover: #1c4454;
+  --color-sidebar-text: #f4f8f7;
+  --color-sidebar-muted: #b7c9cf;
+  --color-inverse: #183b4e;
+  --color-on-inverse: #f7fbfa;
+  --color-overlay: rgb(20 32 30 / 0.45);
+
+  --color-olive: #176b63;
+  --color-olive-dark: #0f4f49;
+  --color-olive-tint: #e7f3f0;
+  --color-seal: #c94b4b;
+  --color-seal-dark: #9a3535;
+  --color-seal-tint: #f8eaea;
+  --color-slate: #183b4e;
+  --color-slate-dark: #183b4e;
+  --color-slate-tint: #e8eef0;
+  --color-brass: #c98a1a;
+  --color-brass-dark: #8a5e10;
+  --color-brass-tint: #fbf3e4;
+  --color-stone: #eef2f1;
+  --color-paper: #ffffff;
+
+  --font-heading: var(--font-kufi), "Noto Kufi Arabic", sans-serif;
+  --font-display: var(--font-naskh), "Noto Naskh Arabic", serif;
+  --font-body: var(--font-plex), "IBM Plex Sans Arabic", sans-serif;
+  --font-mono: var(--font-plex-mono), "IBM Plex Mono", monospace;
+
+  --radius-btn: 8px;
+  --radius-field: 8px;
+  --radius-card: 8px;
+  --radius-dialog: 10px;
+  --radius-container: 10px;
+
+  --shadow-card: 0 1px 0 rgb(20 32 30 / 0.05);
+  --shadow-float: 0 12px 28px rgb(20 32 30 / 0.12);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --color-bg: #10161b;
+  --color-surface: #1a2329;
+  --color-elevated: #243038;
+  --color-subtle: #222d34;
+  --color-line: #3c4d56;
+  --color-ink: #eef3f4;
+  --color-ink-soft: #b8c5ca;
+  --color-muted: #93a3a9;
+  --color-navy: #c5dbe4;
+  --color-navy-hover: #2a3d48;
+  --color-primary: #3ea396;
+  --color-primary-dark: #8ed4cb;
+  --color-primary-light: #1c3533;
+  --color-secondary: #9aaa74;
+  --color-secondary-light: #2a3324;
+  --color-success: #3dba7a;
+  --color-success-dark: #8fd9b0;
+  --color-success-light: #1a3328;
+  --color-warning: #e0a84a;
+  --color-warning-dark: #f0c878;
+  --color-warning-light: #3a3018;
+  --color-danger: #e06b6b;
+  --color-danger-dark: #f0a0a0;
+  --color-danger-light: #3a2224;
+  --color-info: #5aa3d0;
+  --color-info-dark: #8ec4e0;
+  --color-info-light: #1c3340;
+  --color-ai: #9b7ec8;
+  --color-ai-dark: #c4aee0;
+  --color-ai-light: #2c2438;
+  --color-sidebar: #15222a;
+  --color-sidebar-hover: #1e3340;
+  --color-sidebar-text: #eef4f6;
+  --color-sidebar-muted: #9db0b8;
+  --color-inverse: #243542;
+  --color-on-inverse: #eef4f6;
+  --color-overlay: rgb(6 10 12 / 0.62);
+  --color-olive: #3ea396;
+  --color-olive-dark: #8ed4cb;
+  --color-olive-tint: #1c3533;
+  --color-seal: #e06b6b;
+  --color-seal-dark: #f0a0a0;
+  --color-seal-tint: #3a2224;
+  --color-slate: #c5dbe4;
+  --color-slate-dark: #c5dbe4;
+  --color-slate-tint: #1c3340;
+  --color-brass: #e0a84a;
+  --color-brass-dark: #f0c878;
+  --color-brass-tint: #3a3018;
+  --color-stone: #12181c;
+  --color-paper: #1c252b;
+  --shadow-card: 0 1px 0 rgb(255 255 255 / 0.03), 0 8px 20px rgb(0 0 0 / 0.28);
+  --shadow-float: 0 16px 40px rgb(0 0 0 / 0.45);
+}
+
+html {
+  font-size: 16px;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  letter-spacing: 0;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-heading);
+  color: var(--color-navy);
+  line-height: 1.35;
+  letter-spacing: 0;
+}
+
+h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+h2 {
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+input,
+textarea,
+select,
+button {
+  font-family: inherit;
+  letter-spacing: 0;
+}
+
+input,
+textarea,
+select {
+  text-align: start;
+}
+
+.hairline {
+  border-color: var(--color-line);
+}
+
+::selection {
+  background: var(--color-primary-light);
+  color: var(--color-ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line) transparent;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 180ms ease-out;
+}

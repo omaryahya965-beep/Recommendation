@@ -1,0 +1,156 @@
+"use client";
+
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ChevronDown, ChevronUp, ClipboardCheck, ClipboardList, FileCheck2, Gavel, Stamp } from "lucide-react";
+import { useState } from "react";
+
+import { type ActionSource } from "@/components/dashboard/AttentionBoard";
+import { RecentActivity } from "@/components/dashboard/RecentActivity";
+import { ActionNow } from "@/components/home/ActionNow";
+import { HomeHero } from "@/components/home/HomeHero";
+import { TodayAgenda } from "@/components/home/TodayAgenda";
+import { RecommendationTable } from "@/components/RecommendationTable";
+import { Button, Callout, ErrorBanner, Field, TextArea } from "@/components/ui/Base";
+import { DashboardSkeleton, EmptyState } from "@/components/ui/EmptyState";
+import { Section } from "@/components/ui/Section";
+import { api, errorMessage } from "@/lib/api";
+import { uniqueRecommendations } from "@/lib/home";
+import { ENGAGEMENT_LABELS, T, useI18n } from "@/lib/i18n";
+import type { AuditReport, DashboardData, RecommendationListItem } from "@/lib/types";
+
+const BASE = "/council/recommendations";
+
+function PendingReportCard({ report }: { report: AuditReport }) {
+  useI18n();
+  const queryClient = useQueryClient();
+  const [notes, setNotes] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
+
+  const { data: detail } = useQuery({
+    queryKey: ["report", report.id],
+    queryFn: () => api<AuditReport>(`/api/reports/${report.id}/`),
+    enabled: expanded,
+  });
+
+  const ratify = useMutation({
+    mutationFn: () => api(`/api/reports/${report.id}/ratify/`, { method: "POST", body: { notes } }),
+    onSuccess: () => {
+      setError(null);
+      queryClient.invalidateQueries({ queryKey: ["pending-approvals"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["reports"] });
+    },
+    onError: (err) => setError(errorMessage(err)),
+  });
+
+  return (
+    <li className="border-b border-line px-4 py-3 last:border-b-0">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h3 className="font-heading text-[14px] font-semibold text-ink">{report.title}</h3>
+          <p className="mt-1 text-[12px] text-ink-soft">
+            {report.department_name} · {ENGAGEMENT_LABELS[report.engagement_type]} ·{" "}
+            <span dir="ltr">{report.recommendations_count}</span> {T.reports.recommendations}
+          </p>
+        </div>
+        <Button variant="ghost" className="px-2 py-1 text-xs" onClick={() => setExpanded((value) => !value)}>
+          {expanded ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+          {expanded ? T.common.details : T.dashboard.ratifyDecision}
+        </Button>
+      </div>
+      {expanded ? (
+        <div className="mt-3 space-y-3">
+          {detail?.recommendations ? (
+            <RecommendationTable
+              items={detail.recommendations}
+              showDepartment={false}
+              detailHref={(item) => `${BASE}/${item.id}`}
+            />
+          ) : null}
+          <Field label={`${T.common.notes} (${T.common.optional})`}>
+            <TextArea value={notes} onChange={(event) => setNotes(event.target.value)} rows={2} />
+          </Field>
+          <ErrorBanner message={error} />
+          <Button onClick={() => ratify.mutate()} disabled={ratify.isPending}>
+            <Stamp className="size-4" />
+            {T.council.ratifyReport}
+          </Button>
+          <Callout tone="neutral">{T.council.ratifyHint}</Callout>
+        </div>
+      ) : null}
+    </li>
+  );
+}
+
+export default function PendingApprovalsPage() {
+  useI18n();
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ["pending-approvals"],
+    queryFn: () => api<AuditReport[]>("/api/council/pending-approvals/"),
+  });
+  const { data: dashboard } = useQuery({
+    queryKey: ["dashboard"],
+    queryFn: () => api<DashboardData>("/api/dashboard/"),
+  });
+
+  if (isLoading) return <DashboardSkeleton />;
+  if (isError) return <ErrorBanner message={T.common.error} onRetry={() => refetch()} />;
+
+  const pendingReports = data ?? [];
+  const closures = (dashboard?.action_center.closures_pending?.items ?? []) as RecommendationListItem[];
+  const sources: ActionSource[] = dashboard?.action_center.closures_pending
+    ? [
+        {
+          key: "closures_pending",
+          block: dashboard.action_center.closures_pending,
+          href: "/council/closure-reviews",
+        },
+      ]
+    : [];
+
+  return (
+    <div className="animate-fade-in space-y-4">
+      <HomeHero
+        role="council"
+        title={T.dashboard.councilTitle}
+        subtitle={T.dashboard.councilHint}
+        actions={[
+          { href: "/council/pending-approvals", label: T.nav.pendingApprovals, icon: ClipboardCheck, primary: true },
+          { href: "/council/closure-reviews", label: T.nav.closureReviews, icon: Gavel },
+          { href: BASE, label: T.nav.recommendations, icon: ClipboardList },
+        ]}
+      />
+
+      <Section title={T.dashboard.decisionCenter} hint={T.dashboard.decisionCenterHint}>
+        {pendingReports.length ? (
+          <ul>
+            {pendingReports.map((report) => (
+              <PendingReportCard key={report.id} report={report} />
+            ))}
+          </ul>
+        ) : (
+          <EmptyState
+            compact
+            icon={<FileCheck2 className="size-5" />}
+            title={T.council.emptyPendingReports}
+            className="border-0 shadow-none"
+          />
+        )}
+      </Section>
+
+      <ActionNow
+        sources={sources}
+        detailBase={BASE}
+        viewAllHref="/council/closure-reviews"
+        title={T.dashboard.closureQueue}
+        hint={T.dashboard.closureQueueHint}
+      />
+
+      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+        <TodayAgenda items={uniqueRecommendations(sources, closures)} detailHref={(item) => `${BASE}/${item.id}`} />
+        <RecentActivity detailBase={BASE} limit={7} />
+      </div>
+    </div>
+  );
+}
