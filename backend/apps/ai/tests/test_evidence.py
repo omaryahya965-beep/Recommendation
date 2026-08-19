@@ -1,5 +1,5 @@
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
 from apps.workflow.models import Evidence
@@ -22,6 +22,7 @@ def _pdf_with_text(text: str) -> bytes:
     )
 
 
+@override_settings(AI_PROVIDER="local", AI_API_KEY="")
 class EvidenceAnalysisTests(TestCase):
     def setUp(self):
         self.muni, self.dept, self.users, self.report, self.rec = make_world()
