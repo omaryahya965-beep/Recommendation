@@ -8,8 +8,9 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
-import dj_database_url
 from dotenv import load_dotenv
+
+from .database import database_from_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -88,16 +89,7 @@ WSGI_APPLICATION = "config.wsgi.application"
 # ---------------------------------------------------------------------------
 # Database: single DATABASE_URL, identical code for local Postgres and Neon
 # ---------------------------------------------------------------------------
-DATABASES = {
-    "default": dj_database_url.config(
-        default=os.environ.get(
-            "DATABASE_URL",
-            "postgres://postgres@localhost:5433/audit_tracker",
-        ),
-        conn_max_age=600,
-        ssl_require=os.environ.get("DB_SSL_REQUIRE", "False") == "True",
-    )
-}
+DATABASES = {"default": database_from_url(conn_max_age=600)}
 
 # ---------------------------------------------------------------------------
 # Auth
