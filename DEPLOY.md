@@ -24,8 +24,8 @@ is 60s (`backend/vercel.json`).
 4. Run `manage.py migrate` against Neon's **direct** (non-pooler) URL.
 5. Deploy backend, then frontend (frontend needs the live API origin).
 6. Put the live frontend origin into backend `CORS_ALLOWED_ORIGINS`.
-7. Choose an S3-compatible media bucket (provider is your choice) before
-   relying on evidence uploads in production.
+7. Create a Cloudinary account and set media credentials on the backend
+   project before relying on evidence uploads in production.
 
 `settings/dev.py` is unchanged. Local `manage.py` still uses it unless
 `VERCEL=1` or `DJANGO_SETTINGS_MODULE` is set.
@@ -89,23 +89,32 @@ Names are exactly what the Django settings read.
 | `TIME_ZONE` | Default `Asia/Gaza`. |
 | `MAX_UPLOAD_SIZE_MB` | Default `20`. |
 
-### Media bucket — you provide after choosing a provider
+### Media — Cloudinary (you provide after creating an account)
 
 Local disk **does not persist** on Vercel. Leave these unset until you have a
-bucket; then set all of the required rows. Names are django-storages / boto3
-conventions and work with AWS S3, Cloudflare R2, DigitalOcean Spaces, MinIO,
-etc.
+Cloudinary cloud; then set **either** `CLOUDINARY_URL` **or** the three
+`CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET`
+variables. The official Cloudinary Python SDK reads both forms. Prefer the
+single `CLOUDINARY_URL` value from the Cloudinary dashboard.
+
+A free Cloudinary account is enough to start. The Free plan is currently
+**25 credits per month** (credits are shared across storage, bandwidth, and
+transformations — roughly 1 credit = 1 GB storage or 1 GB bandwidth or 1,000
+transformations). Confirm [Cloudinary's current free tier](https://cloudinary.com/pricing)
+before relying on this in production; limits change.
+
+PDFs and other non-image evidence upload as Cloudinary `raw` resources, not
+as images. Size and type are still enforced by `MAX_UPLOAD_SIZE_MB` and
+`ALLOWED_UPLOAD_EXTENSIONS` before anything is sent to Cloudinary.
 
 | Name | Required? | Description |
 |------|-----------|-------------|
-| `AWS_STORAGE_BUCKET_NAME` | Yes, to enable remote media | Bucket name |
-| `AWS_ACCESS_KEY_ID` | Yes | Access key (boto3 reads this from the environment) |
-| `AWS_SECRET_ACCESS_KEY` | Yes | Secret key |
-| `AWS_S3_REGION_NAME` | Yes with a custom endpoint | Region. Use `auto` for R2 if your provider says so |
-| `AWS_S3_ENDPOINT_URL` | If not AWS S3 | API endpoint, e.g. `https://<accountid>.r2.cloudflarestorage.com` |
-| `AWS_S3_CUSTOM_DOMAIN` | Optional | Public/CDN host for object URLs |
-| `AWS_QUERYSTRING_AUTH` | Optional | Default `True` (signed URLs). `False` only for a public bucket |
-| `AWS_LOCATION` | Optional | Key prefix. Default `media` |
+| `CLOUDINARY_URL` | Yes, unless using the three-part form | `cloudinary://<api_key>:<api_secret>@<cloud_name>` |
+| `CLOUDINARY_CLOUD_NAME` | Yes, if not using `CLOUDINARY_URL` | Cloud name from the dashboard |
+| `CLOUDINARY_API_KEY` | Yes, if not using `CLOUDINARY_URL` | API key |
+| `CLOUDINARY_API_SECRET` | Yes, if not using `CLOUDINARY_URL` | API secret |
+
+Do not put Cloudinary secrets on the frontend Vercel project.
 
 ### Generated for you (do not invent values)
 
@@ -130,8 +139,8 @@ frontend domain is **not** — it must be in `CORS_ALLOWED_ORIGINS`.
 | `VERCEL` | Vercel | Set automatically. Used to refuse a localhost API fallback. |
 | `NODE_ENV` | Vercel / Next.js | `production` on deploy. |
 
-Do not add `AI_API_KEY`, `SECRET_KEY`, `DATABASE_URL`, or `CRON_SECRET` to
-the frontend project.
+Do not add `AI_API_KEY`, `SECRET_KEY`, `DATABASE_URL`, `CRON_SECRET`, or
+Cloudinary credentials to the frontend project.
 
 ---
 
@@ -164,6 +173,7 @@ WhiteNoise is installed for `vercel dev` and any WSGI host.
 4. Frontend Vercel project: `NEXT_PUBLIC_API_URL` = backend origin + deploy.
 5. Set backend `CORS_ALLOWED_ORIGINS` to the frontend origin; redeploy backend
    if the value was empty on first deploy.
-6. Provision media storage; set `AWS_*`; redeploy backend.
+6. Provision Cloudinary; set `CLOUDINARY_URL` (or the three-part vars);
+   redeploy backend.
 7. Confirm Cron in the Vercel dashboard (production only) and that
    `CRON_SECRET` is set.
