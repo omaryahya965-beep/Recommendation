@@ -16,6 +16,11 @@ from .models import (
 
 
 def validate_upload(file):
+    """Size and type checks run in DRF before any storage backend is invoked.
+
+    Cloudinary does not replace these limits. MAX_UPLOAD_SIZE_MB and
+    ALLOWED_UPLOAD_EXTENSIONS still apply in production.
+    """
     max_bytes = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
     if file.size > max_bytes:
         raise serializers.ValidationError(
@@ -89,9 +94,15 @@ class EvidenceSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_file_url(self, obj):
+        if not obj.file:
+            return None
+        url = obj.file.url
+        # Cloudinary returns an absolute HTTPS URL. Do not prefix the API host.
+        if url.startswith(("http://", "https://")):
+            return url
         request = self.context.get("request")
-        if obj.file and request:
-            return request.build_absolute_uri(obj.file.url)
+        if request:
+            return request.build_absolute_uri(url)
         return None
 
 

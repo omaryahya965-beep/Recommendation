@@ -54,16 +54,24 @@ def configure_cloudinary(
         cloudinary.config(secure=True)
 
 
+IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".tif", ".tiff"}
+
+
+def resource_type_for_name(name: str) -> str:
+    """Cloudinary resource_type for a stored filename.
+
+    PDFs, Office docs, zip, and txt must be ``raw``. Uploading them as
+    ``image`` makes Cloudinary try to decode them as pictures.
+    """
+    ext = Path(name.replace("\\", "/")).suffix.lower()
+    if ext in IMAGE_EXTENSIONS:
+        return "image"
+    return "raw"
+
+
 @deconstructible
 class CloudinaryMediaStorage(Storage):
-    """Upload all media as Cloudinary ``raw`` resources.
-
-    Evidence is mostly PDFs and office documents. Uploading those as ``image``
-    makes Cloudinary try to decode them as pictures and fail. Images still
-    download correctly as raw files.
-    """
-
-    RESOURCE_TYPE = "raw"
+    """Default production FileField backend. Resource type is per filename."""
 
     def __init__(self, **_options):
         super().__init__()
@@ -73,11 +81,12 @@ class CloudinaryMediaStorage(Storage):
 
         configure_cloudinary()
         name = name.replace("\\", "/")
+        resource_type = resource_type_for_name(name)
         folder, filename = os.path.split(name)
         if hasattr(content, "seek"):
             content.seek(0)
         options = {
-            "resource_type": self.RESOURCE_TYPE,
+            "resource_type": resource_type,
             "use_filename": True,
             "unique_filename": True,
             "overwrite": False,
@@ -86,12 +95,16 @@ class CloudinaryMediaStorage(Storage):
         if folder:
             options["folder"] = folder
         result = cloudinary.uploader.upload(content, **options)
-        return self._stored_name(result, fallback_name=name)
+        return self._stored_name(
+            result, fallback_name=name, resource_type=resource_type
+        )
 
-    def _stored_name(self, result: dict, *, fallback_name: str) -> str:
+    def _stored_name(
+        self, result: dict, *, fallback_name: str, resource_type: str
+    ) -> str:
         public_id = result.get("public_id") or fallback_name
         # Raw public_ids keep the original extension; do not append format again.
-        if self.RESOURCE_TYPE == "raw":
+        if resource_type == "raw":
             return public_id
         fmt = (result.get("format") or Path(fallback_name).suffix.lstrip(".")).lower()
         if fmt and not public_id.lower().endswith(f".{fmt}"):
@@ -100,7 +113,7 @@ class CloudinaryMediaStorage(Storage):
 
     def _cloudinary_public_id(self, name: str) -> str:
         name = name.replace("\\", "/")
-        if self.RESOURCE_TYPE == "raw":
+        if resource_type_for_name(name) == "raw":
             return name
         suffix = Path(name).suffix
         if suffix:
@@ -112,8 +125,9 @@ class CloudinaryMediaStorage(Storage):
 
         configure_cloudinary()
         name = name.replace("\\", "/")
-        options = {"resource_type": self.RESOURCE_TYPE, "type": "upload"}
-        if self.RESOURCE_TYPE != "raw":
+        resource_type = resource_type_for_name(name)
+        options = {"resource_type": resource_type, "type": "upload"}
+        if resource_type != "raw":
             fmt = Path(name).suffix.lstrip(".").lower()
             if fmt:
                 options["format"] = fmt
@@ -130,7 +144,7 @@ class CloudinaryMediaStorage(Storage):
         configure_cloudinary()
         cloudinary.uploader.destroy(
             self._cloudinary_public_id(name),
-            resource_type=self.RESOURCE_TYPE,
+            resource_type=resource_type_for_name(name),
             invalidate=True,
         )
 
