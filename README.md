@@ -88,3 +88,5 @@ DB_SSL_REQUIRE=True
 
 Run `manage.py migrate` against the direct (non-pooler) Neon connection
 string, then point the app at the pooled string. No code changes.
+
+Full Vercel + Neon runbook (two projects, env vars, cron, media): **[DEPLOY.md](DEPLOY.md)**.

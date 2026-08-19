@@ -1,9 +1,36 @@
 # Deployment (Vercel + Neon)
 
-Code and config preparation for running the Django API and Next.js frontend
-on Vercel, with Neon Postgres. This file is filled in as each deploy step
-lands. Do not treat it as a live environment — no Vercel/Neon resources are
-created from this repo.
+Code and config preparation only. This repo does **not** create Vercel or Neon
+resources. Two Vercel projects are required; do not deploy the repository
+root as a single app.
+
+| Project | Root Directory | Framework detection |
+|---------|----------------|---------------------|
+| Backend API | `backend` | Django via `manage.py` + `WSGI_APPLICATION` → `config.wsgi.application` |
+| Frontend | `frontend` | Next.js |
+
+Python is pinned in `backend/.python-version` (**3.13**). Vercel runs
+`collectstatic` automatically because `STATIC_ROOT` is set. Function timeout
+is 60s (`backend/vercel.json`).
+
+---
+
+## What you must do by hand
+
+1. Create a Neon project (or attach the Vercel Neon integration).
+2. Create two Vercel projects pointing at this Git repo with the root
+   directories above.
+3. Fill in every **you provide** variable in the tables below.
+4. Run `manage.py migrate` against Neon's **direct** (non-pooler) URL.
+5. Deploy backend, then frontend (frontend needs the live API origin).
+6. Put the live frontend origin into backend `CORS_ALLOWED_ORIGINS`.
+7. Choose an S3-compatible media bucket (provider is your choice) before
+   relying on evidence uploads in production.
+
+`settings/dev.py` is unchanged. Local `manage.py` still uses it unless
+`VERCEL=1` or `DJANGO_SETTINGS_MODULE` is set.
+
+---
 
 ## Neon Postgres
 
@@ -14,18 +41,13 @@ Neon issues **two** connection strings per branch. They are not interchangeable:
 
 | Use | Which string | How to recognize it |
 |-----|----------------|---------------------|
-| Running app (Vercel Functions) | **Pooled** | Host contains `-pooler` (PgBouncer), e.g. `ep-….neon.tech` → `ep-…-pooler.….neon.tech` |
-| `manage.py migrate` (and other DDL) | **Direct** | Host has **no** `-pooler`. Neon/Vercel often expose this as `DATABASE_URL_UNPOOLED` or `POSTGRES_URL_NON_POOLING` |
+| Running app (Vercel Functions) | **Pooled** | Host contains `-pooler` |
+| `manage.py migrate` (and other DDL) | **Direct** | Host has **no** `-pooler`. Often `DATABASE_URL_UNPOOLED` or `POSTGRES_URL_NON_POOLING` |
 
-Set on the **backend** Vercel project:
+Production uses `CONN_MAX_AGE=0` so a serverless invocation does not hold a
+pooled slot after it returns. Local still uses `CONN_MAX_AGE=600`.
 
-```
-DATABASE_URL=<pooled Neon URL>?sslmode=require
-DB_SSL_REQUIRE=True
-```
-
-Run migrations from a machine that can reach Neon (laptop or `vercel env pull`),
-pointing **only that command** at the direct URL:
+Migrate from a machine that can reach Neon:
 
 ```powershell
 cd backend
@@ -36,84 +58,112 @@ $env:SECRET_KEY = "<production secret>"
 .\venv\Scripts\python manage.py migrate
 ```
 
-Production settings use `CONN_MAX_AGE=0` so a serverless invocation does not
-hold a pooled connection after it returns. Local `settings/dev.py` is
-unchanged and still uses persistent connections (`CONN_MAX_AGE=600`).
+---
 
-## Vercel project layout
+## Environment variables — backend Vercel project
 
-Create **two** Vercel projects from this Git repo (do not deploy the repo
-root as a single project):
+Names are exactly what the Django settings read.
 
-| Project | Root Directory | Framework |
-|---------|----------------|-----------|
-| Backend API | `backend` | Django (auto-detected from `manage.py` + `WSGI_APPLICATION`) |
-| Frontend | `frontend` | Next.js |
+### You provide (required)
 
-Python version is pinned in `backend/.python-version` (3.13). Set
-`DJANGO_SETTINGS_MODULE=config.settings.prod` on the backend project.
-`VERCEL=1` is set automatically and makes `manage.py` default to prod as well.
+| Name | Description |
+|------|-------------|
+| `SECRET_KEY` | Django secret. Required; production refuses to start without it. Generate a long random value. |
+| `DATABASE_URL` | Neon **pooled** URL (`-pooler` host) with `sslmode=require`. If you use the Vercel Neon integration this is often injected for you — still confirm it is the pooled string. |
+| `DB_SSL_REQUIRE` | Set to `True`. |
+| `DJANGO_SETTINGS_MODULE` | Set to `config.settings.prod`. (`VERCEL=1` also makes `manage.py` default to prod.) |
+| `CORS_ALLOWED_ORIGINS` | Exact frontend origin(s), comma-separated, **https**, no trailing slash. Example: `https://your-app.vercel.app`. Custom domains belong here. |
+| `CRON_SECRET` | Random string, ≥16 characters. Vercel Cron sends it as `Authorization: Bearer <CRON_SECRET>` to `/api/internal/send-reminders/`. |
 
-`ALLOWED_HOSTS` in production defaults to `.vercel.app` (all `*.vercel.app`
-hosts). When you attach a custom domain, add it to the `ALLOWED_HOSTS` env
-var, comma-separated, e.g. `.vercel.app,api.example.gov`. Do not change
-`settings/dev.py`.
+### You provide when you have them (not optional for a real launch)
 
-## Static and media files
+| Name | Description |
+|------|-------------|
+| `ALLOWED_HOSTS` | Defaults to `.vercel.app,localhost,127.0.0.1`. Add your API custom domain: `.vercel.app,api.example.gov`. |
+| `CSRF_TRUSTED_ORIGINS` | Defaults to the same list as `CORS_ALLOWED_ORIGINS`. Set only if you need a different set (must include `https://`). |
+| `AI_PROVIDER` | `local` (no key) or `openai`. |
+| `AI_API_KEY` | Required for `AI_PROVIDER=openai`. **Never** put this on the frontend project. |
+| `AI_MODEL` | Chat model id when using OpenAI, e.g. `gpt-4o-mini`. |
+| `AI_BASE_URL` | Default `https://api.openai.com/v1`. |
+| `AI_ENABLED` | Default `true`. |
+| `TIME_ZONE` | Default `Asia/Gaza`. |
+| `MAX_UPLOAD_SIZE_MB` | Default `20`. |
 
-Vercel runs `collectstatic` automatically when `STATIC_ROOT` is set (it
-already is). Collected files are served from the Vercel CDN at `STATIC_URL`
-(`/static/`). WhiteNoise is installed so `vercel dev` and any WSGI host can
-serve the same assets.
+### Media bucket — you provide after choosing a provider
 
-**Media** (evidence uploads, response attachments, generated follow-up
-files) cannot live on the Vercel function filesystem. Production is stubbed
-for S3-compatible storage via django-storages. It stays on local disk until
-you set `AWS_STORAGE_BUCKET_NAME` and credentials — pick a provider first
-(AWS S3, Cloudflare R2, DigitalOcean Spaces, MinIO, …). The `AWS_*` names
-are django-storages conventions, not an AWS-only requirement.
+Local disk **does not persist** on Vercel. Leave these unset until you have a
+bucket; then set all of the required rows. Names are django-storages / boto3
+conventions and work with AWS S3, Cloudflare R2, DigitalOcean Spaces, MinIO,
+etc.
 
-Required once you have a bucket:
+| Name | Required? | Description |
+|------|-----------|-------------|
+| `AWS_STORAGE_BUCKET_NAME` | Yes, to enable remote media | Bucket name |
+| `AWS_ACCESS_KEY_ID` | Yes | Access key (boto3 reads this from the environment) |
+| `AWS_SECRET_ACCESS_KEY` | Yes | Secret key |
+| `AWS_S3_REGION_NAME` | Yes with a custom endpoint | Region. Use `auto` for R2 if your provider says so |
+| `AWS_S3_ENDPOINT_URL` | If not AWS S3 | API endpoint, e.g. `https://<accountid>.r2.cloudflarestorage.com` |
+| `AWS_S3_CUSTOM_DOMAIN` | Optional | Public/CDN host for object URLs |
+| `AWS_QUERYSTRING_AUTH` | Optional | Default `True` (signed URLs). `False` only for a public bucket |
+| `AWS_LOCATION` | Optional | Key prefix. Default `media` |
 
-| Env var | You provide |
-|---------|-------------|
-| `AWS_STORAGE_BUCKET_NAME` | Bucket name |
-| `AWS_ACCESS_KEY_ID` | Access key |
-| `AWS_SECRET_ACCESS_KEY` | Secret key |
-| `AWS_S3_REGION_NAME` | Region (also set this when using a custom endpoint) |
-| `AWS_S3_ENDPOINT_URL` | Optional. Custom API URL (R2, Spaces, MinIO). Leave unset for AWS S3 |
-| `AWS_S3_CUSTOM_DOMAIN` | Optional. Public/CDN host for object URLs |
-| `AWS_QUERYSTRING_AUTH` | Optional. Default `True` (signed URLs). Set `False` only for a public bucket |
-| `AWS_LOCATION` | Optional. Key prefix inside the bucket. Default `media` |
+### Generated for you (do not invent values)
 
-## Daily reminders on Vercel
+| Name | Who sets it | Description |
+|------|-------------|-------------|
+| `VERCEL` | Vercel | `1` on Vercel builds/runtime. Switches `manage.py` to prod settings. |
+| `VERCEL_URL` | Vercel | Deployment host without scheme. Not read by this app (ALLOWED_HOSTS uses `.vercel.app`). |
+| `VERCEL_ENV` | Vercel | `production` / `preview` / `development`. |
+| `DATABASE_URL` | Neon integration, if attached | Prefer the **pooled** URL for the running app. |
+| `DATABASE_URL_UNPOOLED` / `POSTGRES_URL_NON_POOLING` | Neon / Vercel Neon | Direct URL for `migrate` only. **Not** read by Django unless you copy it into `DATABASE_URL` for that command. |
+
+Preview frontend URLs on `*.vercel.app` are allowed by CORS regex. A custom
+frontend domain is **not** — it must be in `CORS_ALLOWED_ORIGINS`.
+
+---
+
+## Environment variables — frontend Vercel project
+
+| Name | Who | Description |
+|------|-----|-------------|
+| `NEXT_PUBLIC_API_URL` | **You provide** | Backend origin, no trailing slash, e.g. `https://your-api.vercel.app`. Inlined at **build** time. The Vercel build fails if this is missing. Locally it defaults to `http://127.0.0.1:8000`. |
+| `VERCEL` | Vercel | Set automatically. Used to refuse a localhost API fallback. |
+| `NODE_ENV` | Vercel / Next.js | `production` on deploy. |
+
+Do not add `AI_API_KEY`, `SECRET_KEY`, `DATABASE_URL`, or `CRON_SECRET` to
+the frontend project.
+
+---
+
+## Daily reminders
 
 `python manage.py send_reminders` is unchanged for local/manual use.
 
-On Vercel, `backend/vercel.json` schedules a **GET** to
-`/api/internal/send-reminders/` at `0 4 * * *` (04:00 UTC daily, about 06:00
-or 07:00 in `Asia/Gaza` depending on DST). Vercel Cron always uses UTC.
+Vercel Cron (`backend/vercel.json`) **GET**s
+`/api/internal/send-reminders/` at `0 4 * * *` (04:00 **UTC** daily ≈ 06:00
+or 07:00 `Asia/Gaza`). Hobby plans allow one run per day.
 
-Set `CRON_SECRET` on the backend project to a random string of at least 16
-characters. Vercel sends it as `Authorization: Bearer <CRON_SECRET>`. The
-endpoint returns 401 if the secret is missing or wrong — it is never open.
+The endpoint returns 401 unless `Authorization: Bearer <CRON_SECRET>` matches.
+It is never public. The job is idempotent.
 
-Hobby plans allow one run per day; this schedule matches that limit. The job
-is idempotent.
+---
 
-## CORS and frontend API URL
+## Static files
 
-`CORS_ALLOWED_ORIGINS` is an environment variable (comma-separated, no
-trailing slashes). Do not hardcode the production frontend URL.
+Vercel collects static files at build (`STATIC_ROOT` is `backend/staticfiles`)
+and serves `/static/` from the CDN (admin, DRF browsable API, Spectacular).
+WhiteNoise is installed for `vercel dev` and any WSGI host.
 
-Set it on the **backend** project to the real frontend origin once you have
-it, e.g. `https://app.example.gov` or `https://your-frontend.vercel.app`.
-Production also allows `https://*.vercel.app` via regex so preview
-deployments work without listing every URL.
+---
 
-`CSRF_TRUSTED_ORIGINS` defaults to the same list as `CORS_ALLOWED_ORIGINS`.
-Override it separately only if you need a different set.
+## Suggested order
 
-On the **frontend** project, `NEXT_PUBLIC_API_URL` is read at build time.
-There is no production fallback to localhost on Vercel; the build fails if
-it is unset. Locally it still defaults to `http://127.0.0.1:8000`.
+1. Neon database + pooled/direct URLs.
+2. Backend Vercel project env (required table) + deploy.
+3. `migrate` on the **direct** URL.
+4. Frontend Vercel project: `NEXT_PUBLIC_API_URL` = backend origin + deploy.
+5. Set backend `CORS_ALLOWED_ORIGINS` to the frontend origin; redeploy backend
+   if the value was empty on first deploy.
+6. Provision media storage; set `AWS_*`; redeploy backend.
+7. Confirm Cron in the Vercel dashboard (production only) and that
+   `CRON_SECRET` is set.
