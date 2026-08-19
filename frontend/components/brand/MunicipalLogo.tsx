@@ -19,20 +19,20 @@ export function MunicipalLogo({
   withWordmark?: boolean;
 }) {
   useI18n();
-  const px = size === "lg" ? 64 : size === "sm" ? 36 : 48;
+  const svgSize =
+    size === "lg" ? "size-12 sm:size-16" : size === "sm" ? "size-9" : "size-12";
   const titleClass =
     size === "lg"
-      ? "text-xl font-bold"
+      ? "text-base font-bold sm:text-xl"
       : size === "sm"
         ? "text-sm font-semibold"
         : "text-base font-bold";
 
   return (
-    <div className={cn("flex items-center gap-3", className)}>
+    <div className={cn("flex min-w-0 items-center gap-2.5 sm:gap-3", className)}>
       <svg
-        width={px}
-        height={px}
         viewBox="0 0 64 64"
+        className={cn("shrink-0", svgSize)}
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
         aria-hidden
@@ -69,10 +69,10 @@ export function MunicipalLogo({
       </svg>
       {withWordmark ? (
         <div className="min-w-0 text-start">
-          <p className={cn("font-heading leading-snug", titleClass, inverted ? "text-navy" : "text-white")}>
+          <p className={cn("font-heading leading-snug text-balance", titleClass, inverted ? "text-navy" : "text-white")}>
             {T.login.logoTitle}
           </p>
-          <p className={cn("text-[11px] leading-relaxed", inverted ? "text-ink-soft" : "text-white/70")}>
+          <p className={cn("text-[11px] leading-relaxed text-pretty", inverted ? "text-ink-soft" : "text-white/70")}>
             {T.login.logoTagline}
           </p>
         </div>
