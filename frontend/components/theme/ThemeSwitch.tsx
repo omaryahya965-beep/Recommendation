@@ -21,7 +21,7 @@ export function ThemeSwitch({ className }: { className?: string }) {
 
   return (
     <div
-      className={cn("flex rounded-(--radius-btn) border border-line p-0.5", className)}
+      className={cn("flex shrink-0 rounded-(--radius-btn) border border-line p-0.5", className)}
       role="group"
       aria-label={T.nav.theme}
     >

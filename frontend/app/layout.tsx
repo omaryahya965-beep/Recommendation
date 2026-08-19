@@ -1,7 +1,12 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Mono, IBM_Plex_Sans_Arabic, Noto_Kufi_Arabic, Noto_Naskh_Arabic } from "next/font/google";
 import "./globals.css";
 import Providers from "./providers";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
 
 const kufi = Noto_Kufi_Arabic({
   subsets: ["arabic"],

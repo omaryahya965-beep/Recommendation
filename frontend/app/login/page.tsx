@@ -89,26 +89,26 @@ export default function LoginPage() {
   ] as const;
 
   return (
-    <main className="flex min-h-screen flex-col-reverse bg-surface lg:flex-row">
-      <section className="flex w-full flex-col justify-between lg:w-1/2 lg:border-s lg:border-line lg:min-h-screen">
-        <div className="mx-auto flex w-full max-w-[420px] flex-1 flex-col justify-center px-6 py-10 sm:px-10 lg:px-16 lg:py-14">
-          <div className="mb-10">
-            <div className="mb-8 flex items-start justify-between gap-3">
-              <MunicipalLogo inverted size="lg" withWordmark />
-              <div className="flex items-center gap-2">
+    <main className="flex min-h-dvh min-w-0 flex-col-reverse overflow-x-clip bg-surface lg:flex-row">
+      <section className="flex min-w-0 w-full flex-col justify-between lg:w-1/2 lg:border-s lg:border-line lg:min-h-dvh">
+        <div className="mx-auto flex w-full max-w-[420px] min-w-0 flex-1 flex-col justify-center px-4 py-8 sm:px-10 sm:py-10 lg:px-16 lg:py-14">
+          <div className="mb-8 sm:mb-10">
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-x-3 gap-y-3 sm:mb-8">
+              <MunicipalLogo inverted size="lg" withWordmark className="min-w-0 flex-1 basis-[12.5rem]" />
+              <div className="ms-auto flex shrink-0 items-center gap-2">
                 <ThemeSwitch />
                 <LocaleSwitch />
               </div>
             </div>
-            <h1 className="font-heading text-[1.75rem] font-bold leading-[1.55] text-navy lg:text-[2rem]">
+            <h1 className="font-heading text-2xl font-bold leading-[1.55] text-balance text-navy sm:text-[1.75rem] lg:text-[2rem]">
               {T.login.platformTitle}
               <br />
-              <span className="relative inline-block text-primary-dark">
+              <span className="relative inline-block max-w-full text-primary-dark">
                 {T.login.platformTitleAccent}
                 <span className="absolute -bottom-0.5 start-0 h-[3px] w-full rounded-full bg-primary" />
               </span>
             </h1>
-            <p className="mt-4 text-[15px] leading-7 text-ink-soft">{T.login.platformSubtitle}</p>
+            <p className="mt-4 text-[15px] leading-7 text-pretty text-ink-soft">{T.login.platformSubtitle}</p>
           </div>
 
           <form onSubmit={submit} className="space-y-6">
@@ -122,13 +122,13 @@ export default function LoginPage() {
                 placeholder={T.login.usernamePlaceholder}
                 autoComplete="username"
                 required
-                className="h-12 w-full rounded-(--radius-field) border border-line bg-subtle px-4 text-[15px] text-ink outline-none transition-all placeholder:text-muted focus:border-primary focus:bg-elevated focus:ring-2 focus:ring-primary/15"
+                className="h-12 min-w-0 w-full rounded-(--radius-field) border border-line bg-subtle px-4 text-[15px] text-ink outline-none transition-all placeholder:text-muted focus:border-primary focus:bg-elevated focus:ring-2 focus:ring-primary/15"
               />
             </label>
 
             <label className="block">
               <span className="mb-2 block text-sm font-medium text-ink">{T.login.password}</span>
-              <div className="relative">
+              <div className="relative min-w-0">
                 <input
                   type={showPassword ? "text" : "password"}
                   value={password}
@@ -136,7 +136,7 @@ export default function LoginPage() {
                   placeholder={T.login.passwordPlaceholder}
                   autoComplete="current-password"
                   required
-                  className="h-12 w-full rounded-(--radius-field) border border-line bg-subtle px-4 pe-12 text-[15px] text-ink outline-none transition-all placeholder:text-muted focus:border-primary focus:bg-elevated focus:ring-2 focus:ring-primary/15"
+                  className="h-12 min-w-0 w-full rounded-(--radius-field) border border-line bg-subtle px-4 pe-12 text-[15px] text-ink outline-none transition-all placeholder:text-muted focus:border-primary focus:bg-elevated focus:ring-2 focus:ring-primary/15"
                 />
                 <button
                   type="button"
@@ -149,17 +149,17 @@ export default function LoginPage() {
               </div>
             </label>
 
-            <div className="flex items-center justify-between gap-3 text-sm">
-              <label className="flex cursor-pointer items-center gap-2 text-ink-soft">
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 text-sm">
+              <label className="flex min-w-0 cursor-pointer items-center gap-2 text-ink-soft">
                 <input
                   type="checkbox"
                   checked={remember}
                   onChange={(e) => setRemember(e.target.checked)}
-                  className="size-4 accent-primary"
+                  className="size-4 shrink-0 accent-primary"
                 />
                 {T.login.rememberMe}
               </label>
-              <button type="button" className="text-primary-dark transition-colors hover:text-primary">
+              <button type="button" className="shrink-0 text-primary-dark transition-colors hover:text-primary">
                 {T.login.forgotPassword}
               </button>
             </div>
@@ -215,37 +215,39 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <p className="px-6 pb-6 text-center text-xs text-muted sm:px-10 lg:px-16">
+        <p className="px-4 pb-6 text-center text-xs text-pretty text-muted sm:px-10 lg:px-16">
           © {new Date().getFullYear()} {T.login.copyright}
         </p>
       </section>
 
-      <section className="relative min-h-[280px] overflow-hidden sm:min-h-[360px] lg:min-h-screen lg:w-1/2">
-        <Image
-          src="/images/city-hall.png"
-          alt={T.login.cityHallAlt}
-          fill
-          priority
-          sizes="(min-width: 1024px) 50vw, 100vw"
-          className="object-cover object-[center_35%]"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#183B4E]/92 via-[#183B4E]/35 to-[#183B4E]/5" />
+      <section className="relative min-w-0 w-full lg:min-h-dvh lg:w-1/2">
+        <div className="absolute inset-0 overflow-hidden">
+          <Image
+            src="/images/city-hall.png"
+            alt={T.login.cityHallAlt}
+            fill
+            priority
+            sizes="(min-width: 1024px) 50vw, 100vw"
+            className="object-cover object-[center_35%]"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#183B4E]/92 via-[#183B4E]/35 to-[#183B4E]/5" />
+        </div>
 
-        <div className="relative z-10 flex h-full min-h-[280px] flex-col justify-end px-6 py-8 text-white sm:min-h-[360px] sm:px-10 sm:py-10 lg:min-h-screen lg:px-14 lg:py-14">
-          <p className="mx-auto max-w-xl text-center font-heading text-lg font-bold leading-[1.8] text-white sm:text-xl lg:mx-0 lg:text-start lg:text-[1.65rem]">
+        <div className="relative z-10 flex min-h-[16rem] flex-col justify-end px-4 py-6 text-white sm:min-h-[22rem] sm:px-10 sm:py-10 lg:min-h-dvh lg:px-14 lg:py-14">
+          <p className="mx-auto max-w-xl text-center font-heading text-base font-bold leading-[1.8] text-balance text-white sm:text-xl lg:mx-0 lg:text-start lg:text-[1.65rem]">
             {T.login.heroSlogan}
           </p>
 
-          <div className="mx-auto mt-8 grid w-full max-w-2xl grid-cols-2 gap-3 sm:grid-cols-4 lg:mx-0 lg:max-w-none lg:gap-4">
+          <div className="mx-auto mt-6 grid w-full min-w-0 max-w-2xl grid-cols-2 gap-2 sm:mt-8 sm:grid-cols-4 sm:gap-3 lg:mx-0 lg:max-w-none lg:gap-4">
             {values.map(({ icon: Icon, label }) => (
               <div
                 key={label}
-                className="flex flex-col items-center gap-2.5 rounded-2xl border border-white/25 bg-white/12 px-3 py-4 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md"
+                className="flex min-w-0 flex-col items-center gap-2 rounded-2xl border border-white/25 bg-white/12 px-2 py-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md sm:gap-2.5 sm:px-3 sm:py-4"
               >
-                <span className="flex size-11 items-center justify-center rounded-xl bg-white/18 ring-1 ring-white/20">
-                  <Icon className="size-5 text-white" strokeWidth={1.85} />
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white/18 ring-1 ring-white/20 sm:size-11">
+                  <Icon className="size-4 text-white sm:size-5" strokeWidth={1.85} />
                 </span>
-                <span className="text-[12px] font-semibold leading-snug sm:text-[13px]">{label}</span>
+                <span className="max-w-full text-[12px] font-semibold leading-snug break-words sm:text-[13px]">{label}</span>
               </div>
             ))}
           </div>
