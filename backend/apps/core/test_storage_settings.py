@@ -1,11 +1,11 @@
 from django.test import SimpleTestCase
 
-from config.settings.storage import build_storages
+from config.settings.storage import build_storages, cloudinary_enabled
 
 
 class StorageConfigTests(SimpleTestCase):
-    def test_without_bucket_keeps_local_media_and_whitenoise_static(self):
-        storages = build_storages(bucket_name="")
+    def test_without_cloudinary_keeps_local_media_and_whitenoise_static(self):
+        storages = build_storages(use_cloudinary=False)
         self.assertEqual(
             storages["default"]["BACKEND"],
             "django.core.files.storage.FileSystemStorage",
@@ -15,18 +15,31 @@ class StorageConfigTests(SimpleTestCase):
             "whitenoise.storage.CompressedStaticFilesStorage",
         )
 
-    def test_bucket_name_switches_media_to_s3_compatible_backend(self):
-        storages = build_storages(
-            bucket_name="audit-media",
-            region_name="auto",
-            endpoint_url="https://example.r2.cloudflarestorage.com",
+    def test_cloudinary_switches_media_backend_and_keeps_whitenoise(self):
+        storages = build_storages(use_cloudinary=True)
+        self.assertEqual(
+            storages["default"]["BACKEND"],
+            "apps.core.cloudinary_storage.CloudinaryMediaStorage",
         )
-        self.assertEqual(storages["default"]["BACKEND"], "storages.backends.s3.S3Storage")
-        options = storages["default"]["OPTIONS"]
-        self.assertEqual(options["bucket_name"], "audit-media")
-        self.assertEqual(options["region_name"], "auto")
-        self.assertEqual(options["endpoint_url"], "https://example.r2.cloudflarestorage.com")
         self.assertEqual(
             storages["staticfiles"]["BACKEND"],
             "whitenoise.storage.CompressedStaticFilesStorage",
+        )
+
+    def test_cloudinary_url_enables_remote_media(self):
+        self.assertTrue(
+            cloudinary_enabled(cloudinary_url="cloudinary://key:secret@demo")
+        )
+        self.assertFalse(cloudinary_enabled(cloudinary_url=""))
+
+    def test_three_part_credentials_enable_remote_media(self):
+        self.assertTrue(
+            cloudinary_enabled(
+                cloud_name="demo",
+                api_key="key",
+                api_secret="secret",
+            )
+        )
+        self.assertFalse(
+            cloudinary_enabled(cloud_name="demo", api_key="key", api_secret="")
         )

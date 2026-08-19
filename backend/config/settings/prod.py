@@ -4,7 +4,7 @@ from django.core.exceptions import ImproperlyConfigured
 
 from .base import *  # noqa: F401,F403
 from .database import database_from_url
-from .storage import build_storages
+from .storage import build_storages, cloudinary_enabled
 
 if not os.environ.get("SECRET_KEY"):
     raise ImproperlyConfigured(
@@ -48,26 +48,32 @@ _security = _middleware.index("django.middleware.security.SecurityMiddleware")
 _middleware.insert(_security + 1, "whitenoise.middleware.WhiteNoiseMiddleware")
 MIDDLEWARE = _middleware
 
-# django-storages S3 env names (also used by R2 / Spaces / MinIO).
-# Fill these in on Vercel when you have a bucket; media will not persist
-# on the function filesystem without them.
-AWS_STORAGE_BUCKET_NAME = os.environ.get("AWS_STORAGE_BUCKET_NAME", "")
-AWS_S3_REGION_NAME = os.environ.get("AWS_S3_REGION_NAME", "") or None
-AWS_S3_ENDPOINT_URL = os.environ.get("AWS_S3_ENDPOINT_URL", "") or None
-AWS_S3_CUSTOM_DOMAIN = os.environ.get("AWS_S3_CUSTOM_DOMAIN", "") or None
-AWS_QUERYSTRING_AUTH = os.environ.get("AWS_QUERYSTRING_AUTH", "True") == "True"
-AWS_S3_FILE_OVERWRITE = False
-AWS_DEFAULT_ACL = None
-AWS_LOCATION = os.environ.get("AWS_LOCATION", "media")
+# Cloudinary media (official SDK). Prefer a single CLOUDINARY_URL; the
+# three-part CLOUDINARY_CLOUD_NAME / API_KEY / API_SECRET form also works.
+# Leave unset until you have an account; media will not persist on Vercel
+# function disk without them.
+CLOUDINARY_URL = os.environ.get("CLOUDINARY_URL", "")
+CLOUDINARY_CLOUD_NAME = os.environ.get("CLOUDINARY_CLOUD_NAME", "")
+CLOUDINARY_API_KEY = os.environ.get("CLOUDINARY_API_KEY", "")
+CLOUDINARY_API_SECRET = os.environ.get("CLOUDINARY_API_SECRET", "")
 
-STORAGES = build_storages(
-    bucket_name=AWS_STORAGE_BUCKET_NAME,
-    region_name=AWS_S3_REGION_NAME,
-    endpoint_url=AWS_S3_ENDPOINT_URL,
-    custom_domain=AWS_S3_CUSTOM_DOMAIN,
-    querystring_auth=AWS_QUERYSTRING_AUTH,
-    location=AWS_LOCATION,
+_use_cloudinary = cloudinary_enabled(
+    cloudinary_url=CLOUDINARY_URL,
+    cloud_name=CLOUDINARY_CLOUD_NAME,
+    api_key=CLOUDINARY_API_KEY,
+    api_secret=CLOUDINARY_API_SECRET,
 )
+if _use_cloudinary:
+    from apps.core.cloudinary_storage import configure_cloudinary
+
+    configure_cloudinary(
+        cloudinary_url=CLOUDINARY_URL,
+        cloud_name=CLOUDINARY_CLOUD_NAME,
+        api_key=CLOUDINARY_API_KEY,
+        api_secret=CLOUDINARY_API_SECRET,
+    )
+
+STORAGES = build_storages(use_cloudinary=_use_cloudinary)
 
 # Real frontend origin(s) come from the environment — never hardcoded.
 # Preview URLs on *.vercel.app are allowed by regex so they do not have to

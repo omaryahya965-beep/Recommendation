@@ -2,22 +2,30 @@
 
 Static files: WhiteNoise (and Vercel's CDN after collectstatic).
 Media files: local disk by default (does not persist on serverless). When
-AWS_STORAGE_BUCKET_NAME is set, switch to django-storages S3, which also
-speaks R2, Spaces, MinIO, and other S3-compatible APIs via AWS_S3_ENDPOINT_URL.
+Cloudinary credentials are set, switch to the official Cloudinary SDK
+storage. Dev settings never call this module's Cloudinary branch.
 
-No bucket is assumed. Leave the env vars unset until you have a provider.
+No cloud is assumed. Leave the env vars unset until you have an account.
 """
 
 
-def build_storages(
+def cloudinary_enabled(
     *,
-    bucket_name: str = "",
-    region_name: str | None = None,
-    endpoint_url: str | None = None,
-    custom_domain: str | None = None,
-    querystring_auth: bool = True,
-    location: str = "media",
-) -> dict:
+    cloudinary_url: str = "",
+    cloud_name: str = "",
+    api_key: str = "",
+    api_secret: str = "",
+) -> bool:
+    if (cloudinary_url or "").strip():
+        return True
+    return bool(
+        (cloud_name or "").strip()
+        and (api_key or "").strip()
+        and (api_secret or "").strip()
+    )
+
+
+def build_storages(*, use_cloudinary: bool = False) -> dict:
     storages = {
         "default": {
             "BACKEND": "django.core.files.storage.FileSystemStorage",
@@ -26,26 +34,9 @@ def build_storages(
             "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
         },
     }
-    name = (bucket_name or "").strip()
-    if not name:
+    if not use_cloudinary:
         return storages
-
-    options = {
-        "bucket_name": name,
-        "file_overwrite": False,
-        "default_acl": None,
-        "querystring_auth": querystring_auth,
-        "location": location,
-        "object_parameters": {"CacheControl": "public, max-age=86400"},
-    }
-    if region_name:
-        options["region_name"] = region_name
-    if endpoint_url:
-        options["endpoint_url"] = endpoint_url
-    if custom_domain:
-        options["custom_domain"] = custom_domain
     storages["default"] = {
-        "BACKEND": "storages.backends.s3.S3Storage",
-        "OPTIONS": options,
+        "BACKEND": "apps.core.cloudinary_storage.CloudinaryMediaStorage",
     }
     return storages
