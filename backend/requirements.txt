@@ -7,6 +7,8 @@ drf-spectacular>=0.28
 django-cors-headers>=4.5
 django-filter>=24.3
 python-dotenv>=1.0
+whitenoise>=6.9
+django-storages[s3]>=1.14
 
 # Optional: higher-quality multilingual embeddings for duplicate detection.
 # Without it, a deterministic pure-Python n-gram embedding fallback is used.

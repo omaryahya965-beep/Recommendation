@@ -58,3 +58,30 @@ Python version is pinned in `backend/.python-version` (3.13). Set
 hosts). When you attach a custom domain, add it to the `ALLOWED_HOSTS` env
 var, comma-separated, e.g. `.vercel.app,api.example.gov`. Do not change
 `settings/dev.py`.
+
+## Static and media files
+
+Vercel runs `collectstatic` automatically when `STATIC_ROOT` is set (it
+already is). Collected files are served from the Vercel CDN at `STATIC_URL`
+(`/static/`). WhiteNoise is installed so `vercel dev` and any WSGI host can
+serve the same assets.
+
+**Media** (evidence uploads, response attachments, generated follow-up
+files) cannot live on the Vercel function filesystem. Production is stubbed
+for S3-compatible storage via django-storages. It stays on local disk until
+you set `AWS_STORAGE_BUCKET_NAME` and credentials — pick a provider first
+(AWS S3, Cloudflare R2, DigitalOcean Spaces, MinIO, …). The `AWS_*` names
+are django-storages conventions, not an AWS-only requirement.
+
+Required once you have a bucket:
+
+| Env var | You provide |
+|---------|-------------|
+| `AWS_STORAGE_BUCKET_NAME` | Bucket name |
+| `AWS_ACCESS_KEY_ID` | Access key |
+| `AWS_SECRET_ACCESS_KEY` | Secret key |
+| `AWS_S3_REGION_NAME` | Region (also set this when using a custom endpoint) |
+| `AWS_S3_ENDPOINT_URL` | Optional. Custom API URL (R2, Spaces, MinIO). Leave unset for AWS S3 |
+| `AWS_S3_CUSTOM_DOMAIN` | Optional. Public/CDN host for object URLs |
+| `AWS_QUERYSTRING_AUTH` | Optional. Default `True` (signed URLs). Set `False` only for a public bucket |
+| `AWS_LOCATION` | Optional. Key prefix inside the bucket. Default `media` |
