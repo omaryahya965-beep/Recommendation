@@ -85,3 +85,18 @@ Required once you have a bucket:
 | `AWS_S3_CUSTOM_DOMAIN` | Optional. Public/CDN host for object URLs |
 | `AWS_QUERYSTRING_AUTH` | Optional. Default `True` (signed URLs). Set `False` only for a public bucket |
 | `AWS_LOCATION` | Optional. Key prefix inside the bucket. Default `media` |
+
+## Daily reminders on Vercel
+
+`python manage.py send_reminders` is unchanged for local/manual use.
+
+On Vercel, `backend/vercel.json` schedules a **GET** to
+`/api/internal/send-reminders/` at `0 4 * * *` (04:00 UTC daily, about 06:00
+or 07:00 in `Asia/Gaza` depending on DST). Vercel Cron always uses UTC.
+
+Set `CRON_SECRET` on the backend project to a random string of at least 16
+characters. Vercel sends it as `Authorization: Bearer <CRON_SECRET>`. The
+endpoint returns 401 if the secret is missing or wrong — it is never open.
+
+Hobby plans allow one run per day; this schedule matches that limit. The job
+is idempotent.

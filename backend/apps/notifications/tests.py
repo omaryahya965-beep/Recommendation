@@ -198,3 +198,40 @@ class ReminderRuleApiTest(TestCase):
         self.client.force_authenticate(self.users["head"])
         response = self.client.get("/api/reminder-rules/")
         self.assertEqual(response.status_code, 403)
+
+
+class SendRemindersCronApiTest(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    def test_rejects_missing_or_wrong_secret(self):
+        self.assertEqual(self.client.get("/api/internal/send-reminders/").status_code, 401)
+        with self.settings(CRON_SECRET="expected"):
+            response = self.client.get(
+                "/api/internal/send-reminders/",
+                HTTP_AUTHORIZATION="Bearer wrong",
+            )
+        self.assertEqual(response.status_code, 401)
+
+    def test_unset_secret_never_opens_the_endpoint(self):
+        with self.settings(CRON_SECRET=""):
+            response = self.client.get(
+                "/api/internal/send-reminders/",
+                HTTP_AUTHORIZATION="Bearer anything",
+            )
+        self.assertEqual(response.status_code, 401)
+
+    def test_authorized_get_runs_the_same_engine_as_the_management_command(self):
+        muni, _dept, users, report, rec = make_world()
+        ensure_default_rules(muni)
+        drive_to_in_progress(users, report, rec)
+        rec.action_plan.target_date = timezone.localdate() + datetime.timedelta(days=7)
+        rec.action_plan.save()
+        with self.settings(CRON_SECRET="expected"):
+            response = self.client.get(
+                "/api/internal/send-reminders/",
+                HTTP_AUTHORIZATION="Bearer expected",
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["ok"], True)
+        self.assertEqual(response.data["created"], 1)

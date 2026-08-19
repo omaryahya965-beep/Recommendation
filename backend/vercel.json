@@ -4,5 +4,11 @@
     "config/wsgi.py": {
       "maxDuration": 60
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/internal/send-reminders/",
+      "schedule": "0 4 * * *"
+    }
+  ]
 }

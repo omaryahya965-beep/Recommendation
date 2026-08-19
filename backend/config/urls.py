@@ -10,6 +10,7 @@ from apps.accounts.views import EmployeeListView, LoginView, MeView
 from apps.audits.views import AuditReportViewSet, PendingApprovalsView, RecommendationViewSet
 from apps.core.views import DashboardView
 from apps.followup.views import FollowUpReportViewSet
+from apps.notifications.cron import SendRemindersView
 from apps.notifications.views import NotificationViewSet, ReminderRuleViewSet
 from apps.organizations.views import DepartmentViewSet, WorkflowPolicyView
 
@@ -30,6 +31,7 @@ urlpatterns = [
     path("api/workflow-policy/", WorkflowPolicyView.as_view(), name="workflow-policy"),
     path("api/council/pending-approvals/", PendingApprovalsView.as_view(), name="pending-approvals"),
     path("api/dashboard/", DashboardView.as_view(), name="dashboard"),
+    path("api/internal/send-reminders/", SendRemindersView.as_view(), name="send-reminders"),
     path("api/ai/", include("apps.ai.api.urls")),
     path("api/", include(router.urls)),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
