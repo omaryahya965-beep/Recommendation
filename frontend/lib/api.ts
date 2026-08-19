@@ -3,7 +3,16 @@
 import { currentT } from "./i18n/messages";
 import type { User } from "./types";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
+function resolveApiBase(): string {
+  const fromEnv = process.env.NEXT_PUBLIC_API_URL?.trim().replace(/\/$/, "");
+  if (fromEnv) return fromEnv;
+  if (process.env.VERCEL) {
+    throw new Error("NEXT_PUBLIC_API_URL must be set on Vercel");
+  }
+  return "http://127.0.0.1:8000";
+}
+
+const API_BASE = resolveApiBase();
 
 const STORAGE_KEY = "audit_tracker_auth";
 

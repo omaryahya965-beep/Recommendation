@@ -191,9 +191,13 @@ AI_TEMPERATURE = float(os.environ.get("AI_TEMPERATURE", "0.2"))
 AI_TIMEOUT_SECONDS = int(os.environ.get("AI_TIMEOUT_SECONDS", "30"))
 AI_MAX_EXTRACT_CHARS = int(os.environ.get("AI_MAX_EXTRACT_CHARS", "20000"))
 
-CORS_ALLOWED_ORIGINS = os.environ.get(
-    "CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"
-).split(",")
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get(
+        "CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"
+    ).split(",")
+    if origin.strip()
+]
 
 # Shared with Vercel Cron (`Authorization: Bearer $CRON_SECRET`). Empty means
 # the HTTP endpoint refuses every request; the management command still works.

@@ -68,3 +68,21 @@ STORAGES = build_storages(
     querystring_auth=AWS_QUERYSTRING_AUTH,
     location=AWS_LOCATION,
 )
+
+# Real frontend origin(s) come from the environment — never hardcoded.
+# Preview URLs on *.vercel.app are allowed by regex so they do not have to
+# be listed one by one.
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",")
+    if origin.strip()
+]
+CORS_ALLOWED_ORIGIN_REGEXES = [r"^https://[\w.-]+\.vercel\.app$"]
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get(
+        "CSRF_TRUSTED_ORIGINS",
+        os.environ.get("CORS_ALLOWED_ORIGINS", ""),
+    ).split(",")
+    if origin.strip()
+]

@@ -106,3 +106,23 @@ describe("api client", () => {
     );
   });
 });
+
+describe("API base URL", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  it("uses NEXT_PUBLIC_API_URL when set", async () => {
+    vi.resetModules();
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "https://api.example.test");
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ ok: true })));
+    const { api, saveAuth } = await import("./api");
+    saveAuth(auth);
+    await api("/api/dashboard/");
+    expect(fetch).toHaveBeenCalledWith(
+      "https://api.example.test/api/dashboard/",
+      expect.anything()
+    );
+  });
+});

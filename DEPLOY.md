@@ -100,3 +100,20 @@ endpoint returns 401 if the secret is missing or wrong — it is never open.
 
 Hobby plans allow one run per day; this schedule matches that limit. The job
 is idempotent.
+
+## CORS and frontend API URL
+
+`CORS_ALLOWED_ORIGINS` is an environment variable (comma-separated, no
+trailing slashes). Do not hardcode the production frontend URL.
+
+Set it on the **backend** project to the real frontend origin once you have
+it, e.g. `https://app.example.gov` or `https://your-frontend.vercel.app`.
+Production also allows `https://*.vercel.app` via regex so preview
+deployments work without listing every URL.
+
+`CSRF_TRUSTED_ORIGINS` defaults to the same list as `CORS_ALLOWED_ORIGINS`.
+Override it separately only if you need a different set.
+
+On the **frontend** project, `NEXT_PUBLIC_API_URL` is read at build time.
+There is no production fallback to localhost on Vercel; the build fails if
+it is unset. Locally it still defaults to `http://127.0.0.1:8000`.
