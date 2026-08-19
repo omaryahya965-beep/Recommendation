@@ -30,6 +30,41 @@ SIGNATURE_RE = re.compile(
     re.I,
 )
 
+INJECTION_CONCERN_AR = (
+    "المستند يحتوي عبارات تشبه تعليمات للنظام؛ عُوملت كنص للمستند وليست تعليمات."
+)
+INJECTION_CONCERN_EN = (
+    "The document contains instruction-like language; it was treated as content, not as instructions."
+)
+
+
+def injection_concern_message(language: str) -> str:
+    return INJECTION_CONCERN_EN if language == "en" else INJECTION_CONCERN_AR
+
+
+def _is_injection_concern(text: str) -> bool:
+    value = text or ""
+    lower = value.lower()
+    return (
+        value in (INJECTION_CONCERN_AR, INJECTION_CONCERN_EN)
+        or "instruction-like language" in lower
+        or "تعليمات للنظام" in value
+    )
+
+
+def _union_injection_concerns(merged_concerns, local_concerns):
+    """LLM concerns may replace the local list; injection warnings must survive."""
+    out = [str(item)[:200] for item in merged_concerns]
+    seen = {item.casefold() for item in out}
+    for concern in local_concerns:
+        text = str(concern)[:200]
+        if not _is_injection_concern(text):
+            continue
+        if text.casefold() not in seen:
+            out.append(text)
+            seen.add(text.casefold())
+    return out
+
 
 def local_evidence_analysis(evidence, extraction: dict, language: str) -> dict:
     ar = language != "en"
@@ -109,11 +144,7 @@ def local_evidence_analysis(evidence, extraction: dict, language: str) -> dict:
 
     concerns = []
     if looks_like_instruction_injection(blob):
-        concerns.append(
-            "المستند يحتوي عبارات تشبه تعليمات للنظام؛ عُوملت كنص للمستند وليست تعليمات."
-            if ar
-            else "The document contains instruction-like language; it was treated as content, not as instructions."
-        )
+        concerns.append(injection_concern_message("en" if not ar else "ar"))
     if not extraction_ok:
         concerns.append(
             "تعذر استخراج النص — لا تستنتج محتوى غير ظاهر."
@@ -157,9 +188,15 @@ def _merge(local: dict, llm: dict) -> dict:
         # Never let the model invent document contents when extraction failed.
         merged["summary"] = local["summary"]
         merged["appears_to_support_step"] = False
-    for list_key in ("matched_requirements", "missing_information", "concerns", "dates_found", "entities"):
+    for list_key in ("matched_requirements", "missing_information", "dates_found", "entities"):
         if isinstance(llm.get(list_key), list) and local["extraction_ok"]:
             merged[list_key] = [str(x)[:200] for x in llm[list_key][:10]]
+    if isinstance(llm.get("concerns"), list) and local["extraction_ok"]:
+        merged["concerns"] = [str(x)[:200] for x in llm["concerns"][:10]]
+    merged["concerns"] = _union_injection_concerns(
+        merged.get("concerns") or [],
+        local.get("concerns") or [],
+    )
     if isinstance(llm.get("document_type"), str) and llm["document_type"].strip():
         merged["document_type"] = llm["document_type"][:40]
     if isinstance(llm.get("approval_or_signature_notes"), str) and local["extraction_ok"]:
