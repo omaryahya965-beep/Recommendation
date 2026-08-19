@@ -1,0 +1,19 @@
+Django>=5.1,<6
+djangorestframework>=3.15
+djangorestframework-simplejwt>=5.4
+dj-database-url>=2.2
+psycopg[binary]>=3.2
+drf-spectacular>=0.28
+django-cors-headers>=4.5
+django-filter>=24.3
+python-dotenv>=1.0
+
+# Optional: higher-quality multilingual embeddings for duplicate detection.
+# Without it, a deterministic pure-Python n-gram embedding fallback is used.
+# sentence-transformers>=3.0
+
+# Optional: PDF text extraction for evidence analysis. Without it, a conservative
+# stream-literal extractor is used, and scanned PDFs report that text could not
+# be extracted (never hallucinated).
+# pypdf>=5.0
+

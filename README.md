@@ -1,0 +1,90 @@
+# منظومة متابعة توصيات التدقيق الداخلي
+
+Web platform for tracking implementation of internal audit recommendations in
+local government units (municipalities). Arabic-first, fully RTL.
+
+## Stack
+
+- **Backend**: Django 5 + DRF + SimpleJWT + PostgreSQL. Same code runs on
+  local Postgres and Neon — only `DATABASE_URL` changes (`backend/.env`).
+- **Frontend**: Next.js (App Router, TypeScript) + Tailwind v4 + TanStack
+  Query. Design system documented in `frontend/DESIGN.md`.
+- **AI similarity**: pluggable embedding backend (pure-Python Arabic n-gram
+  hashing by default; `sentence-transformers` auto-used when installed) that
+  flags possibly-recurring recommendations for human confirmation.
+
+## Roles and flow (default policy)
+
+`audit` creates reports/recommendations → `department_head` submits the
+formal response (disagreement requires justification + attachment) → audit
+reviews (AUDIT_APPROVAL) → `council` ratifies (COUNCIL_RATIFICATION — the
+only event that sets the reminder anchor date) → department submits the
+action plan (after ratification by default; with the response only when the
+municipal policy requires it) → audit reviews the plan (revision loop) →
+`employee` executes steps and uploads evidence → audit verifies
+(sufficient/partial/insufficient with structured feedback). Closure happens
+**only** through audit verification. Every action lands in an append-only
+audit trail. "Overdue" is always computed from the plan target date, never
+stored.
+
+## Local development (Windows)
+
+A dedicated user-space PostgreSQL 17 instance runs on **port 5433**
+(data in `%LOCALAPPDATA%\audit_tracker_pg`, independent of any system
+Postgres service). Start it after a reboot with:
+
+```powershell
+powershell backend/scripts/start_db.ps1
+```
+
+### Backend
+
+```powershell
+cd backend
+venv\Scripts\python manage.py migrate
+venv\Scripts\python manage.py seed_demo   # demo users, password: Demo@12345
+venv\Scripts\python manage.py runserver 8000
+```
+
+Demo users: `audit1`, `head_finance`, `head_eng`, `emp_finance1`,
+`emp_finance2`, `emp_eng1`, `council1`.
+
+API docs: http://127.0.0.1:8000/api/docs/
+
+### Frontend
+
+```powershell
+cd frontend
+npm install
+npm run dev   # http://localhost:3000
+```
+
+### Reminders (idempotent — safe to run any number of times per day)
+
+```powershell
+cd backend
+venv\Scripts\python manage.py send_reminders
+```
+
+Schedule daily via Windows Task Scheduler / cron. Reminder offsets are fully
+configurable per municipality from the audit UI (Settings → إعدادات التذكير).
+
+### Tests
+
+```powershell
+cd backend
+venv\Scripts\python manage.py test apps          # unit + API tests
+venv\Scripts\python scripts\e2e_scenario.py      # live HTTP end-to-end (server must run)
+```
+
+## Deploying the database to Neon
+
+Set in `backend/.env` (or the platform env):
+
+```
+DATABASE_URL=postgres://<user>:<password>@<host>.neon.tech/audit_tracker?sslmode=require
+DB_SSL_REQUIRE=True
+```
+
+Run `manage.py migrate` against the direct (non-pooler) Neon connection
+string, then point the app at the pooled string. No code changes.
