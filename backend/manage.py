@@ -6,7 +6,13 @@ import sys
 
 def main():
     """Run administrative tasks."""
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.dev')
+    # Local CLI uses dev settings. Vercel sets VERCEL=1 and must use prod
+    # (wsgi.py also defaults to prod). An explicit DJANGO_SETTINGS_MODULE
+    # in the environment always wins.
+    default_settings = (
+        "config.settings.prod" if os.environ.get("VERCEL") else "config.settings.dev"
+    )
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", default_settings)
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:

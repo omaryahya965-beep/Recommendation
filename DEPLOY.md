@@ -39,3 +39,22 @@ $env:SECRET_KEY = "<production secret>"
 Production settings use `CONN_MAX_AGE=0` so a serverless invocation does not
 hold a pooled connection after it returns. Local `settings/dev.py` is
 unchanged and still uses persistent connections (`CONN_MAX_AGE=600`).
+
+## Vercel project layout
+
+Create **two** Vercel projects from this Git repo (do not deploy the repo
+root as a single project):
+
+| Project | Root Directory | Framework |
+|---------|----------------|-----------|
+| Backend API | `backend` | Django (auto-detected from `manage.py` + `WSGI_APPLICATION`) |
+| Frontend | `frontend` | Next.js |
+
+Python version is pinned in `backend/.python-version` (3.13). Set
+`DJANGO_SETTINGS_MODULE=config.settings.prod` on the backend project.
+`VERCEL=1` is set automatically and makes `manage.py` default to prod as well.
+
+`ALLOWED_HOSTS` in production defaults to `.vercel.app` (all `*.vercel.app`
+hosts). When you attach a custom domain, add it to the `ALLOWED_HOSTS` env
+var, comma-separated, e.g. `.vercel.app,api.example.gov`. Do not change
+`settings/dev.py`.

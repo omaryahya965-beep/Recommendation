@@ -14,6 +14,16 @@ SECRET_KEY = os.environ["SECRET_KEY"]
 
 DEBUG = False
 
+# Vercel preview/production hosts (``.vercel.app`` is Django's subdomain
+# wildcard). Add a custom domain via ALLOWED_HOSTS without removing the default.
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get(
+        "ALLOWED_HOSTS", ".vercel.app,localhost,127.0.0.1"
+    ).split(",")
+    if host.strip()
+]
+
 SECURE_SSL_REDIRECT = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
