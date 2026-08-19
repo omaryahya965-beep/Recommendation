@@ -48,7 +48,7 @@ Warning/danger **text** uses darker companions (`warning-dark` #8A5E10, `danger-
 
 **Primitives** (`components/ui/Base.tsx`): Card, Button, Field/TextInput/TextArea/Select, Callout, DataField, ProseBlock, ProgressBar, Tabs, ChoiceCards, ErrorBanner, ToggleSwitch. Badges: `StampBadge`/`StatusBadge`, `RiskBadge`, `OverdueBadge`. States: `EmptyState`, `TableSkeleton`, `DashboardSkeleton`, `CardSkeleton`.
 
-**Dashboards:** `CommandHeader`, `KpiRow`, `Portfolio`, `ActionCenter`, `QueueStrip`.
+**Dashboards:** `KpiRow`, `Portfolio`, `ActionCenter`, `QueueStrip`.
 
 **Register:** `RecommendationRegister` (filters, chips, CSV export, detailed/compact views), `RecommendationTable`, `Ledger`.
 
