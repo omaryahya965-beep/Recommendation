@@ -70,9 +70,11 @@
   --radius-card: 8px;
   --radius-dialog: 10px;
   --radius-container: 10px;
+  --radius-panel: 18px;
 
   --shadow-card: 0 1px 0 rgb(20 32 30 / 0.05);
   --shadow-float: 0 12px 28px rgb(20 32 30 / 0.12);
+  --shadow-panel: 0 8px 28px rgb(20 32 30 / 0.08);
 }
 
 [data-theme="dark"] {
@@ -130,6 +132,7 @@
   --color-paper: #1c252b;
   --shadow-card: 0 1px 0 rgb(255 255 255 / 0.03), 0 8px 20px rgb(0 0 0 / 0.28);
   --shadow-float: 0 16px 40px rgb(0 0 0 / 0.45);
+  --shadow-panel: 0 10px 32px rgb(0 0 0 / 0.38);
 }
 
 html {

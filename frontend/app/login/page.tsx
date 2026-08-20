@@ -1,15 +1,16 @@
 "use client";
 
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { ChevronDown, Eye, EyeOff, Loader2, Lock } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import { MunicipalLogo } from "@/components/brand/MunicipalLogo";
 import { LocaleSwitch } from "@/components/i18n/LocaleSwitch";
 import { ThemeSwitch } from "@/components/theme/ThemeSwitch";
 import { ErrorBanner } from "@/components/ui/Base";
 import { login, ROLE_HOME } from "@/lib/api";
+import { cn } from "@/lib/cn";
 import { ROLE_LABELS, T, useI18n } from "@/lib/i18n";
 import type { Role } from "@/lib/types";
 
@@ -17,7 +18,7 @@ const DEMO_PASSWORD = "Demo@12345";
 const REMEMBER_KEY = "audit_login_username";
 
 const FIELD_CLASS =
-  "h-11 min-w-0 w-full rounded-lg border border-line bg-elevated px-3 text-[15px] text-ink outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-muted focus:border-primary focus:ring-2 focus:ring-primary/20";
+  "h-12 min-w-0 w-full rounded-(--radius-field) border border-line bg-elevated px-3.5 text-[15px] text-ink outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-muted focus:border-primary focus:ring-2 focus:ring-primary/25";
 
 const DEMO_ACCOUNTS: Array<{
   username: string;
@@ -30,16 +31,29 @@ const DEMO_ACCOUNTS: Array<{
   { username: "council1", role: "council", noteKey: "demoCouncil" },
 ];
 
+function fieldClass(invalid: boolean) {
+  return cn(
+    FIELD_CLASS,
+    invalid && "border-danger focus:border-danger focus:ring-danger/20"
+  );
+}
+
 export default function LoginPage() {
-  useI18n();
+  const { dir } = useI18n();
   const router = useRouter();
-  const errorId = useId();
+  const formErrorId = useId();
+  const usernameErrorId = useId();
+  const passwordErrorId = useId();
+  const usernameRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
   const [showDemo, setShowDemo] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [usernameError, setUsernameError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [activeDemo, setActiveDemo] = useState<string | null>(null);
 
@@ -58,6 +72,8 @@ export default function LoginPage() {
     if (busy) return;
     setBusy(true);
     setError(null);
+    setUsernameError(null);
+    setPasswordError(null);
     try {
       const auth = await login(user, pass);
       if (remember) localStorage.setItem(REMEMBER_KEY, user);
@@ -67,11 +83,21 @@ export default function LoginPage() {
       setError(T.login.error);
       setBusy(false);
       setActiveDemo(null);
+      usernameRef.current?.focus();
     }
   };
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
+    const nextUserError = username.trim() ? null : T.login.errorUsername;
+    const nextPassError = password ? null : T.login.errorPassword;
+    setUsernameError(nextUserError);
+    setPasswordError(nextPassError);
+    setError(null);
+    if (nextUserError || nextPassError) {
+      (nextUserError ? usernameRef : passwordRef).current?.focus();
+      return;
+    }
     await signIn(username, password);
   };
 
@@ -82,176 +108,260 @@ export default function LoginPage() {
     await signIn(account.username, DEMO_PASSWORD);
   };
 
+  const credentialsInvalid = Boolean(error);
+  const passwordToggleLabel = showPassword ? T.login.hidePassword : T.login.showPassword;
+
   return (
-    <main className="relative min-h-dvh min-w-0 overflow-x-clip bg-sidebar">
-      <Image
-        src="/images/city-hall.png"
-        alt=""
-        fill
-        priority
-        sizes="100vw"
-        className="object-cover object-[center_30%]"
-      />
-      <div className="absolute inset-0 bg-sidebar/30" aria-hidden />
-      <div className="absolute inset-0 bg-primary/15" aria-hidden />
-
-      <div className="relative z-10 mx-auto flex min-h-dvh min-w-0 max-w-7xl flex-col justify-start px-4 pb-16 pt-[16vh] sm:px-8 lg:flex-row lg:items-center lg:justify-between lg:gap-16 lg:px-12 lg:py-12 lg:pt-12">
-        <section
-          aria-labelledby="login-heading"
-          className="min-w-0 w-full rounded-[6px] border border-line bg-surface p-6 shadow-[0_28px_64px_-8px_rgb(8_28_34_/_0.55)] sm:p-8 lg:max-w-[26.5rem] lg:shrink-0 [border-inline-start-width:4px] [border-inline-start-color:var(--color-primary)]"
-        >
-          <h1 id="login-heading" className="font-heading text-2xl font-bold leading-none tracking-normal text-navy">
-            {T.login.title}
-          </h1>
-
-          <form onSubmit={submit} className="mt-6 space-y-4" aria-busy={busy} aria-describedby={error ? errorId : undefined}>
-            <div id={errorId}>
-              <ErrorBanner message={error} />
-            </div>
-
-            <label className="block">
-              <span className="mb-1.5 block text-sm font-medium text-ink">
-                {T.login.username}
-                <span className="ms-0.5 text-danger" aria-hidden>
-                  *
-                </span>
-              </span>
-              <input
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder={T.login.usernamePlaceholder}
-                autoComplete="username"
-                required
-                aria-invalid={Boolean(error)}
-                className={FIELD_CLASS}
-              />
-            </label>
-
-            <div>
-              <label className="block">
-                <span className="mb-1.5 block text-sm font-medium text-ink">
-                  {T.login.password}
-                  <span className="ms-0.5 text-danger" aria-hidden>
-                    *
-                  </span>
-                </span>
-                <div className="relative min-w-0">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder={T.login.passwordPlaceholder}
-                    autoComplete="current-password"
-                    required
-                    aria-invalid={Boolean(error)}
-                    className={`${FIELD_CLASS} pe-11`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((v) => !v)}
-                    className="absolute inset-y-0 end-0.5 flex min-h-11 min-w-11 items-center justify-center text-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                    aria-label={showPassword ? T.login.hidePassword : T.login.showPassword}
-                    aria-pressed={showPassword}
-                  >
-                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                  </button>
-                </div>
-              </label>
-              <button
-                type="button"
-                className="mt-2 text-sm font-medium text-primary-dark underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-              >
-                {T.login.forgotPassword}
-              </button>
-            </div>
-
-            <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm text-ink">
-              <input
-                type="checkbox"
-                checked={remember}
-                onChange={(e) => setRemember(e.target.checked)}
-                className="size-4 shrink-0 accent-primary"
-              />
-              {T.login.rememberMe}
-            </label>
-
-            <button
-              type="submit"
-              disabled={busy}
-              className="mt-1 flex h-12 w-full items-center justify-center gap-2 rounded-[6px] bg-primary font-heading text-base font-bold text-white shadow-[inset_0_-2px_0_rgb(0_0_0_/_0.18)] transition-colors duration-150 hover:bg-primary-dark active:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
-              {T.login.submit}
-            </button>
-          </form>
-
-          <div className="mt-6 border-t border-line pt-5">
-            <button
-              type="button"
-              onClick={() => setShowDemo((v) => !v)}
-              className="w-full rounded-lg border border-line bg-subtle py-2.5 text-sm font-medium text-navy transition-colors hover:bg-primary-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-            >
-              {T.login.demoToggle}
-            </button>
-            {showDemo ? (
-              <div className="mt-3 space-y-2">
-                <p className="text-xs text-ink-soft">
-                  {T.login.demoHelp}{" "}
-                  <span className="font-mono" dir="ltr">
-                    {DEMO_PASSWORD}
-                  </span>
-                </p>
-                <ul className="grid gap-2">
-                  {DEMO_ACCOUNTS.map((account) => (
-                    <li key={account.username}>
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => pickDemo(account)}
-                        className="w-full rounded-lg border border-line bg-elevated px-3 py-2 text-start text-xs transition-colors hover:border-primary/40 disabled:opacity-50"
-                      >
-                        <span className="block font-heading text-[13px] font-semibold text-navy">
-                          {ROLE_LABELS[account.role]}
-                        </span>
-                        <span className="mt-0.5 block text-[11px] text-ink-soft">{T.login[account.noteKey]}</span>
-                        <span className="mt-1 block font-mono text-[10px] text-muted" dir="ltr">
-                          {busy && activeDemo === account.username ? "…" : account.username}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-          </div>
-
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-            <ThemeSwitch />
-            <LocaleSwitch />
-          </div>
-        </section>
-
-        <div className="relative order-first mb-8 min-w-0 text-white lg:order-none lg:mb-0 lg:max-w-xl lg:ps-2">
+    <main className="min-h-dvh min-w-0 overflow-x-clip bg-surface">
+      <div
+        className="flex min-h-dvh min-w-0 flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(26.25rem,32rem)] xl:grid-cols-[minmax(0,1fr)_34rem]"
+        dir="ltr"
+      >
+        <aside className="relative isolate h-44 shrink-0 overflow-hidden sm:h-52 lg:h-auto lg:min-h-dvh">
+          <Image
+            src="/images/city-hall.png"
+            alt={T.login.cityHallAlt}
+            fill
+            priority
+            sizes="(min-width: 1024px) 62vw, 100vw"
+            className="object-cover object-[center_28%]"
+          />
           <div
             aria-hidden
-            className="pointer-events-none absolute -inset-x-5 -inset-y-8 rounded-sm bg-[linear-gradient(to_top,var(--color-sidebar)_12%,color-mix(in_srgb,var(--color-sidebar)_82%,transparent)_48%,transparent_100%)] sm:-inset-x-8 sm:-inset-y-10 lg:-inset-x-12 lg:-inset-y-14 lg:bg-[linear-gradient(to_inline_start,var(--color-sidebar)_8%,color-mix(in_srgb,var(--color-sidebar)_88%,transparent)_42%,transparent_100%)]"
+            className="absolute inset-0 bg-[linear-gradient(180deg,rgb(22_53_68/0.22)_0%,rgb(22_53_68/0.38)_45%,rgb(22_53_68/0.78)_100%)]"
           />
-          <div className="relative z-10">
-            <MunicipalLogo size="md" withWordmark />
-            <h2 className="mt-6 font-heading text-[2rem] font-bold leading-[1.22] tracking-[0] text-balance text-white sm:text-5xl lg:text-[4rem] lg:leading-[1.15]">
-              {T.login.logoTitle}
-              <span className="mt-1 block">{T.login.platformTitleAccent}</span>
-            </h2>
-            <p className="mt-5 max-w-md text-[15px] font-normal leading-[1.85] text-pretty text-white/88 sm:text-lg">
-              {T.login.heroSlogan}
-            </p>
-          </div>
-        </div>
-      </div>
+          <div aria-hidden className="absolute inset-0 bg-primary/12" />
 
-      <p className="pointer-events-none absolute inset-x-4 bottom-4 z-10 text-center text-[11px] text-white/80 sm:inset-x-8 sm:text-start lg:px-12">
-        © {new Date().getFullYear()} {T.login.copyright}
-      </p>
+          <div
+            dir={dir}
+            className="relative z-10 hidden h-full flex-col justify-end p-10 text-white lg:flex xl:p-14"
+          >
+            <div className="max-w-md">
+              <MunicipalLogo size="md" />
+              <p className="mt-6 text-sm font-medium text-white/90">{T.login.logoTitle}</p>
+              <p className="mt-2 text-xl font-semibold leading-snug text-white">{T.login.productName}</p>
+              <div className="mt-8 h-0.5 w-12 bg-primary" aria-hidden />
+              <p className="mt-8 text-[2.25rem] font-bold leading-[1.28] text-balance lg:text-[2.5rem] xl:text-[2.75rem]">
+                {T.login.heroStatement}
+              </p>
+              <p className="mt-4 max-w-sm text-base font-normal leading-7 text-pretty text-white/86">
+                {T.login.heroSupporting}
+              </p>
+              <p className="mt-10 text-[13px] font-medium text-white/78">{T.login.heroKicker}</p>
+            </div>
+          </div>
+        </aside>
+
+        <section
+          dir={dir}
+          className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto bg-surface lg:min-h-dvh lg:bg-subtle"
+        >
+          <div className="flex flex-1 flex-col justify-start px-5 py-8 sm:px-8 lg:justify-center lg:px-8 lg:py-10">
+            <div className="mx-auto w-full max-w-[28rem] lg:rounded-(--radius-panel) lg:border lg:border-line lg:bg-surface lg:px-10 lg:py-10 lg:shadow-(--shadow-panel) xl:px-12 xl:py-12">
+            <div
+              className="mb-8 flex items-center justify-end gap-1 self-end rounded-[10px] border border-line bg-elevated p-1"
+              role="toolbar"
+              aria-label={T.nav.appearance}
+            >
+              <LocaleSwitch className="border-0 p-0 [&_button]:min-h-10 [&_button]:px-2.5" />
+              <ThemeSwitch className="border-0 p-0 [&_button]:min-h-10 [&_button]:min-w-10" />
+            </div>
+
+            <div className="lg:hidden">
+              <MunicipalLogo size="md" inverted />
+              <p className="mt-4 text-sm font-medium text-ink-soft">{T.login.logoTitle}</p>
+              <p className="mt-1 text-lg font-semibold text-navy">{T.login.productName}</p>
+            </div>
+
+            <div className="hidden lg:block">
+              <MunicipalLogo size="sm" inverted />
+            </div>
+
+            <header className="mt-8">
+              <h1
+                id="login-heading"
+                className="font-body text-[1.375rem] font-semibold leading-tight tracking-normal text-navy"
+              >
+                {T.login.title}
+              </h1>
+              <p className="mt-3 text-[15px] font-medium leading-6 text-ink">{T.login.welcomeLead}</p>
+              <p className="mt-2 text-sm font-normal leading-6 text-ink-soft">{T.login.welcomeHint}</p>
+            </header>
+
+            <form
+              onSubmit={submit}
+              className="mt-8"
+              aria-labelledby="login-heading"
+              aria-busy={busy}
+              aria-describedby={error ? formErrorId : undefined}
+              noValidate
+            >
+              <div id={formErrorId}>
+                <ErrorBanner message={error} />
+              </div>
+
+              <div className={cn("flex flex-col gap-6", error && "mt-6")}>
+                <div>
+                  <label htmlFor="login-username" className="flex items-baseline justify-between gap-3">
+                    <span className="text-sm font-semibold text-ink">{T.login.username}</span>
+                    <span className="text-[11px] font-medium text-muted" aria-hidden>
+                      {T.login.requiredHint}
+                    </span>
+                  </label>
+                  <input
+                    id="login-username"
+                    ref={usernameRef}
+                    value={username}
+                    onChange={(e) => {
+                      setUsername(e.target.value);
+                      if (usernameError) setUsernameError(null);
+                      if (error) setError(null);
+                    }}
+                    placeholder={T.login.usernamePlaceholder}
+                    autoComplete="username"
+                    aria-required={true}
+                    aria-invalid={Boolean(usernameError) || credentialsInvalid}
+                    aria-describedby={usernameError ? usernameErrorId : undefined}
+                    className={cn("mt-2", fieldClass(Boolean(usernameError) || credentialsInvalid))}
+                  />
+                  {usernameError ? (
+                    <p id={usernameErrorId} className="mt-2 text-sm text-danger-dark" role="alert">
+                      {usernameError}
+                    </p>
+                  ) : null}
+                </div>
+
+                <div>
+                  <label htmlFor="login-password" className="flex items-baseline justify-between gap-3">
+                    <span className="text-sm font-semibold text-ink">{T.login.password}</span>
+                    <span className="text-[11px] font-medium text-muted" aria-hidden>
+                      {T.login.requiredHint}
+                    </span>
+                  </label>
+                  <div className="relative mt-2 min-w-0">
+                    <input
+                      id="login-password"
+                      ref={passwordRef}
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (passwordError) setPasswordError(null);
+                        if (error) setError(null);
+                      }}
+                      placeholder={T.login.passwordPlaceholder}
+                      autoComplete="current-password"
+                      aria-required={true}
+                      aria-invalid={Boolean(passwordError) || credentialsInvalid}
+                      aria-describedby={passwordError ? passwordErrorId : undefined}
+                      className={cn("pe-12", fieldClass(Boolean(passwordError) || credentialsInvalid))}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      title={passwordToggleLabel}
+                      aria-label={passwordToggleLabel}
+                      aria-pressed={showPassword}
+                      className="absolute inset-y-0 end-0 flex min-h-12 min-w-12 items-center justify-center text-muted transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary"
+                    >
+                      {showPassword ? <EyeOff className="size-4" aria-hidden /> : <Eye className="size-4" aria-hidden />}
+                    </button>
+                  </div>
+                  {passwordError ? (
+                    <p id={passwordErrorId} className="mt-2 text-sm text-danger-dark" role="alert">
+                      {passwordError}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="mt-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                <label className="flex min-h-12 cursor-pointer items-center gap-3 text-sm text-ink">
+                  <input
+                    type="checkbox"
+                    checked={remember}
+                    onChange={(e) => setRemember(e.target.checked)}
+                    className="size-4 shrink-0 accent-primary"
+                  />
+                  {T.login.rememberMe}
+                </label>
+                <button
+                  type="button"
+                  className="min-h-12 self-start text-sm font-medium text-ink-soft underline-offset-2 hover:text-primary-dark hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:self-auto"
+                >
+                  {T.login.forgotPassword}
+                </button>
+              </div>
+
+              <button
+                type="submit"
+                disabled={busy}
+                className="mt-8 flex h-12 w-full items-center justify-center gap-2 rounded-(--radius-btn) bg-primary text-base font-semibold text-white transition-colors duration-150 hover:bg-primary-dark active:bg-primary-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none"
+              >
+                {busy ? (
+                  <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden />
+                ) : null}
+                {T.login.submit}
+              </button>
+            </form>
+
+            <div className="mt-6">
+              <button
+                type="button"
+                onClick={() => setShowDemo((v) => !v)}
+                aria-expanded={showDemo}
+                className="inline-flex min-h-11 items-center gap-1 text-sm font-medium text-ink-soft transition-colors hover:text-navy focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              >
+                {showDemo ? T.login.demoHide : T.login.demoToggle}
+                <ChevronDown
+                  className={cn("size-4 transition-transform duration-150 motion-reduce:transition-none", showDemo && "rotate-180")}
+                  aria-hidden
+                />
+              </button>
+              {showDemo ? (
+                <div className="mt-3 space-y-2">
+                  <p className="text-xs text-ink-soft">
+                    {T.login.demoHelp}{" "}
+                    <span className="font-mono" dir="ltr">
+                      {DEMO_PASSWORD}
+                    </span>
+                  </p>
+                  <ul className="grid gap-2">
+                    {DEMO_ACCOUNTS.map((account) => (
+                      <li key={account.username}>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => pickDemo(account)}
+                          className="w-full rounded-(--radius-field) border border-line bg-elevated px-3 py-2.5 text-start text-xs transition-colors hover:border-primary/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50"
+                        >
+                          <span className="block text-[13px] font-semibold text-navy">
+                            {ROLE_LABELS[account.role]}
+                          </span>
+                          <span className="mt-0.5 block text-[11px] text-ink-soft">{T.login[account.noteKey]}</span>
+                          <span className="mt-1 block font-mono text-[10px] text-muted" dir="ltr">
+                            {busy && activeDemo === account.username ? "…" : account.username}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+
+            <p className="mt-8 flex items-center gap-2 text-[12px] leading-5 text-muted">
+              <Lock className="size-3.5 shrink-0" aria-hidden />
+              {T.login.secure}
+            </p>
+            </div>
+          </div>
+
+          <p className="px-5 pb-6 text-center text-[11px] text-muted lg:px-8">
+            © {new Date().getFullYear()} {T.login.copyright}
+          </p>
+        </section>
+      </div>
     </main>
   );
 }
