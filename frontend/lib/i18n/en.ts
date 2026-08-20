@@ -205,6 +205,8 @@ export const T = {
       "A municipal platform for following up recommendations and corrective actions with confidence and clarity.",
     heroSlogan: "Together toward transparent and effective municipal administration",
     heroStatement: "Toward more transparent and effective internal audit",
+    heroLine1: "Toward more transparent",
+    heroLine2: "and effective internal audit",
     heroSupporting:
       "A digital platform to manage and follow up Internal Audit recommendations at Ramallah Municipality.",
     secure: "Secure access for authorized staff",
