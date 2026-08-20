@@ -21,7 +21,10 @@ export function ThemeSwitch({ className }: { className?: string }) {
 
   return (
     <div
-      className={cn("flex shrink-0 rounded-(--radius-btn) border border-line p-0.5", className)}
+      className={cn(
+        "inline-flex min-h-10 shrink-0 rounded-(--radius-btn) border border-line bg-elevated p-0.5",
+        className
+      )}
       role="group"
       aria-label={T.nav.theme}
     >
@@ -36,11 +39,12 @@ export function ThemeSwitch({ className }: { className?: string }) {
             title={label(option.id)}
             aria-pressed={active}
             className={cn(
-              "rounded-[6px] p-1.5 transition-colors",
+              "flex size-9 items-center justify-center rounded-[6px] transition-colors duration-150",
+              "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
               active ? "bg-primary text-white" : "text-ink-soft hover:bg-subtle hover:text-ink"
             )}
           >
-            <Icon className="size-3.5" />
+            <Icon className="size-3.5" aria-hidden />
             <span className="sr-only">{label(option.id)}</span>
           </button>
         );
