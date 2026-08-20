@@ -1,0 +1,76 @@
+.login-shell {
+  --login-navy: #062b3d;
+  --login-deep: #07354a;
+  --login-accent: #08b8b0;
+  --login-btn: #087f78;
+  --login-btn-hover: #066860;
+  --login-bg: #f7f9fa;
+  --login-card: #ffffff;
+  --login-text: #102f40;
+  --login-muted: #647784;
+  --login-border: #d9e1e5;
+  --login-field: #f3f6f8;
+  --login-shadow: 0 12px 40px rgb(16 47 64 / 0.08);
+}
+
+.login-shell,
+.login-shell h1,
+.login-shell h2,
+.login-shell h3,
+.login-shell button,
+.login-shell input,
+.login-shell label {
+  font-family: var(--font-plex), "IBM Plex Sans Arabic", sans-serif;
+  letter-spacing: 0;
+}
+
+.login-shell h1,
+.login-shell h2,
+.login-shell h3 {
+  color: inherit;
+}
+
+.login-bg {
+  background: var(--login-bg);
+}
+
+.login-card {
+  background: var(--login-card);
+  border: 1px solid var(--login-border);
+  box-shadow: var(--login-shadow);
+}
+
+.login-field {
+  background: #ffffff;
+  border: 1px solid var(--login-border);
+  color: var(--login-text);
+  font-size: 16px;
+}
+
+.login-field::placeholder {
+  color: #8a9aa3;
+}
+
+.login-field:focus {
+  border-color: var(--login-accent);
+  box-shadow: 0 0 0 3px rgb(8 184 176 / 0.18);
+  outline: none;
+}
+
+[data-theme="dark"] .login-shell {
+  --login-bg: #0c1a22;
+  --login-card: #14242d;
+  --login-text: #e7eef2;
+  --login-muted: #8aa0ab;
+  --login-border: #2a3e48;
+  --login-field: #1a2c35;
+  --login-shadow: 0 12px 40px rgb(0 0 0 / 0.35);
+}
+
+[data-theme="dark"] .login-field {
+  background: var(--login-field);
+}
+
+[data-theme="dark"] .login-field::placeholder {
+  color: #7d9099;
+}

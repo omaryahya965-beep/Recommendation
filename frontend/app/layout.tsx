@@ -6,6 +6,8 @@ import Providers from "./providers";
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#F7F9FA",
 };
 
 const kufi = Noto_Kufi_Arabic({

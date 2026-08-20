@@ -1,24 +1,22 @@
 "use client";
 
-import { ChevronDown, Eye, EyeOff, Loader2, Lock } from "lucide-react";
-import Image from "next/image";
+import { ChevronDown, ChevronLeft, ChevronRight, Eye, EyeOff, Loader2, Lock, LogIn, UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 
-import { MunicipalLogo } from "@/components/brand/MunicipalLogo";
-import { LocaleSwitch } from "@/components/i18n/LocaleSwitch";
-import { ThemeSwitch } from "@/components/theme/ThemeSwitch";
+import { LoginHero } from "@/components/login/LoginHero";
+import { LoginToolbar } from "@/components/login/LoginToolbar";
+import { RamallahMark } from "@/components/login/RamallahMark";
 import { ErrorBanner } from "@/components/ui/Base";
 import { login, ROLE_HOME } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { ROLE_LABELS, T, useI18n } from "@/lib/i18n";
 import type { Role } from "@/lib/types";
 
+import "./login.css";
+
 const DEMO_PASSWORD = "Demo@12345";
 const REMEMBER_KEY = "audit_login_username";
-
-const FIELD_CLASS =
-  "h-12 min-w-0 w-full rounded-(--radius-field) border border-line bg-elevated px-3.5 text-[15px] text-ink outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-muted focus:border-primary focus:ring-2 focus:ring-primary/25";
 
 const DEMO_ACCOUNTS: Array<{
   username: string;
@@ -33,33 +31,8 @@ const DEMO_ACCOUNTS: Array<{
 
 function fieldClass(invalid: boolean) {
   return cn(
-    FIELD_CLASS,
-    invalid && "border-danger focus:border-danger focus:ring-danger/20"
-  );
-}
-
-function LoginIdentity({ inverted = false }: { inverted?: boolean }) {
-  useI18n();
-  return (
-    <div className="flex flex-col items-center text-center">
-      <MunicipalLogo size="md" inverted={inverted} />
-      <p
-        className={cn(
-          "mt-4 text-sm font-medium tracking-normal",
-          inverted ? "text-ink-soft" : "text-white/90"
-        )}
-      >
-        {T.login.logoTitle}
-      </p>
-      <p
-        className={cn(
-          "mt-1.5 text-lg font-semibold leading-snug",
-          inverted ? "text-navy" : "text-white"
-        )}
-      >
-        {T.login.productName}
-      </p>
-    </div>
+    "login-field h-12 min-w-0 w-full rounded-[10px] px-3.5 text-base outline-none transition-[border-color,box-shadow] duration-150",
+    invalid && "border-[#C94B4B] focus:border-[#C94B4B] focus:shadow-[0_0_0_3px_rgb(201_75_75/0.18)]"
   );
 }
 
@@ -137,88 +110,39 @@ export default function LoginPage() {
   const passwordToggleLabel = showPassword ? T.login.hidePassword : T.login.showPassword;
 
   return (
-    <main className="min-h-dvh min-w-0 overflow-x-clip bg-subtle">
-      <div
-        className="flex min-h-dvh min-w-0 flex-col lg:grid lg:grid-cols-[minmax(0,1.2fr)_minmax(30rem,42rem)]"
-        dir="ltr"
-      >
-        <aside className="relative isolate h-40 shrink-0 overflow-hidden sm:h-48 lg:h-auto lg:min-h-dvh">
-          <Image
-            src="/images/city-hall.png"
-            alt={T.login.cityHallAlt}
-            fill
-            priority
-            sizes="(min-width: 1024px) 58vw, 100vw"
-            className="object-cover object-[center_28%]"
-          />
-          <div
-            aria-hidden
-            className="absolute inset-0 bg-[linear-gradient(180deg,rgb(22_53_68/0.28)_0%,rgb(22_53_68/0.42)_40%,rgb(22_53_68/0.58)_100%)]"
-          />
-          <div aria-hidden className="absolute inset-0 bg-primary/10" />
-
-          <div dir={dir} className="relative z-10 hidden h-full items-center p-12 lg:flex xl:p-16">
-            <div className="relative max-w-md">
-              <div
-                aria-hidden
-                className="pointer-events-none absolute -inset-x-10 -inset-y-12 bg-[linear-gradient(to_top,rgb(22_53_68/0.88)_8%,rgb(22_53_68/0.62)_52%,transparent_100%)]"
-              />
-              <div className="relative" aria-label={T.login.heroStatement}>
-                <p className="text-[2.15rem] font-bold leading-[1.55] text-white lg:text-[2.5rem] xl:text-[2.65rem]">
-                  <span className="block">{T.login.heroLine1}</span>
-                  <span className="mt-1 block">{T.login.heroLine2}</span>
-                </p>
-                <p className="mt-8 max-w-sm text-[1.05rem] font-normal leading-9 text-pretty text-white/90">
-                  {T.login.heroSupporting}
-                </p>
-              </div>
-            </div>
-          </div>
-        </aside>
+    <main className="login-shell min-h-dvh min-w-0 overflow-x-clip bg-[#F7F9FA]">
+      <div className="flex min-h-dvh min-w-0 flex-col lg:flex-row" dir="ltr">
+        <div className="relative min-w-0 lg:w-1/2 lg:shrink-0 lg:min-h-dvh">
+          <LoginHero />
+        </div>
 
         <section
           dir={dir}
-          className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto bg-subtle lg:min-h-dvh"
+          className="login-bg relative z-10 flex min-h-0 min-w-0 flex-1 flex-col lg:min-h-dvh lg:w-1/2"
         >
-          <div className="flex justify-end px-5 pt-5 sm:px-8 lg:px-14 lg:pt-8">
-            <div
-              className="flex items-center justify-end gap-1 rounded-[10px] border border-line bg-surface p-1"
-              role="toolbar"
-              aria-label={T.nav.appearance}
-            >
-              <LocaleSwitch className="border-0 p-0 [&_button]:min-h-10 [&_button]:px-2.5" />
-              <ThemeSwitch className="border-0 p-0 [&_button]:min-h-10 [&_button]:min-w-10" />
-            </div>
+          <div className="hidden justify-start px-6 pt-2 sm:px-8 lg:flex lg:px-10 lg:pt-2">
+            <LoginToolbar />
           </div>
 
-          <div className="flex flex-1 flex-col items-center justify-start px-5 py-8 sm:px-8 lg:justify-center lg:px-14 lg:py-10 xl:px-16">
-            <div className="w-full max-w-[26.5rem]">
-              <LoginIdentity inverted />
+          <div className="flex flex-1 flex-col items-center justify-start px-4 pb-5 pt-5 sm:px-8 lg:px-12 lg:pt-0">
+            <div className="flex w-full max-w-[28rem] flex-col items-center text-[var(--login-text)]">
+              <RamallahMark size="md" layout="stacked" className="hidden lg:flex" />
+              <h1
+                id="login-heading"
+                className="text-[1.5rem] font-bold leading-tight text-[var(--login-text)] lg:mt-2 lg:text-[1.75rem]"
+              >
+                {T.login.title}
+              </h1>
+              <p className="mt-2 text-center text-[0.95rem] font-medium text-[var(--login-text)]">
+                {T.login.platformSubtitle}
+              </p>
+              <p className="mt-1.5 max-w-[26rem] text-center text-[13px] leading-6 text-[var(--login-muted)]">
+                {T.login.welcomeHint}
+              </p>
 
-              <div className="mt-6 space-y-3 text-center lg:hidden">
-                <p className="text-[1.35rem] font-bold leading-[1.5] text-navy">
-                  <span className="block">{T.login.heroLine1}</span>
-                  <span className="block">{T.login.heroLine2}</span>
-                </p>
-                <p className="text-sm leading-7 text-ink-soft">{T.login.heroSupporting}</p>
-              </div>
-
-              <div className="relative mt-8 overflow-hidden rounded-2xl border border-line bg-surface px-6 py-8 shadow-(--shadow-panel) sm:px-8 sm:py-9">
-                <div className="absolute inset-x-0 top-0 h-[3px] bg-primary" aria-hidden />
-
-                <header>
-                  <h1
-                    id="login-heading"
-                    className="font-body text-[1.375rem] font-semibold leading-tight tracking-normal text-navy"
-                  >
-                    {T.login.title}
-                  </h1>
-                  <p className="mt-2 text-sm font-normal leading-6 text-ink-soft">{T.login.welcomeHint}</p>
-                </header>
-
+              <div className="login-card mt-4 w-full rounded-[16px] px-4 py-6 sm:px-8 sm:py-8 lg:mt-3">
                 <form
                   onSubmit={submit}
-                  className="mt-8"
                   aria-labelledby="login-heading"
                   aria-busy={busy}
                   aria-describedby={error ? formErrorId : undefined}
@@ -228,45 +152,57 @@ export default function LoginPage() {
                     <ErrorBanner message={error} />
                   </div>
 
-                  <div className={cn("flex flex-col gap-6", error && "mt-6")}>
+                  <div className={cn("flex flex-col gap-5", error && "mt-5")}>
                     <div>
-                      <label htmlFor="login-username" className="flex items-baseline justify-between gap-3">
-                        <span className="text-sm font-semibold text-ink">{T.login.username}</span>
-                        <span className="text-[11px] font-medium text-muted" aria-hidden>
-                          {T.login.requiredHint}
-                        </span>
+                      <label
+                        htmlFor="login-username"
+                        className="text-[13px] font-semibold text-[var(--login-text)]"
+                      >
+                        {T.login.username}
                       </label>
-                      <input
-                        id="login-username"
-                        ref={usernameRef}
-                        value={username}
-                        onChange={(e) => {
-                          setUsername(e.target.value);
-                          if (usernameError) setUsernameError(null);
-                          if (error) setError(null);
-                        }}
-                        placeholder={T.login.usernamePlaceholder}
-                        autoComplete="username"
-                        aria-required={true}
-                        aria-invalid={Boolean(usernameError) || credentialsInvalid}
-                        aria-describedby={usernameError ? usernameErrorId : undefined}
-                        className={cn("mt-2", fieldClass(Boolean(usernameError) || credentialsInvalid))}
-                      />
+                      <div className="relative mt-2 min-w-0">
+                        <UserRound
+                          className="pointer-events-none absolute start-3.5 top-1/2 size-[18px] -translate-y-1/2 text-[#8A9AA3]"
+                          strokeWidth={1.6}
+                          aria-hidden
+                        />
+                        <input
+                          id="login-username"
+                          ref={usernameRef}
+                          value={username}
+                          onChange={(e) => {
+                            setUsername(e.target.value);
+                            if (usernameError) setUsernameError(null);
+                            if (error) setError(null);
+                          }}
+                          placeholder={T.login.usernamePlaceholder}
+                          autoComplete="username"
+                          aria-required={true}
+                          aria-invalid={Boolean(usernameError) || credentialsInvalid}
+                          aria-describedby={usernameError ? usernameErrorId : undefined}
+                          className={cn("ps-11", fieldClass(Boolean(usernameError) || credentialsInvalid))}
+                        />
+                      </div>
                       {usernameError ? (
-                        <p id={usernameErrorId} className="mt-2 text-sm text-danger-dark" role="alert">
+                        <p id={usernameErrorId} className="mt-2 text-sm text-[#9A3535]" role="alert">
                           {usernameError}
                         </p>
                       ) : null}
                     </div>
 
                     <div>
-                      <label htmlFor="login-password" className="flex items-baseline justify-between gap-3">
-                        <span className="text-sm font-semibold text-ink">{T.login.password}</span>
-                        <span className="text-[11px] font-medium text-muted" aria-hidden>
-                          {T.login.requiredHint}
-                        </span>
+                      <label
+                        htmlFor="login-password"
+                        className="text-[13px] font-semibold text-[var(--login-text)]"
+                      >
+                        {T.login.password}
                       </label>
                       <div className="relative mt-2 min-w-0">
+                        <Lock
+                          className="pointer-events-none absolute start-3.5 top-1/2 size-[18px] -translate-y-1/2 text-[#8A9AA3]"
+                          strokeWidth={1.6}
+                          aria-hidden
+                        />
                         <input
                           id="login-password"
                           ref={passwordRef}
@@ -282,7 +218,10 @@ export default function LoginPage() {
                           aria-required={true}
                           aria-invalid={Boolean(passwordError) || credentialsInvalid}
                           aria-describedby={passwordError ? passwordErrorId : undefined}
-                          className={cn("pe-12", fieldClass(Boolean(passwordError) || credentialsInvalid))}
+                          className={cn(
+                            "ps-11 pe-12",
+                            fieldClass(Boolean(passwordError) || credentialsInvalid)
+                          )}
                         />
                         <button
                           type="button"
@@ -290,61 +229,74 @@ export default function LoginPage() {
                           title={passwordToggleLabel}
                           aria-label={passwordToggleLabel}
                           aria-pressed={showPassword}
-                          className="absolute inset-y-0 end-0 flex min-h-12 min-w-12 items-center justify-center text-muted transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary"
+                          className="absolute inset-y-0 end-0 flex min-h-12 min-w-12 items-center justify-center text-[#8A9AA3] transition-colors hover:text-[var(--login-text)] focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#08B8B0]"
                         >
                           {showPassword ? (
-                            <EyeOff className="size-4" aria-hidden />
+                            <EyeOff className="size-[18px]" strokeWidth={1.6} aria-hidden />
                           ) : (
-                            <Eye className="size-4" aria-hidden />
+                            <Eye className="size-[18px]" strokeWidth={1.6} aria-hidden />
                           )}
                         </button>
                       </div>
                       {passwordError ? (
-                        <p id={passwordErrorId} className="mt-2 text-sm text-danger-dark" role="alert">
+                        <p id={passwordErrorId} className="mt-2 text-sm text-[#9A3535]" role="alert">
                           {passwordError}
                         </p>
                       ) : null}
                     </div>
                   </div>
 
-                  <div className="mt-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                    <label className="flex min-h-12 cursor-pointer items-center gap-3 text-sm text-ink">
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                    <label className="flex min-h-10 cursor-pointer items-center gap-2.5 text-[13px] text-[var(--login-text)]">
                       <input
                         type="checkbox"
                         checked={remember}
                         onChange={(e) => setRemember(e.target.checked)}
-                        className="size-4 shrink-0 accent-primary"
+                        className="size-4 shrink-0 accent-[#087F78]"
                       />
                       {T.login.rememberMe}
                     </label>
                     <button
                       type="button"
-                      className="min-h-12 self-start text-sm font-medium text-ink-soft underline-offset-2 hover:text-primary-dark hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:self-auto"
+                      className="inline-flex min-h-10 items-center gap-1 text-[13px] font-medium text-[#08B8B0] transition-colors hover:text-[#087F78] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#08B8B0]"
                     >
                       {T.login.forgotPassword}
+                      {dir === "rtl" ? (
+                        <ChevronLeft className="size-3.5" strokeWidth={2} aria-hidden />
+                      ) : (
+                        <ChevronRight className="size-3.5" strokeWidth={2} aria-hidden />
+                      )}
                     </button>
                   </div>
 
                   <button
                     type="submit"
                     disabled={busy}
-                    className="mt-8 flex h-12 w-full items-center justify-center gap-2 rounded-(--radius-btn) bg-primary text-base font-semibold text-white transition-colors duration-150 hover:bg-primary-dark active:bg-primary-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none"
+                    className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-[10px] bg-[#0D7377] text-base font-semibold text-white transition-colors duration-150 hover:bg-[#08666a] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#08B8B0] disabled:cursor-not-allowed disabled:opacity-50"
                   >
+                    {T.login.submit}
                     {busy ? (
                       <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden />
-                    ) : null}
-                    {T.login.submit}
+                    ) : (
+                      <LogIn className="size-4" strokeWidth={1.8} aria-hidden />
+                    )}
                   </button>
                 </form>
 
-                <div className="mt-6">
+                <div className="mt-6 flex items-center gap-3">
+                  <span className="h-px flex-1 bg-[var(--login-border)]" />
+                  <span className="text-[13px] text-[var(--login-muted)]">{T.login.orDivider}</span>
+                  <span className="h-px flex-1 bg-[var(--login-border)]" />
+                </div>
+
+                <div className="mt-5">
                   <button
                     type="button"
                     onClick={() => setShowDemo((v) => !v)}
                     aria-expanded={showDemo}
-                    className="inline-flex min-h-11 items-center gap-1 text-sm font-medium text-ink-soft transition-colors hover:text-navy focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                    className="flex h-12 w-full items-center justify-center gap-2 rounded-[10px] border border-[var(--login-border)] bg-[var(--login-card)] text-[14px] font-medium text-[var(--login-text)] transition-colors hover:bg-[var(--login-field)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#08B8B0]"
                   >
-                    {showDemo ? T.login.demoHide : T.login.demoToggle}
+                    {T.login.demoToggle}
                     <ChevronDown
                       className={cn(
                         "size-4 transition-transform duration-150 motion-reduce:transition-none",
@@ -354,40 +306,29 @@ export default function LoginPage() {
                     />
                   </button>
                   {showDemo ? (
-                    <div className="mt-3 space-y-2">
-                      <p className="text-xs text-ink-soft">
-                        {T.login.demoHelp}{" "}
-                        <span className="font-mono" dir="ltr">
-                          {DEMO_PASSWORD}
-                        </span>
-                      </p>
-                      <ul className="grid gap-2">
-                        {DEMO_ACCOUNTS.map((account) => (
-                          <li key={account.username}>
-                            <button
-                              type="button"
-                              disabled={busy}
-                              onClick={() => pickDemo(account)}
-                              className="w-full rounded-(--radius-field) border border-line bg-elevated px-3 py-2.5 text-start text-xs transition-colors hover:border-primary/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50"
-                            >
-                              <span className="block text-[13px] font-semibold text-navy">
-                                {ROLE_LABELS[account.role]}
-                              </span>
-                              <span className="mt-0.5 block text-[11px] text-ink-soft">
-                                {T.login[account.noteKey]}
-                              </span>
-                              <span className="mt-1 block font-mono text-[10px] text-muted" dir="ltr">
-                                {busy && activeDemo === account.username ? "…" : account.username}
-                              </span>
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                    <ul className="mt-3 grid grid-cols-2 gap-2 lg:flex lg:flex-wrap lg:items-stretch lg:justify-center">
+                      {DEMO_ACCOUNTS.map((account) => (
+                        <li key={account.username} className="min-w-0 lg:flex-1 lg:basis-[6.5rem]">
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => pickDemo(account)}
+                            className="flex h-full min-h-16 w-full flex-col items-center justify-center rounded-[10px] border border-[var(--login-border)] bg-[var(--login-card)] px-2 py-2.5 text-center transition-colors hover:border-[#08B8B0]/50 hover:bg-[var(--login-field)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#08B8B0] disabled:opacity-50"
+                          >
+                            <span className="text-[12px] font-semibold leading-5 text-[var(--login-text)]">
+                              {ROLE_LABELS[account.role]}
+                            </span>
+                            <span className="mt-0.5 font-mono text-[10px] text-[var(--login-muted)]" dir="ltr">
+                              {busy && activeDemo === account.username ? "…" : account.username}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
                   ) : null}
                 </div>
 
-                <p className="mt-8 flex items-center gap-2 text-[12px] leading-5 text-muted">
+                <p className="mt-6 flex items-center justify-center gap-2 text-center text-[12px] leading-5 text-[var(--login-muted)]">
                   <Lock className="size-3.5 shrink-0" aria-hidden />
                   {T.login.secure}
                 </p>
@@ -395,8 +336,12 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <p className="px-5 pb-6 text-center text-[11px] text-muted lg:px-14">
-            © {new Date().getFullYear()} {T.login.copyright}
+          <p className="px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-center text-[11px] leading-5 text-[var(--login-muted)] lg:px-10 lg:pb-5">
+            © 2024 {T.login.footerOwner}
+            <span className="mx-1.5">|</span>
+            {T.login.footerPlatform}
+            <span className="mx-1.5">|</span>
+            {T.login.versionLabel}
           </p>
         </section>
       </div>
