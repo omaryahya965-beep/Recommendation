@@ -1,17 +1,9 @@
 "use client";
 
-import {
-  Award,
-  Eye,
-  EyeOff,
-  Handshake,
-  LogIn,
-  ShieldCheck,
-  Users,
-} from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 
 import { MunicipalLogo } from "@/components/brand/MunicipalLogo";
 import { LocaleSwitch } from "@/components/i18n/LocaleSwitch";
@@ -24,7 +16,14 @@ import type { Role } from "@/lib/types";
 const DEMO_PASSWORD = "Demo@12345";
 const REMEMBER_KEY = "audit_login_username";
 
-const DEMO_ACCOUNTS: Array<{ username: string; role: Role; noteKey: "demoAudit" | "demoHead" | "demoEmployee" | "demoCouncil" }> = [
+const FIELD_CLASS =
+  "h-11 min-w-0 w-full rounded-lg border border-line bg-elevated px-3 text-[15px] text-ink outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-muted focus:border-primary focus:ring-2 focus:ring-primary/20";
+
+const DEMO_ACCOUNTS: Array<{
+  username: string;
+  role: Role;
+  noteKey: "demoAudit" | "demoHead" | "demoEmployee" | "demoCouncil";
+}> = [
   { username: "audit1", role: "audit", noteKey: "demoAudit" },
   { username: "head_finance", role: "department_head", noteKey: "demoHead" },
   { username: "emp_finance1", role: "employee", noteKey: "demoEmployee" },
@@ -34,6 +33,7 @@ const DEMO_ACCOUNTS: Array<{ username: string; role: Role; noteKey: "demoAudit" 
 export default function LoginPage() {
   useI18n();
   const router = useRouter();
+  const errorId = useId();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -55,6 +55,7 @@ export default function LoginPage() {
   }, []);
 
   const signIn = async (user: string, pass: string) => {
+    if (busy) return;
     setBusy(true);
     setError(null);
     try {
@@ -81,104 +82,114 @@ export default function LoginPage() {
     await signIn(account.username, DEMO_PASSWORD);
   };
 
-  const values = [
-    { icon: Award, label: T.login.values.professionalism },
-    { icon: ShieldCheck, label: T.login.values.transparency },
-    { icon: Users, label: T.login.values.participation },
-    { icon: Handshake, label: T.login.values.credibility },
-  ] as const;
-
   return (
-    <main className="flex min-h-dvh min-w-0 flex-col-reverse overflow-x-clip bg-surface lg:flex-row">
-      <section className="flex min-w-0 w-full flex-col justify-between lg:w-1/2 lg:border-s lg:border-line lg:min-h-dvh">
-        <div className="mx-auto flex w-full max-w-[420px] min-w-0 flex-1 flex-col justify-center px-4 py-8 sm:px-10 sm:py-10 lg:px-16 lg:py-14">
-          <div className="mb-8 sm:mb-10">
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-x-3 gap-y-3 sm:mb-8">
-              <MunicipalLogo inverted size="lg" withWordmark className="min-w-0 flex-1 basis-[12.5rem]" />
-              <div className="ms-auto flex shrink-0 items-center gap-2">
-                <ThemeSwitch />
-                <LocaleSwitch />
-              </div>
-            </div>
-            <h1 className="font-heading text-2xl font-bold leading-[1.55] text-balance text-navy sm:text-[1.75rem] lg:text-[2rem]">
-              {T.login.platformTitle}
-              <br />
-              <span className="relative inline-block max-w-full text-primary-dark">
-                {T.login.platformTitleAccent}
-                <span className="absolute -bottom-0.5 start-0 h-[3px] w-full rounded-full bg-primary" />
-              </span>
-            </h1>
-            <p className="mt-4 text-[15px] leading-7 text-pretty text-ink-soft">{T.login.platformSubtitle}</p>
-          </div>
+    <main className="relative min-h-dvh min-w-0 overflow-x-clip bg-sidebar">
+      <Image
+        src="/images/city-hall.png"
+        alt=""
+        fill
+        priority
+        sizes="100vw"
+        className="object-cover object-[center_30%]"
+      />
+      <div className="absolute inset-0 bg-sidebar/30" aria-hidden />
+      <div className="absolute inset-0 bg-primary/15" aria-hidden />
 
-          <form onSubmit={submit} className="space-y-6">
-            <ErrorBanner message={error} />
+      <div className="relative z-10 mx-auto flex min-h-dvh min-w-0 max-w-7xl flex-col justify-start px-4 pb-16 pt-[16vh] sm:px-8 lg:flex-row lg:items-center lg:justify-between lg:gap-16 lg:px-12 lg:py-12 lg:pt-12">
+        <section
+          aria-labelledby="login-heading"
+          className="min-w-0 w-full rounded-[6px] border border-line bg-surface p-6 shadow-[0_28px_64px_-8px_rgb(8_28_34_/_0.55)] sm:p-8 lg:max-w-[26.5rem] lg:shrink-0 [border-inline-start-width:4px] [border-inline-start-color:var(--color-primary)]"
+        >
+          <h1 id="login-heading" className="font-heading text-2xl font-bold leading-none tracking-normal text-navy">
+            {T.login.title}
+          </h1>
+
+          <form onSubmit={submit} className="mt-6 space-y-4" aria-busy={busy} aria-describedby={error ? errorId : undefined}>
+            <div id={errorId}>
+              <ErrorBanner message={error} />
+            </div>
 
             <label className="block">
-              <span className="mb-2 block text-sm font-medium text-ink">{T.login.username}</span>
+              <span className="mb-1.5 block text-sm font-medium text-ink">
+                {T.login.username}
+                <span className="ms-0.5 text-danger" aria-hidden>
+                  *
+                </span>
+              </span>
               <input
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder={T.login.usernamePlaceholder}
                 autoComplete="username"
                 required
-                className="h-12 min-w-0 w-full rounded-(--radius-field) border border-line bg-subtle px-4 text-[15px] text-ink outline-none transition-all placeholder:text-muted focus:border-primary focus:bg-elevated focus:ring-2 focus:ring-primary/15"
+                aria-invalid={Boolean(error)}
+                className={FIELD_CLASS}
               />
             </label>
 
-            <label className="block">
-              <span className="mb-2 block text-sm font-medium text-ink">{T.login.password}</span>
-              <div className="relative min-w-0">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder={T.login.passwordPlaceholder}
-                  autoComplete="current-password"
-                  required
-                  className="h-12 min-w-0 w-full rounded-(--radius-field) border border-line bg-subtle px-4 pe-12 text-[15px] text-ink outline-none transition-all placeholder:text-muted focus:border-primary focus:bg-elevated focus:ring-2 focus:ring-primary/15"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="absolute inset-y-0 end-3 flex items-center text-muted hover:text-ink"
-                  aria-label={showPassword ? T.login.hidePassword : T.login.showPassword}
-                >
-                  {showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
-                </button>
-              </div>
-            </label>
-
-            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 text-sm">
-              <label className="flex min-w-0 cursor-pointer items-center gap-2 text-ink-soft">
-                <input
-                  type="checkbox"
-                  checked={remember}
-                  onChange={(e) => setRemember(e.target.checked)}
-                  className="size-4 shrink-0 accent-primary"
-                />
-                {T.login.rememberMe}
+            <div>
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium text-ink">
+                  {T.login.password}
+                  <span className="ms-0.5 text-danger" aria-hidden>
+                    *
+                  </span>
+                </span>
+                <div className="relative min-w-0">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder={T.login.passwordPlaceholder}
+                    autoComplete="current-password"
+                    required
+                    aria-invalid={Boolean(error)}
+                    className={`${FIELD_CLASS} pe-11`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute inset-y-0 end-0.5 flex min-h-11 min-w-11 items-center justify-center text-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                    aria-label={showPassword ? T.login.hidePassword : T.login.showPassword}
+                    aria-pressed={showPassword}
+                  >
+                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
+                </div>
               </label>
-              <button type="button" className="shrink-0 text-primary-dark transition-colors hover:text-primary">
+              <button
+                type="button"
+                className="mt-2 text-sm font-medium text-primary-dark underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              >
                 {T.login.forgotPassword}
               </button>
             </div>
 
+            <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm text-ink">
+              <input
+                type="checkbox"
+                checked={remember}
+                onChange={(e) => setRemember(e.target.checked)}
+                className="size-4 shrink-0 accent-primary"
+              />
+              {T.login.rememberMe}
+            </label>
+
             <button
               type="submit"
               disabled={busy}
-              className="flex h-[52px] w-full items-center justify-center gap-2.5 rounded-(--radius-field) bg-primary font-heading text-[15px] font-semibold text-white shadow-[0_8px_24px_-8px_rgba(23,107,99,0.55)] transition-all hover:bg-primary-dark hover:shadow-[0_10px_28px_-8px_rgba(23,107,99,0.65)] disabled:opacity-50"
+              className="mt-1 flex h-12 w-full items-center justify-center gap-2 rounded-[6px] bg-primary font-heading text-base font-bold text-white shadow-[inset_0_-2px_0_rgb(0_0_0_/_0.18)] transition-colors duration-150 hover:bg-primary-dark active:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50"
             >
+              {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
               {T.login.submit}
-              <LogIn className="size-5" strokeWidth={2.25} />
             </button>
           </form>
 
-          <div className="mt-8 rounded-(--radius-card) border border-dashed border-line bg-subtle/30 px-4 py-3">
+          <div className="mt-6 border-t border-line pt-5">
             <button
               type="button"
               onClick={() => setShowDemo((v) => !v)}
-              className="text-sm font-medium text-primary-dark hover:underline"
+              className="w-full rounded-lg border border-line bg-subtle py-2.5 text-sm font-medium text-navy transition-colors hover:bg-primary-light focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
               {T.login.demoToggle}
             </button>
@@ -190,14 +201,14 @@ export default function LoginPage() {
                     {DEMO_PASSWORD}
                   </span>
                 </p>
-                <ul className="grid gap-2 sm:grid-cols-2">
+                <ul className="grid gap-2">
                   {DEMO_ACCOUNTS.map((account) => (
                     <li key={account.username}>
                       <button
                         type="button"
                         disabled={busy}
                         onClick={() => pickDemo(account)}
-                        className="w-full rounded-(--radius-field) border border-line bg-subtle px-3 py-2 text-start text-xs transition-colors hover:border-primary/40 hover:bg-primary-light disabled:opacity-50"
+                        className="w-full rounded-lg border border-line bg-elevated px-3 py-2 text-start text-xs transition-colors hover:border-primary/40 disabled:opacity-50"
                       >
                         <span className="block font-heading text-[13px] font-semibold text-navy">
                           {ROLE_LABELS[account.role]}
@@ -213,46 +224,34 @@ export default function LoginPage() {
               </div>
             ) : null}
           </div>
-        </div>
 
-        <p className="px-4 pb-6 text-center text-xs text-pretty text-muted sm:px-10 lg:px-16">
-          © {new Date().getFullYear()} {T.login.copyright}
-        </p>
-      </section>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+            <ThemeSwitch />
+            <LocaleSwitch />
+          </div>
+        </section>
 
-      <section className="relative min-w-0 w-full lg:min-h-dvh lg:w-1/2">
-        <div className="absolute inset-0 overflow-hidden">
-          <Image
-            src="/images/city-hall.png"
-            alt={T.login.cityHallAlt}
-            fill
-            priority
-            sizes="(min-width: 1024px) 50vw, 100vw"
-            className="object-cover object-[center_35%]"
+        <div className="relative order-first mb-8 min-w-0 text-white lg:order-none lg:mb-0 lg:max-w-xl lg:ps-2">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -inset-x-5 -inset-y-8 rounded-sm bg-[linear-gradient(to_top,var(--color-sidebar)_12%,color-mix(in_srgb,var(--color-sidebar)_82%,transparent)_48%,transparent_100%)] sm:-inset-x-8 sm:-inset-y-10 lg:-inset-x-12 lg:-inset-y-14 lg:bg-[linear-gradient(to_inline_start,var(--color-sidebar)_8%,color-mix(in_srgb,var(--color-sidebar)_88%,transparent)_42%,transparent_100%)]"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#183B4E]/92 via-[#183B4E]/35 to-[#183B4E]/5" />
-        </div>
-
-        <div className="relative z-10 flex min-h-[16rem] flex-col justify-end px-4 py-6 text-white sm:min-h-[22rem] sm:px-10 sm:py-10 lg:min-h-dvh lg:px-14 lg:py-14">
-          <p className="mx-auto max-w-xl text-center font-heading text-base font-bold leading-[1.8] text-balance text-white sm:text-xl lg:mx-0 lg:text-start lg:text-[1.65rem]">
-            {T.login.heroSlogan}
-          </p>
-
-          <div className="mx-auto mt-6 grid w-full min-w-0 max-w-2xl grid-cols-2 gap-2 sm:mt-8 sm:grid-cols-4 sm:gap-3 lg:mx-0 lg:max-w-none lg:gap-4">
-            {values.map(({ icon: Icon, label }) => (
-              <div
-                key={label}
-                className="flex min-w-0 flex-col items-center gap-2 rounded-2xl border border-white/25 bg-white/12 px-2 py-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md sm:gap-2.5 sm:px-3 sm:py-4"
-              >
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white/18 ring-1 ring-white/20 sm:size-11">
-                  <Icon className="size-4 text-white sm:size-5" strokeWidth={1.85} />
-                </span>
-                <span className="max-w-full text-[12px] font-semibold leading-snug break-words sm:text-[13px]">{label}</span>
-              </div>
-            ))}
+          <div className="relative z-10">
+            <MunicipalLogo size="md" withWordmark />
+            <h2 className="mt-6 font-heading text-[2rem] font-bold leading-[1.22] tracking-[0] text-balance text-white sm:text-5xl lg:text-[4rem] lg:leading-[1.15]">
+              {T.login.logoTitle}
+              <span className="mt-1 block">{T.login.platformTitleAccent}</span>
+            </h2>
+            <p className="mt-5 max-w-md text-[15px] font-normal leading-[1.85] text-pretty text-white/88 sm:text-lg">
+              {T.login.heroSlogan}
+            </p>
           </div>
         </div>
-      </section>
+      </div>
+
+      <p className="pointer-events-none absolute inset-x-4 bottom-4 z-10 text-center text-[11px] text-white/80 sm:inset-x-8 sm:text-start lg:px-12">
+        © {new Date().getFullYear()} {T.login.copyright}
+      </p>
     </main>
   );
 }
