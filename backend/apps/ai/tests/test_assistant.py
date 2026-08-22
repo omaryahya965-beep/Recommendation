@@ -1,4 +1,6 @@
-from django.test import TestCase
+from unittest.mock import patch
+
+from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
 from apps.accounts.models import User
@@ -7,6 +9,7 @@ from apps.organizations.models import Department, Municipality, WorkflowPolicy
 from apps.workflow.tests import make_world
 
 
+@override_settings(AI_PROVIDER="local", AI_API_KEY="")
 class AssistantRBACTests(TestCase):
     def setUp(self):
         self.muni, self.dept, self.users, self.report, self.rec = make_world()
@@ -139,3 +142,68 @@ class AssistantRBACTests(TestCase):
         self.assertEqual(cleared.status_code, 200)
         second = self.client.post("/api/ai/assistant/", {"message": "Show recurring findings", "language": "en"})
         self.assertNotEqual(first.data["conversation_id"], second.data["conversation_id"])
+
+    def test_unrelated_input_does_not_repeat_portfolio_snapshot(self):
+        self.client.force_authenticate(self.users["audit"])
+        first = self.client.post("/api/ai/assistant/", {"message": "lkajsdasd", "language": "ar"})
+        second = self.client.post(
+            "/api/ai/assistant/",
+            {"message": "zzzzqqq", "language": "ar", "conversation_id": first.data["conversation_id"]},
+        )
+        self.assertEqual(first.status_code, 200)
+        self.assertNotIn("ضمن صلاحياتك حالياً", first.data["answer"])
+        self.assertNotIn("ضمن صلاحياتك حالياً", second.data["answer"])
+        self.assertIn("lkajsdasd", first.data["answer"])
+        self.assertIn("zzzzqqq", second.data["answer"])
+        self.assertNotEqual(first.data["answer"], second.data["answer"])
+
+    def test_chip_questions_return_distinct_answers(self):
+        self.client.force_authenticate(self.users["audit"])
+        overdue = self.client.post(
+            "/api/ai/assistant/", {"message": "لماذا التوصيات متأخرة؟", "language": "ar"}
+        )
+        high = self.client.post(
+            "/api/ai/assistant/", {"message": "ما هي التوصيات عالية الخطورة؟", "language": "ar"}
+        )
+        verify = self.client.post(
+            "/api/ai/assistant/", {"message": "ما هي التوصيات التي تحتاج تحقق؟", "language": "ar"}
+        )
+        self.assertNotEqual(overdue.data["answer"], high.data["answer"])
+        self.assertNotEqual(high.data["answer"], verify.data["answer"])
+        self.assertNotEqual(overdue.data["answer"], verify.data["answer"])
+        self.assertIn(f"REC-{self.rec.id}", high.data["answer"])
+        self.assertIn("تحقق", verify.data["answer"])
+        self.assertIn("متأخر", overdue.data["answer"])
+
+    def test_topic_search_without_name_pattern(self):
+        self.rec.text = "العنوان:\nSegregate cash handling\n"
+        self.rec.save(update_fields=["text"])
+        self.client.force_authenticate(self.users["audit"])
+        res = self.client.post(
+            "/api/ai/assistant/",
+            {"message": "أخبرني عن cash handling", "language": "ar"},
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertIn("search_recommendations", res.data["tools"])
+        self.assertIn(f"REC-{self.rec.id}", res.data["answer"])
+
+    def test_overview_only_when_asked(self):
+        self.client.force_authenticate(self.users["audit"])
+        asked = self.client.post(
+            "/api/ai/assistant/", {"message": "كم عدد التوصيات عندي؟", "language": "ar"}
+        )
+        self.assertIn("ضمن صلاحياتك حالياً", asked.data["answer"])
+        hello = self.client.post("/api/ai/assistant/", {"message": "مرحبا", "language": "ar"})
+        self.assertNotIn("ضمن صلاحياتك حالياً", hello.data["answer"])
+
+    @patch("apps.ai.services.audit_assistant.generate_structured")
+    def test_generic_llm_dump_is_rejected_for_unrelated_question(self, mocked):
+        mocked.return_value = {
+            "answer": "ضمن صلاحياتك حالياً 2 توصية: المتأخرة 0، بانتظار التحقق 0، عالية الخطورة 1.",
+            "used_tools": ["get_portfolio"],
+        }
+        self.client.force_authenticate(self.users["audit"])
+        res = self.client.post("/api/ai/assistant/", {"message": "lkajsdasd", "language": "ar"})
+        self.assertEqual(res.status_code, 200)
+        self.assertNotIn("ضمن صلاحياتك حالياً", res.data["answer"])
+        self.assertIn("lkajsdasd", res.data["answer"])

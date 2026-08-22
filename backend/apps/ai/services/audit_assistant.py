@@ -11,10 +11,12 @@ from django.utils import timezone
 
 from apps.ai.models import AIConversation, AIMessage
 from apps.ai.providers import provider_meta
+from apps.ai.services.case_copy import next_action, risk_label, status_label
 from apps.ai.services.common import generate_structured, language_of
 from apps.ai.services.prompt_manager import render_prompt
 from apps.ai.services.risk_engine import delay_risk_score_only
 from apps.ai.services.sanitizer import recommendation_public_facts, scrub_text
+from apps.audits.finding import case_title
 from apps.audits.models import Recommendation
 from apps.audits.serializers import is_overdue
 from apps.core.permissions import scope_recommendations
@@ -44,6 +46,79 @@ BARE_NAMED = re.compile(
     re.I,
 )
 NAME_HINT = re.compile(r"(اسمها|اسمه|عنوانها|عنوانه|تسمى|named|called|titled)", re.I)
+GENERIC_DUMP = re.compile(
+    r"ضمن صلاحياتك حالياً\s+\d+\s+توصية|In your scope there are currently\s+\d+\s+recommendations",
+    re.I,
+)
+OVERVIEW_RE = re.compile(
+    r"ملخص|إحصائ|احصائ|صورة عامة|كم توصية عند|كم عدد التوصيات|عدد التوصيات|"
+    r"how many recommendations|overview|portfolio snapshot|what do i have",
+    re.I,
+)
+LIST_RE = re.compile(
+    r"كل التوصيات|جميع التوصيات|اعرض(?:ي)? التوصيات|أظهر التوصيات|قائمة التوصيات|"
+    r"list (all )?recommendations|show (all )?recommendations",
+    re.I,
+)
+GREETING_RE = re.compile(
+    r"^(مرحباً?|أهلاً?|اهلا|السلام عليكم|سلام|hi+|hello|hey|صباح الخير|مساء الخير|"
+    r"شكراً?|thanks|thank you)[\s!.،,]*$",
+    re.I,
+)
+HELP_RE = re.compile(
+    r"ماذا تستطيع|ما الذي تستطيع|ماذا يمكنك|كيف أستخدم|كيف استخدم|شو بتقدر|help\b|"
+    r"what can you (do|answer)",
+    re.I,
+)
+WHY_RE = re.compile(r"لماذا|ليش|سبب|أسباب|اسباب|\bwhy\b", re.I)
+FOLLOWUP_RE = re.compile(
+    r"تفاصيل|هذه التوصية|هذا الملف|هذي|هاي التوصية|السابق|نفس التوصية|"
+    r"more details|tell me more|that one",
+    re.I,
+)
+STOPWORDS = {
+    "هل", "في", "فيه", "ما", "هي", "هو", "هم", "عن", "من", "إلى", "الى", "على", "و",
+    "أو", "او", "ثم", "قد", "لم", "لن", "لا", "يا", "أي", "اى", "التي", "الذي", "الذين",
+    "هذا", "هذه", "ذلك", "تلك", "هناك", "هنا", "الان", "الآن", "حاليا", "حالياً",
+    "كم", "قديش", "وين", "شو", "ليش", "لماذا", "كيف", "متى", "أين", "اين",
+    "أظهر", "اظهر", "أعرض", "اعرض", "عرض", "قائمة", "القائمة", "لي",
+    "أريد", "اريد", "ممكن", "الرجاء", "رجاء", "يرجى",
+    "أخبرني", "اخبرني", "قلي", "احكي", "وضح", "اشرح", "شرح",
+    "التوصية", "توصية", "التوصيات", "توصيات", "توصيه", "التوصيه",
+    "recommendation", "recommendations", "please", "what", "which", "where",
+    "when", "how", "why", "show", "list", "tell", "give", "me", "my", "the",
+    "a", "an", "are", "is", "of", "in", "for", "and", "or", "to", "do", "does",
+    "about", "regarding", "need", "needs", "require", "requires", "current",
+    "currently", "all", "any", "some", "those", "these", "that", "this",
+    "عندي", "عندنا", "كلها", "كل", "موجود", "موجودة", "توجد", "يوجد",
+    "تحتاج", "يحتاج", "معلومات", "تفاصيل", "عنها", "عنه", "فقط",
+}
+INTENT_STOP = {
+    "متأخر", "متأخرة", "المتأخرة", "المتأخر", "تأخر", "تأخير", "تاخير",
+    "overdue", "delay", "delayed", "late",
+    "خطر", "خطورة", "الخطورة", "عالية", "مرتفع", "مرتفعة", "risk", "high",
+    "تحقق", "التحقق", "verification", "verify",
+    "تكرار", "التكرار", "تكرارات", "التكرارات", "recurring", "recurrence",
+    "موعد", "الموعد", "مواعيد", "المواعيد", "deadline", "deadlines", "upcoming",
+    "دائرة", "الدائرة", "دوائر", "الدوائر", "إدارة", "ادارة", "الإدارة",
+    "الادارة", "إدارات", "ادارات", "department", "departments",
+    "كاف", "كافية", "insufficient",
+    "متابعة", "المتابعة", "followup", "follow",
+    "ملخص", "إحصائيات", "احصائيات", "overview", "summary",
+}
+
+ADVISORY_AR = "هذه إجابة استشارية ولا تغيّر حالة سير العمل."
+ADVISORY_EN = "This is advisory and does not change workflow status."
+CAPABILITIES_AR = (
+    "يمكنني المساعدة في: التوصيات المتأخرة وسبب التأخير، عالية الخطورة، "
+    "بانتظار التحقق، التكرارات، المواعيد القريبة، الإدارات الأكثر تأخراً، "
+    "أو البحث عن توصية بالاسم أو بالرقم مثل REC-12."
+)
+CAPABILITIES_EN = (
+    "I can help with: overdue recommendations and why they are late, high-risk items, "
+    "items awaiting verification, recurrences, upcoming deadlines, departments with the most delays, "
+    "or a recommendation by name or number such as REC-12."
+)
 
 
 def _qs(user):
@@ -60,15 +135,7 @@ def _qs(user):
 
 
 def _display_title(text: str) -> str:
-    blob = text or ""
-    match = re.search(r"(?:^|\n)\s*العنوان:\s*(?:\n\s*)?(.+)", blob)
-    if match:
-        return match.group(1).strip()[:120]
-    for line in blob.splitlines():
-        stripped = line.strip()
-        if stripped and not stripped.endswith(":"):
-            return stripped[:120]
-    return blob[:120]
+    return case_title(text, 120)
 
 
 def _name_query(message: str) -> str:
@@ -94,16 +161,21 @@ def _name_query(message: str) -> str:
 
 def _brief(rec) -> dict:
     plan = getattr(rec, "action_plan", None)
-    title = _display_title(rec.text)
+    overdue = is_overdue(rec)
+    days_overdue = 0
+    if overdue and plan and plan.target_date:
+        days_overdue = (timezone.localdate() - plan.target_date).days
     return {
         "id": rec.id,
         "reference": f"REC-{rec.id}",
-        "title": title,
+        "title": _display_title(rec.text),
         "text": (rec.text or "")[:240],
         "status": rec.status,
         "risk_level": rec.risk_level,
         "department": rec.report.department.name,
-        "overdue": is_overdue(rec),
+        "overdue": overdue,
+        "has_plan": plan is not None,
+        "days_overdue": days_overdue,
         "is_recurring": rec.is_recurring,
         "recurrence_confirmed": rec.recurrence_confirmed,
         "target_date": str(plan.target_date) if plan else None,
@@ -122,18 +194,32 @@ def tool_get_recommendation(user, rec_id: int):
     return facts
 
 
+def _field_q(tok: str) -> Q:
+    return (
+        Q(text__icontains=tok)
+        | Q(root_cause__icontains=tok)
+        | Q(report__title__icontains=tok)
+        | Q(report__department__name__icontains=tok)
+        | Q(action_plan__responsible_employee__username__icontains=tok)
+        | Q(action_plan__responsible_employee__full_name_ar__icontains=tok)
+    )
+
+
 def tool_search_recommendations(user, query: str = "", department: str = "", status: str = ""):
     qs = _qs(user)
     term = (query or "").strip()[:80]
-    if term:
-        qs = qs.filter(
-            Q(text__icontains=term)
-            | Q(root_cause__icontains=term)
-            | Q(report__title__icontains=term)
-            | Q(report__department__name__icontains=term)
-            | Q(action_plan__responsible_employee__username__icontains=term)
-            | Q(action_plan__responsible_employee__full_name_ar__icontains=term)
-        ).distinct()
+    tokens = re.findall(r"[A-Za-z0-9_\u0600-\u06FF]{2,}", term)[:8]
+    if tokens:
+        combined = _field_q(tokens[0])
+        for tok in tokens[1:]:
+            combined &= _field_q(tok)
+        filtered = qs.filter(combined).distinct()
+        if not filtered.exists() and len(tokens) > 1:
+            combined_or = _field_q(tokens[0])
+            for tok in tokens[1:]:
+                combined_or |= _field_q(tok)
+            filtered = qs.filter(combined_or).distinct()
+        qs = filtered
     if department:
         qs = qs.filter(report__department__name__icontains=department[:80])
     if status:
@@ -358,16 +444,119 @@ TOOLS = {
 }
 
 
-def _route_tools(message: str) -> list[tuple[str, dict]]:
+STRUCTURED = {
+    "overdue", "high_risk", "verification", "recurring", "deadlines",
+    "departments", "insufficient", "followup", "overview", "list",
+    "greeting", "help",
+}
+
+
+def _topic_query(message: str) -> str:
+    tokens = re.findall(r"[A-Za-z0-9_\u0600-\u06FF]{2,}", message or "")
+    kept = []
+    for tok in tokens:
+        key = tok.lower()
+        if key in STOPWORDS or key in INTENT_STOP:
+            continue
+        kept.append(tok)
+        if len(kept) >= 6:
+            break
+    if not kept or all(t.isdigit() for t in kept):
+        return ""
+    return " ".join(kept)[:80]
+
+
+def _parse_query(message: str) -> dict:
     text = message or ""
-    calls = [("get_portfolio", {})]
-    rec_ids = [int(x) for x in REC_ID.findall(text)]
     low = text.lower()
+    kinds: set[str] = set()
+    if INJECTION.search(text):
+        kinds.add("injection")
+    rec_ids = [int(x) for x in REC_ID.findall(text)]
+    name_q = _name_query(text)
+
+    if GREETING_RE.search(text.strip()):
+        kinds.add("greeting")
+    if HELP_RE.search(text):
+        kinds.add("help")
+    if WHY_RE.search(text):
+        kinds.add("why")
+    if re.search(r"متأخر|تأخر|تأخير|overdue|delay", low):
+        kinds.add("overdue")
+    if re.search(r"خطر|خطورة|high.?risk", low):
+        kinds.add("high_risk")
+    if re.search(r"غير كاف|insufficient", low):
+        kinds.add("insufficient")
+    elif re.search(r"تحقق|verif", low):
+        kinds.add("verification")
+    if re.search(r"تكرار|recurring", low):
+        kinds.add("recurring")
+    if re.search(r"موعد|deadline|approaching", low):
+        kinds.add("deadlines")
+    if re.search(r"دائرة|دوائر|إدار|ادار|department", low):
+        kinds.add("departments")
+    if re.search(r"متابع|follow-?up", low):
+        kinds.add("followup")
+    if OVERVIEW_RE.search(text):
+        kinds.add("overview")
+    if LIST_RE.search(text) and not (kinds & {"overdue", "high_risk", "verification", "recurring", "insufficient"}):
+        kinds.add("list")
+
+    topic_q = ""
+    if name_q:
+        kinds.add("search")
+    elif rec_ids:
+        kinds.add("rec")
+    elif not (kinds & STRUCTURED):
+        topic_q = _topic_query(text)
+        if topic_q:
+            kinds.add("search")
+        else:
+            kinds.add("unclear")
+
+    return {
+        "kinds": kinds,
+        "rec_ids": rec_ids,
+        "name_query": name_q,
+        "topic_query": topic_q,
+        "department": None,
+    }
+
+
+def _followup_rec_ids(message: str, history: list[dict]) -> list[int]:
+    text = (message or "").strip()
+    if not text or REC_ID.search(text) or not FOLLOWUP_RE.search(text):
+        return []
+    for item in reversed(history or []):
+        if item.get("role") != "assistant":
+            continue
+        ids = [int(x) for x in REC_ID.findall(item.get("content") or "")]
+        if ids:
+            return ids[:1]
+    return []
+
+
+def _unique_calls(calls: list[tuple[str, dict]]) -> list[tuple[str, dict]]:
+    seen, unique = set(), []
+    for name, args in calls:
+        key = (name, json.dumps(args, sort_keys=True))
+        if key not in seen:
+            seen.add(key)
+            unique.append((name, args))
+    return unique
+
+
+def _route_tools(parsed: dict, message: str) -> list[tuple[str, dict]]:
+    text = message or ""
+    low = text.lower()
+    kinds = parsed["kinds"]
+    rec_ids = list(parsed["rec_ids"])
+    calls = [("get_portfolio", {})]
 
     if rec_ids:
         rid = rec_ids[0]
         calls.append(("get_recommendation", {"id": rid}))
-        if re.search(r"خطر|risk|لماذا|why", low):
+        if "high_risk" in kinds or "why" in kinds or re.search(r"خطر|risk", low):
             calls.append(("why_high_risk", {"id": rid}))
         if re.search(r"خطة|plan", low):
             calls.append(("get_action_plan_status", {"id": rid}))
@@ -376,36 +565,31 @@ def _route_tools(message: str) -> list[tuple[str, dict]]:
         if re.search(r"سجل|history|trail", low):
             calls.append(("get_audit_history", {"id": rid}))
 
-    if re.search(r"متأخر|تأخر|تأخير|overdue", low):
+    if "overdue" in kinds:
         calls.append(("get_overdue_recommendations", {}))
-    if re.search(r"تكرار|recurring", low):
+    if "recurring" in kinds:
         calls.append(("get_recurring_findings", {}))
-    if re.search(r"موعد|deadline|approaching", low):
+    if "deadlines" in kinds:
         calls.append(("get_approaching_deadlines", {}))
-    if re.search(r"غير كاف|insufficient", low):
+    if "insufficient" in kinds:
         calls.append(("get_insufficient_verification", {}))
-    if re.search(r"متابع|follow-?up", low):
+    if "followup" in kinds:
         calls.append(("get_followup_reports", {}))
-    if re.search(r"دائرة|دوائر|إدار|ادار|department", low):
+    if "departments" in kinds:
         calls.append(("get_department_statistics", {}))
 
     dept = None
     m = re.search(r"(المشتريات|المالية|الهندس\w*|procurement|finance|engineering)", low)
     if m:
         dept = m.group(1)
+        parsed["department"] = dept
         calls.append(("get_department_statistics", {"department": dept}))
 
-    query = _name_query(text)
-    if query:
-        calls.append(("search_recommendations", {"query": query, "department": "", "status": ""}))
+    query = parsed["name_query"] or parsed["topic_query"]
+    if query or "list" in kinds:
+        calls.append(("search_recommendations", {"query": query or "", "department": "", "status": ""}))
 
-    seen, unique = set(), []
-    for name, args in calls:
-        key = (name, json.dumps(args, sort_keys=True))
-        if key not in seen:
-            seen.add(key)
-            unique.append((name, args))
-    return unique
+    return _unique_calls(calls)
 
 
 def _collect_allowed_ids(tool_results: dict) -> set[int]:
@@ -436,43 +620,128 @@ def _search_matches(results: dict) -> list:
 
 
 def _fmt_items(items: list, ar: bool, limit=8) -> str:
+    lang = "ar" if ar else "en"
     bits = []
     for item in (items or [])[:limit]:
         label = item.get("title") or (item.get("text") or "")[:70]
         ref = item.get("reference") or f"REC-{item.get('id')}"
-        bits.append(f"{ref} — {label}" if label else str(ref))
+        st = status_label(item.get("status") or "", lang) if item.get("status") else ""
+        core = f"{ref} — {label}" if label else str(ref)
+        if st:
+            core = f"{core} ({st})"
+        bits.append(core)
     if not bits:
         return "لا يوجد" if ar else "none"
     return "؛ ".join(bits) if ar else "; ".join(bits)
 
 
-def _local_answer(message: str, results: dict, language: str) -> str:
+def _with_advisory(text: str, ar: bool) -> str:
+    note = ADVISORY_AR if ar else ADVISORY_EN
+    blob = (text or "").strip()
+    if not blob:
+        return note
+    if note in blob or "استشارية" in blob or "advisory" in blob.lower():
+        return blob
+    return blob + "\n" + note
+
+
+def _capabilities(ar: bool) -> str:
+    return CAPABILITIES_AR if ar else CAPABILITIES_EN
+
+
+def _result_bucket(results: dict, portfolio: dict, key: str, fallback_tool: str = ""):
+    bucket = portfolio.get(key) if isinstance(portfolio.get(key), dict) else None
+    if bucket is None and fallback_tool:
+        raw = results.get(fallback_tool)
+        if isinstance(raw, list):
+            bucket = {"count": len(raw), "items": raw}
+    return bucket or {}
+
+
+def _why_overdue_lines(items: list, ar: bool) -> str:
+    lines = []
+    lang = "ar" if ar else "en"
+    for item in (items or [])[:6]:
+        ref = item.get("reference") or f"REC-{item.get('id')}"
+        reasons = []
+        days = item.get("days_overdue") or 0
+        if days:
+            reasons.append(
+                f"تجاوز الموعد المستهدف منذ {days} يوماً ({item.get('target_date')})"
+                if ar
+                else f"{days} day(s) past the target date ({item.get('target_date')})"
+            )
+        elif item.get("target_date"):
+            reasons.append(
+                f"الموعد المستهدف {item.get('target_date')}"
+                if ar
+                else f"target date {item.get('target_date')}"
+            )
+        if not item.get("has_plan"):
+            reasons.append("لا توجد خطة عمل معتمدة" if ar else "no approved action plan")
+        nxt = next_action(item.get("status") or "", lang)
+        if nxt:
+            reasons.append(("الإجراء التالي: " if ar else "next: ") + nxt)
+        if reasons:
+            lines.append(f"{ref}: " + ("؛ ".join(reasons) if ar else "; ".join(reasons)))
+    return "\n".join(lines)
+
+
+def _overview_line(portfolio: dict, ar: bool) -> str:
+    total = portfolio.get("total") or 0
+    overdue_n = (portfolio.get("overdue") or {}).get("count") or 0
+    verify_n = (portfolio.get("awaiting_verification") or {}).get("count") or 0
+    high_n = (portfolio.get("high_risk_open") or {}).get("count") or 0
+    if ar:
+        return (
+            f"ضمن صلاحياتك حالياً {total} توصية: المتأخرة {overdue_n}، "
+            f"بانتظار التحقق {verify_n}، عالية الخطورة {high_n}."
+        )
+    return (
+        f"In your scope there are currently {total} recommendations: {overdue_n} overdue, "
+        f"{verify_n} awaiting verification, {high_n} high risk."
+    )
+
+
+def _local_answer(message: str, results: dict, language: str, parsed: dict | None = None) -> str:
     ar = language != "en"
-    low = (message or "").lower()
+    parsed = parsed or _parse_query(message)
+    kinds = parsed["kinds"]
     parts = []
     portfolio = results.get("get_portfolio") if isinstance(results.get("get_portfolio"), dict) else {}
+    hits = _search_matches(results)
+    query = parsed.get("name_query") or parsed.get("topic_query") or ""
 
-    if INJECTION.search(message or ""):
+    if "injection" in kinds:
         parts.append(
             "طلبك يحتوي عبارات تتجاوز صلاحيات المساعد. سأجيب فقط من بيانات النظام المصرّح بها."
             if ar
             else "The request includes instruction-override language. Answers use only authorized system data."
         )
 
-    name_q = _name_query(message or "")
-    hits = _search_matches(results)
-    if name_q:
+    greeting_only = kinds <= {"greeting", "injection"} and "greeting" in kinds
+    help_only = "help" in kinds and not (kinds & {"overdue", "high_risk", "verification", "recurring", "deadlines", "departments", "search", "rec", "overview", "list"})
+    if greeting_only:
+        parts.append(
+            "أهلاً، أنا مساعد التدقيق. " + _capabilities(True)
+            if ar
+            else "Hello, I am the audit assistant. " + _capabilities(False)
+        )
+    elif help_only:
+        parts.append(_capabilities(ar))
+
+    if query and "search" in kinds:
         if hits:
             parts.append(
-                f"نعم، وُجدت {len(hits)} توصية مطابقة لـ «{name_q}»: {_fmt_items(hits, ar)}."
+                f"نعم، وُجدت {len(hits)} توصية مطابقة لـ «{query}»: {_fmt_items(hits, ar)}."
                 if ar
-                else f"Yes, {len(hits)} recommendation(s) match “{name_q}”: {_fmt_items(hits, ar)}."
+                else f"Yes, {len(hits)} recommendation(s) match “{query}”: {_fmt_items(hits, ar)}."
             )
         else:
             parts.append(
-                f"لا توجد توصية ضمن صلاحياتك بالاسم أو النص «{name_q}»."
+                f"لم أجد توصية تطابق «{query}». {_capabilities(True)}"
                 if ar
-                else f"No recommendation in your scope matches the name or text “{name_q}”."
+                else f"No recommendation matches “{query}”. {_capabilities(False)}"
             )
 
     rec = results.get("get_recommendation")
@@ -484,14 +753,17 @@ def _local_answer(message: str, results: dict, language: str) -> str:
         )
     elif isinstance(rec, dict) and rec.get("reference"):
         title = rec.get("title") or ""
+        st = status_label(rec.get("status") or "", language)
+        rk = risk_label(rec.get("risk_level") or "", language)
         title_bit = f" بعنوان «{title}»" if title and ar else (f" titled “{title}”" if title else "")
         parts.append(
-            f"{rec['reference']}{title_bit} حالتها {rec.get('status')} وخطورتها المسجّلة {rec.get('risk_level')} "
-            f"في دائرة {rec.get('department')}."
+            f"{rec['reference']}{title_bit} حالتها {st} وخطورتها المسجّلة {rk} في دائرة {rec.get('department')}."
             if ar
-            else f"{rec['reference']}{title_bit} is in status {rec.get('status')} with recorded risk {rec.get('risk_level')} "
-            f"in {rec.get('department')}."
+            else f"{rec['reference']}{title_bit} is in status {st} with recorded risk {rk} in {rec.get('department')}."
         )
+        nxt = next_action(rec.get("status") or "", language)
+        if nxt:
+            parts.append(("الإجراء التالي: " if ar else "Next action: ") + nxt)
 
     why = results.get("why_high_risk")
     if isinstance(why, dict) and why.get("delay_estimate"):
@@ -501,11 +773,8 @@ def _local_answer(message: str, results: dict, language: str) -> str:
         if est.get("factors"):
             parts.append(("العوامل: " if ar else "Factors: ") + "؛ ".join(est["factors"][:5]))
 
-    overdue = portfolio.get("overdue") if isinstance(portfolio.get("overdue"), dict) else None
-    if overdue is None and isinstance(results.get("get_overdue_recommendations"), list):
-        items = results["get_overdue_recommendations"]
-        overdue = {"count": len(items), "items": items}
-    if re.search(r"متأخر|تأخر|تأخير|overdue", low) and overdue:
+    overdue = _result_bucket(results, portfolio, "overdue", "get_overdue_recommendations")
+    if "overdue" in kinds:
         count = overdue.get("count") or 0
         items = overdue.get("items") or []
         if count:
@@ -514,10 +783,31 @@ def _local_answer(message: str, results: dict, language: str) -> str:
                 if ar
                 else f"{count} overdue recommendation(s) in your scope, including: {_fmt_items(items, ar)}."
             )
+            if "why" in kinds:
+                explained = _why_overdue_lines(items, ar)
+                if explained:
+                    parts.append(("سبب التأخير: " if ar else "Why they are late:\n") + explained)
+        elif "why" in kinds:
+            approaching = (portfolio.get("approaching_deadline") or {}).get("count") or 0
+            extra = ""
+            if approaching:
+                extra = (
+                    f" هناك {approaching} توصية تقترب من موعدها خلال 14 يوماً."
+                    if ar
+                    else f" {approaching} recommendation(s) approach a deadline within 14 days."
+                )
+            parts.append(
+                "لا توجد توصيات متأخرة عن موعدها المستهدف حالياً. "
+                "يُحسب التأخير بعد اعتماد خطة عمل ومرور ذلك الموعد."
+                + extra
+                if ar
+                else "No recommendations are past their target date. Delay is counted after an action plan exists and that date has passed."
+                + extra
+            )
         else:
             parts.append("لا توجد توصيات متأخرة ضمن نطاق صلاحياتك." if ar else "No overdue recommendations in your scope.")
 
-    if re.search(r"تحقق|verif", low) and not REC_ID.search(message or "") and not re.search(r"غير كاف|insufficient", low):
+    if "verification" in kinds and "rec" not in kinds:
         bucket = portfolio.get("awaiting_verification") or {}
         count = bucket.get("count") or 0
         items = bucket.get("items") or []
@@ -534,46 +824,57 @@ def _local_answer(message: str, results: dict, language: str) -> str:
                 else "No recommendations currently await verification in your scope."
             )
 
-    if re.search(r"غير كاف|insufficient", low):
+    if "insufficient" in kinds:
         bucket = portfolio.get("insufficient_evidence") or {}
         items = results.get("get_insufficient_verification") if isinstance(results.get("get_insufficient_verification"), list) else bucket.get("items") or []
         count = bucket.get("count") if bucket else len(items)
+        listed = _fmt_items(items, ar) if items else ""
         parts.append(
-            f"توصيات بتحقق أدلة غير كافٍ: {count or 0}."
+            f"توصيات بتحقق أدلة غير كافٍ: {count or 0}." + (f" {listed}" if listed and listed != "لا يوجد" else "")
             if ar
-            else f"Recommendations with insufficient verification: {count or 0}."
+            else f"Recommendations with insufficient verification: {count or 0}." + (f" {listed}" if listed and listed != "none" else "")
         )
 
-    if re.search(r"خطر|خطورة|high.?risk", low) and not REC_ID.search(message or ""):
+    if "high_risk" in kinds and "rec" not in kinds:
         bucket = portfolio.get("high_risk_open") or {}
         count = bucket.get("count") or 0
         items = bucket.get("items") or []
-        parts.append(
-            f"التوصيات المفتوحة عالية الخطورة: {count}. {_fmt_items(items, ar) if count else ''}".strip()
-            if ar
-            else f"Open high-risk recommendations: {count}. {_fmt_items(items, ar) if count else ''}".strip()
-        )
+        if count:
+            parts.append(
+                f"التوصيات المفتوحة عالية الخطورة: {count}. {_fmt_items(items, ar)}"
+                if ar
+                else f"Open high-risk recommendations: {count}. {_fmt_items(items, ar)}"
+            )
+        else:
+            parts.append(
+                "لا توجد توصيات مفتوحة عالية الخطورة ضمن صلاحياتك."
+                if ar
+                else "No open high-risk recommendations in your scope."
+            )
 
-    if re.search(r"تكرار|recurring", low):
+    if "recurring" in kinds:
         bucket = portfolio.get("recurring") or {}
         count = bucket.get("count") or 0
+        items = bucket.get("items") or []
         parts.append(
-            f"عدد التكرارات المرصودة ضمن نطاقك: {count}."
+            f"عدد التكرارات المرصودة ضمن نطاقك: {count}." + (f" {_fmt_items(items, ar)}" if count else "")
             if ar
-            else f"Recurring findings in your scope: {count}."
+            else f"Recurring findings in your scope: {count}." + (f" {_fmt_items(items, ar)}" if count else "")
         )
 
-    if re.search(r"موعد|deadline|approaching", low):
+    if "deadlines" in kinds:
         bucket = portfolio.get("approaching_deadline") or {}
         count = bucket.get("count") or 0
+        items = bucket.get("items") or []
         parts.append(
-            f"توصيات تقترب من موعدها خلال 14 يوماً: {count}."
+            f"توصيات تقترب من موعدها خلال 14 يوماً: {count}." + (f" {_fmt_items(items, ar)}" if count else "")
             if ar
-            else f"Recommendations approaching deadline within 14 days: {count}."
+            else f"Recommendations approaching deadline within 14 days: {count}." + (f" {_fmt_items(items, ar)}" if count else "")
         )
 
-    if re.search(r"دائرة|دوائر|إدار|ادار|department", low):
+    if "departments" in kinds:
         rows = portfolio.get("department_overdue") or []
+        stats = results.get("get_department_statistics")
         if rows:
             listed = "؛ ".join(f"{row.get('department')} ({row.get('count')})" for row in rows[:6])
             parts.append(
@@ -583,9 +884,15 @@ def _local_answer(message: str, results: dict, language: str) -> str:
             )
         else:
             parts.append("لا يوجد تأخير موزّع على الدوائر حالياً." if ar else "No department overdue concentration currently.")
+        if isinstance(stats, dict) and parsed.get("department") and stats.get("total") is not None:
+            parts.append(
+                f"إحصاء الدائرة «{stats.get('department')}»: الإجمالي {stats.get('total')}، المفتوحة {stats.get('open')}، المتأخرة {stats.get('overdue')}."
+                if ar
+                else f"Department “{stats.get('department')}”: total {stats.get('total')}, open {stats.get('open')}, overdue {stats.get('overdue')}."
+            )
 
     followup = results.get("get_followup_reports")
-    if isinstance(followup, list):
+    if isinstance(followup, list) and "followup" in kinds:
         parts.append(
             f"تقارير المتابعة المتاحة: {len(followup)}."
             if ar
@@ -594,29 +901,58 @@ def _local_answer(message: str, results: dict, language: str) -> str:
     elif isinstance(followup, dict) and followup.get("error"):
         parts.append("تقارير المتابعة غير متاحة لهذا الدور." if ar else "Follow-up reports are not available for this role.")
 
-    if not parts and portfolio:
+    if "list" in kinds:
         total = portfolio.get("total") or 0
-        overdue_n = (portfolio.get("overdue") or {}).get("count") or 0
-        verify_n = (portfolio.get("awaiting_verification") or {}).get("count") or 0
-        high_n = (portfolio.get("high_risk_open") or {}).get("count") or 0
+        listed = _fmt_items(hits, ar) if hits else ""
+        if listed and listed not in ("لا يوجد", "none"):
+            parts.append(
+                f"ضمن صلاحياتك {total} توصية. منها: {listed}."
+                if ar
+                else f"You have {total} recommendations in scope, including: {listed}."
+            )
+        else:
+            parts.append(_overview_line(portfolio, ar) if portfolio else "")
+
+    if "overview" in kinds and portfolio:
+        parts.append(_overview_line(portfolio, ar))
+
+    if "unclear" in kinds and not parts:
         parts.append(
-            f"ضمن صلاحياتك حالياً {total} توصية: المتأخرة {overdue_n}، بانتظار التحقق {verify_n}، عالية الخطورة {high_n}."
+            "لم أفهم السؤال. " + _capabilities(True)
             if ar
-            else f"In your scope there are currently {total} recommendations: {overdue_n} overdue, {verify_n} awaiting verification, {high_n} high risk."
+            else "I did not understand that question. " + _capabilities(False)
         )
 
     if not parts:
         parts.append(
-            "لا تتوفر معلومات كافية في النظام لتحديد ذلك."
+            "لم أفهم السؤال. " + _capabilities(True)
             if ar
-            else "I don't have enough information in the system to determine that."
+            else "I did not understand that question. " + _capabilities(False)
         )
-    parts.append(
-        "هذه إجابة استشارية ولا تغيّر حالة سير العمل."
-        if ar
-        else "This is advisory and does not change workflow status."
+
+    return _with_advisory("\n".join(p for p in parts if p), ar)
+
+
+def _should_use_llm(candidate: str, tool_results: dict, name_q: str, kinds: set) -> bool:
+    """Keep grounded local answers when the model invents IDs or dumps a generic snapshot."""
+    if not (candidate or "").strip():
+        return False
+    allowed = _collect_allowed_ids(tool_results)
+    if any(int(token) not in allowed for token in REC_ID.findall(candidate)):
+        return False
+    hits = _search_matches(tool_results)
+    refs = [item.get("reference") for item in hits if item.get("reference")]
+    asked_search = "search" in kinds or bool(name_q)
+    if asked_search and refs and not any(ref in candidate for ref in refs):
+        return False
+    talks_about_name = bool(
+        re.search(r"بهذا الاسم|بالاسم أو النص|with this name|matches the name", candidate, re.I)
     )
-    return "\n".join(p for p in parts if p)
+    if talks_about_name and not name_q:
+        return False
+    if GENERIC_DUMP.search(candidate) and not (kinds & {"overview", "list"}):
+        return False
+    return True
 
 
 def get_or_create_conversation(user) -> AIConversation:
@@ -641,6 +977,7 @@ def clear_conversation(user):
 
 def run_assistant(user, message: str, language: str = "ar", conversation_id: int | None = None) -> dict:
     lang = language_of(language)
+    ar = lang != "en"
     if conversation_id:
         convo = AIConversation.objects.filter(
             pk=conversation_id, user=user, municipality=user.municipality
@@ -650,9 +987,19 @@ def run_assistant(user, message: str, language: str = "ar", conversation_id: int
     else:
         convo = get_or_create_conversation(user)
 
+    prior = list(convo.messages.order_by("-created_at")[:8])
+    prior.reverse()
+    history_prior = [{"role": m.role, "content": m.content[:800]} for m in prior]
     AIMessage.objects.create(conversation=convo, role=AIMessage.Role.USER, content=message[:4000])
 
-    calls = _route_tools(message)
+    parsed = _parse_query(message)
+    follow_ids = _followup_rec_ids(message, history_prior)
+    if follow_ids and not parsed["rec_ids"]:
+        parsed["rec_ids"] = follow_ids
+        parsed["kinds"].add("rec")
+        parsed["kinds"].discard("unclear")
+
+    calls = _route_tools(parsed, message)
     tool_results = {}
     for name, args in calls:
         fn = TOOLS.get(name)
@@ -663,10 +1010,12 @@ def run_assistant(user, message: str, language: str = "ar", conversation_id: int
         except Exception:
             tool_results[name] = {"error": "tool_failed"}
 
-    local = _local_answer(message, tool_results, lang)
+    local = _local_answer(message, tool_results, lang, parsed)
     prompt = render_prompt(
         "assistant_v1.txt",
-        language="Modern Standard Arabic" if lang == "ar" else "English",
+        language="Modern Standard Arabic" if ar else "English",
+        intent=",".join(sorted(parsed["kinds"])) or "unclear",
+        conversation_json=json.dumps(history_prior, ensure_ascii=False)[:4000] or "[]",
         trusted_json=json.dumps(tool_results, ensure_ascii=False)[:12000],
         user_message=scrub_text(message, 1500),
     )
@@ -675,30 +1024,22 @@ def run_assistant(user, message: str, language: str = "ar", conversation_id: int
         fallback={"answer": local, "used_tools": list(tool_results.keys())},
     )
     answer = local
-    name_q = _name_query(message)
-    portfolio = tool_results.get("get_portfolio") if isinstance(tool_results.get("get_portfolio"), dict) else {}
+    name_q = parsed.get("name_query") or ""
     if isinstance(llm_out.get("answer"), str) and llm_out["answer"].strip():
         candidate = llm_out["answer"].strip()
-        allowed = _collect_allowed_ids(tool_results)
-        invented = any(int(token) not in allowed for token in REC_ID.findall(candidate))
-        hits = _search_matches(tool_results)
-        refs = [item.get("reference") for item in hits if item.get("reference")]
-        talks_about_name = bool(re.search(r"بهذا الاسم|بالاسم أو النص|with this name|matches the name", candidate, re.I))
-        denies_all = bool(re.search(r"لا أملك معلومات|don't have enough|no information in the system", candidate, re.I))
-        ignored_hits = bool(refs) and not any(ref in candidate for ref in refs)
-        if (
-            not invented
-            and not ignored_hits
-            and not (talks_about_name and not name_q)
-            and not (denies_all and (portfolio.get("total") or 0) > 0)
-        ):
-            answer = candidate[:4000]
+        if _should_use_llm(candidate, tool_results, name_q, parsed["kinds"]):
+            answer = _with_advisory(candidate[:4000], ar)
     meta = provider_meta()
     AIMessage.objects.create(
         conversation=convo,
         role=AIMessage.Role.ASSISTANT,
         content=answer,
-        metadata={"tools": list(tool_results.keys()), "provider": meta["provider"], "model": meta["model"]},
+        metadata={
+            "tools": list(tool_results.keys()),
+            "provider": meta["provider"],
+            "model": meta["model"],
+            "intent": sorted(parsed["kinds"]),
+        },
     )
     convo.save(update_fields=["updated_at"])
     history = [
@@ -712,6 +1053,7 @@ def run_assistant(user, message: str, language: str = "ar", conversation_id: int
         "tool_results": tool_results,
         "provider": meta["provider"],
         "model": meta["model"],
+        "intent": sorted(parsed["kinds"]),
         "advisory": True,
         "messages": history,
     }
