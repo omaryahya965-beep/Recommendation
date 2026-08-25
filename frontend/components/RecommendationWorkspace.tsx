@@ -576,6 +576,7 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
           {resolvedTab === "evidence" ? (
             <EvidenceRegister
               rec={rec}
+              role={role}
               canUpload={can("upload_evidence", rec.status, role)}
               canAnalyze
               action={action}

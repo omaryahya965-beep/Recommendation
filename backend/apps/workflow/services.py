@@ -4,12 +4,15 @@ Each function is the single entry point for one business action. All guards
 live here (never in the frontend): transition validation, mandatory
 justifications, closure rules, structured rejection feedback.
 """
+import logging
+
 from django.db import transaction as db_transaction
 from django.utils import timezone
 
 from apps.accounts.models import User
 from apps.audits.models import AuditReport, Recommendation
-from apps.core.exceptions import WorkflowError
+from apps.core.exceptions import StorageUnavailable, WorkflowError
+from apps.core.files import bind_stored_name
 from apps.core.models import log_action
 from apps.notifications.models import Notification
 
@@ -24,6 +27,7 @@ from .models import (
 from .transitions import transition
 
 S = Recommendation.Status
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -170,7 +174,7 @@ def ratify_report(report, user, notes=""):
 # ---------------------------------------------------------------------------
 @db_transaction.atomic
 def submit_response(recommendation, user, decision, justification="", attachment=None,
-                    plan_data=None):
+                    plan_data=None, stored_name=""):
     if recommendation.status not in (S.PENDING_RESPONSE, S.RETURNED_FOR_REVISION):
         raise WorkflowError("This recommendation is not awaiting a department response.")
     if user.department_id != recommendation.report.department_id:
@@ -198,10 +202,17 @@ def submit_response(recommendation, user, decision, justification="", attachment
     } if response.pk else None
     response.decision = decision
     response.justification = justification
-    if attachment is not None:
-        response.attachment = attachment
-    response.review_status = ManagementResponse.ReviewStatus.PENDING
-    response.save()
+    try:
+        if stored_name:
+            bind_stored_name(response, "attachment", stored_name)
+        elif attachment is not None:
+            response.attachment = attachment
+        response.review_status = ManagementResponse.ReviewStatus.PENDING
+        response.save()
+    except OSError as exc:
+        raise StorageUnavailable(
+            "Could not store the uploaded file. File storage is unavailable."
+        ) from exc
 
     if plan_data and decision == ManagementResponse.Decision.AGREE:
         _upsert_plan(recommendation, user, plan_data)
@@ -452,16 +463,28 @@ def update_step_progress(recommendation, step, user, progress_percent=None, is_d
 
 
 @db_transaction.atomic
-def add_evidence(recommendation, user, file, step=None, notes=""):
+def add_evidence(recommendation, user, file=None, step=None, notes="", stored_name=""):
     if recommendation.status not in EXECUTION_STATUSES + (S.PENDING_HEAD_REVIEW, S.SUBMITTED_FOR_VERIFICATION):
         raise WorkflowError("Evidence can only be uploaded during execution or verification.")
     _ensure_executor(recommendation, user)
     if step is not None and step.plan.recommendation_id != recommendation.id:
         raise WorkflowError("The linked step does not belong to this recommendation.")
+    if file is None and not stored_name:
+        raise WorkflowError("A file is required.")
 
-    evidence = Evidence.objects.create(
-        recommendation=recommendation, step=step, file=file, uploaded_by=user, notes=notes
-    )
+    try:
+        evidence = Evidence(
+            recommendation=recommendation, step=step, uploaded_by=user, notes=notes
+        )
+        if stored_name:
+            bind_stored_name(evidence, "file", stored_name)
+        else:
+            evidence.file = file
+        evidence.save()
+    except OSError as exc:
+        raise StorageUnavailable(
+            "Could not store the uploaded file. File storage is unavailable."
+        ) from exc
     _resume_if_returned(recommendation, user)
     log_action(
         user, "evidence_uploaded", recommendation=recommendation,
@@ -469,6 +492,42 @@ def add_evidence(recommendation, user, file, step=None, notes=""):
         file_name=evidence.file.name, step_id=step.id if step else None,
     )
     return evidence
+
+
+@db_transaction.atomic
+def delete_evidence(recommendation, user, evidence):
+    """Remove an uploaded evidence file during implementation.
+
+    Same actors as upload: the responsible employee (own files only) or the
+    department head. Not allowed after the case leaves implementation/verification.
+    """
+    if evidence.recommendation_id != recommendation.id:
+        raise WorkflowError("This evidence does not belong to this recommendation.")
+    if recommendation.status not in EXECUTION_STATUSES + (
+        S.PENDING_HEAD_REVIEW,
+        S.SUBMITTED_FOR_VERIFICATION,
+    ):
+        raise WorkflowError("Evidence can only be removed during implementation.")
+    _ensure_executor(recommendation, user)
+    if user.role == User.Role.EMPLOYEE and evidence.uploaded_by_id != user.id:
+        raise WorkflowError("You can only remove evidence files that you uploaded.")
+
+    file_name = evidence.file.name if evidence.file else ""
+    evidence_id = evidence.id
+    step_id = evidence.step_id
+    if file_name:
+        try:
+            evidence.file.delete(save=False)
+        except Exception:
+            logger.warning(
+                "evidence_storage_delete_failed name=%s", file_name, exc_info=True
+            )
+    evidence.delete()
+    log_action(
+        user, "evidence_deleted", recommendation=recommendation,
+        report=recommendation.report, evidence_id=evidence_id,
+        file_name=file_name, step_id=step_id,
+    )
 
 
 @db_transaction.atomic

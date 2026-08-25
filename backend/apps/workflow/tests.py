@@ -11,7 +11,7 @@ from apps.core.exceptions import WorkflowError
 from apps.core.models import AuditTrail
 from apps.organizations.models import Department, Municipality, WorkflowPolicy
 from apps.workflow import services
-from apps.workflow.models import ActionPlan, ApprovalRecord, ManagementResponse, VerificationDecision
+from apps.workflow.models import ActionPlan, ApprovalRecord, Evidence, ManagementResponse, VerificationDecision
 
 S = Recommendation.Status
 
@@ -476,3 +476,56 @@ class ApiRbacTest(TestCase):
         response = self.client.get(f"/api/recommendations/{self.rec.id}/")
         self.assertTrue(response.data["overdue"])
         self.assertEqual(response.data["status"], S.IN_PROGRESS)  # not an "overdue" status
+
+
+class EvidenceDeleteTests(TestCase):
+    def setUp(self):
+        self.muni, self.dept, self.users, self.report, self.rec = make_world()
+        drive_to_in_progress(self.users, self.report, self.rec)
+        self.rec.refresh_from_db()
+
+    def _upload(self, user=None, name="proof.pdf"):
+        return services.add_evidence(
+            self.rec,
+            user or self.users["emp"],
+            file=SimpleUploadedFile(name, b"%PDF-1.4 delete-me"),
+            notes="to be removed",
+        )
+
+    def test_employee_can_delete_own_file(self):
+        ev = self._upload()
+        services.delete_evidence(self.rec, self.users["emp"], ev)
+        self.assertFalse(Evidence.objects.filter(pk=ev.id).exists())
+        self.assertTrue(
+            AuditTrail.objects.filter(
+                recommendation=self.rec, action="evidence_deleted"
+            ).exists()
+        )
+
+    def test_head_can_delete_employee_file(self):
+        ev = self._upload()
+        services.delete_evidence(self.rec, self.users["head"], ev)
+        self.assertFalse(Evidence.objects.filter(pk=ev.id).exists())
+
+    def test_other_employee_cannot_delete(self):
+        ev = self._upload()
+        with self.assertRaises(WorkflowError):
+            services.delete_evidence(self.rec, self.users["emp2"], ev)
+
+    def test_employee_cannot_delete_file_uploaded_by_head(self):
+        ev = self._upload(user=self.users["head"], name="head-proof.pdf")
+        with self.assertRaises(WorkflowError):
+            services.delete_evidence(self.rec, self.users["emp"], ev)
+
+    def test_audit_cannot_delete(self):
+        ev = self._upload()
+        with self.assertRaises(WorkflowError):
+            services.delete_evidence(self.rec, self.users["audit"], ev)
+
+    def test_cannot_delete_after_closure(self):
+        ev = self._upload()
+        self.rec.status = S.CLOSED
+        self.rec.save(update_fields=["status"])
+        with self.assertRaises(WorkflowError):
+            services.delete_evidence(self.rec, self.users["emp"], ev)
+

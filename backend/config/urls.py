@@ -9,6 +9,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from apps.accounts.views import EmployeeListView, LoginView, MeView
 from apps.audits.views import AuditReportViewSet, PendingApprovalsView, RecommendationViewSet
 from apps.core.views import DashboardView, HealthView
+from apps.core.media_views import MediaSignView
 from apps.followup.views import FollowUpReportViewSet
 from apps.notifications.cron import SendRemindersView
 from apps.notifications.views import NotificationViewSet, ReminderRuleViewSet
@@ -32,6 +33,7 @@ urlpatterns = [
     path("api/council/pending-approvals/", PendingApprovalsView.as_view(), name="pending-approvals"),
     path("api/dashboard/", DashboardView.as_view(), name="dashboard"),
     path("api/health/", HealthView.as_view(), name="health"),
+    path("api/media/sign/", MediaSignView.as_view(), name="media-sign"),
     path("api/internal/send-reminders/", SendRemindersView.as_view(), name="send-reminders"),
     path("api/ai/", include("apps.ai.api.urls")),
     path("api/", include(router.urls)),

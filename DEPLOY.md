@@ -32,6 +32,27 @@ is 60s (`backend/vercel.json`).
 
 ---
 
+## Local vs Production databases
+
+These are **intentionally separate**. Do not treat a string from the Neon
+console as production, and do not put a Neon URL in local `backend/.env`.
+
+| Environment | Database | How you get the URL |
+|-------------|----------|---------------------|
+| Local dev | User-space Postgres via `backend/scripts/start_db.ps1` (port **5433**, `audit_tracker`) | `backend/.env` as in `.env.example` (`postgres://postgres@localhost:5433/audit_tracker`). No Neon project. |
+| Production | Vercel-managed Neon (endpoint `ep-shiny-mud-b1qv6cwb`, host contains `-pooler` only on the **pooled** URL) | Exact values on the **recommendation-backend** Vercel project. Pooled `DATABASE_URL` for the running app; `DATABASE_URL_UNPOOLED` / `POSTGRES_URL_NON_POOLING` for `migrate` / `createsuperuser`. |
+
+Copying connection strings by hand from the Neon console is **discouraged**.
+The console can show a different Neon project or branch than the one the
+Vercel Neon integration attached (this already happened: console project
+`curly-wave-26296691` / `ep-aged-pine-b1p9bn0z` is not production). For
+anything that must touch production, pull the current value from Vercel
+(`vercel env pull --environment=production` into a **temp** file, or copy
+from the Vercel dashboard env UI), use it for that one command, and do not
+commit it.
+
+---
+
 ## Neon Postgres
 
 `dj-database-url` + `psycopg` already read `DATABASE_URL`. The same code path
@@ -47,7 +68,9 @@ Neon issues **two** connection strings per branch. They are not interchangeable:
 Production uses `CONN_MAX_AGE=0` so a serverless invocation does not hold a
 pooled slot after it returns. Local still uses `CONN_MAX_AGE=600`.
 
-Migrate from a machine that can reach Neon:
+Migrate from a machine that can reach Neon. Use the **unpooled** URL from
+Vercel production env (see **Local vs Production databases**), not a string
+copied from the Neon console:
 
 ```powershell
 cd backend

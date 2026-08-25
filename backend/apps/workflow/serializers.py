@@ -4,6 +4,7 @@ from django.conf import settings
 from rest_framework import serializers
 
 from apps.accounts.serializers import UserSerializer
+from apps.core.files import validate_stored_name
 
 from .models import (
     ActionPlan,
@@ -141,15 +142,25 @@ class RespondInputSerializer(serializers.Serializer):
     decision = serializers.ChoiceField(choices=ManagementResponse.Decision.choices)
     justification = serializers.CharField(required=False, allow_blank=True)
     attachment = serializers.FileField(required=False, allow_null=True, validators=[validate_upload])
+    stored_name = serializers.CharField(required=False, allow_blank=True, max_length=255)
     plan = ActionPlanInputSerializer(required=False, allow_null=True)
 
     def validate(self, attrs):
+        stored = (attrs.get("stored_name") or "").strip()
+        if stored:
+            try:
+                attrs["stored_name"] = validate_stored_name(stored, allowed_prefix="responses/")
+            except ValueError as exc:
+                raise serializers.ValidationError({"stored_name": str(exc)}) from exc
+            ext = os.path.splitext(attrs["stored_name"])[1].lower()
+            if ext not in settings.ALLOWED_UPLOAD_EXTENSIONS:
+                raise serializers.ValidationError({"stored_name": f"File type '{ext}' is not allowed."})
         if attrs["decision"] == ManagementResponse.Decision.DISAGREE:
             if not attrs.get("justification", "").strip():
                 raise serializers.ValidationError(
                     {"justification": "Disagreement requires a written justification."}
                 )
-            if not attrs.get("attachment"):
+            if not attrs.get("attachment") and not attrs.get("stored_name"):
                 raise serializers.ValidationError(
                     {"attachment": "Disagreement requires a supporting attachment."}
                 )
@@ -168,9 +179,24 @@ class StepProgressInputSerializer(serializers.Serializer):
 
 
 class EvidenceInputSerializer(serializers.Serializer):
-    file = serializers.FileField(validators=[validate_upload])
+    file = serializers.FileField(required=False, allow_null=True, validators=[validate_upload])
+    stored_name = serializers.CharField(required=False, allow_blank=True, max_length=255)
     step = serializers.IntegerField(required=False, allow_null=True)
     notes = serializers.CharField(required=False, allow_blank=True)
+
+    def validate(self, attrs):
+        stored = (attrs.get("stored_name") or "").strip()
+        if stored:
+            try:
+                attrs["stored_name"] = validate_stored_name(stored, allowed_prefix="evidence/")
+            except ValueError as exc:
+                raise serializers.ValidationError({"stored_name": str(exc)}) from exc
+            ext = os.path.splitext(attrs["stored_name"])[1].lower()
+            if ext not in settings.ALLOWED_UPLOAD_EXTENSIONS:
+                raise serializers.ValidationError({"stored_name": f"File type '{ext}' is not allowed."})
+        if not attrs.get("file") and not attrs.get("stored_name"):
+            raise serializers.ValidationError({"file": "A file is required."})
+        return attrs
 
 
 class VerifyInputSerializer(serializers.Serializer):

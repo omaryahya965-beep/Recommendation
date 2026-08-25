@@ -18,6 +18,7 @@ export interface WorkflowActionInput {
   path: string;
   body?: unknown;
   formData?: FormData;
+  successMessage?: string;
 }
 
 /**
@@ -32,9 +33,9 @@ export function useWorkflowAction(id: number) {
   const mutation = useMutation({
     mutationFn: ({ path, body, formData }: WorkflowActionInput) =>
       api(`/api/recommendations/${id}/${path}`, { method: "POST", body, formData }),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       setError(null);
-      setSuccess(T.common.actionRecorded);
+      setSuccess(variables.successMessage ?? T.common.actionRecorded);
       queryClient.invalidateQueries({ queryKey: ["recommendation", id] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["recommendations"] });

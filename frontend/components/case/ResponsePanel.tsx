@@ -16,9 +16,11 @@ import {
 import { EmptyState } from "@/components/ui/EmptyState";
 import { parseFinding } from "@/lib/finding";
 import { formatDate, formatDateTime } from "@/lib/format";
+import { errorMessage } from "@/lib/api";
 import type { WorkflowAction } from "@/lib/hooks";
 import { DECISION_LABELS, REVIEW_STATUS_LABELS, T, useI18n } from "@/lib/i18n";
 import type { RecommendationDetail } from "@/lib/types";
+import { FILE_INPUT_ACCEPT, prepareFileSubmission } from "@/lib/upload";
 import { useUnsavedChanges } from "@/lib/useUnsavedChanges";
 
 const REVIEW_TONE = {
@@ -158,11 +160,12 @@ export function RespondForm({
   const [justification, setJustification] = useState("");
   const [attachment, setAttachment] = useState<File | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const needsAttachment = decision === "disagree";
   useUnsavedChanges(Boolean(justification.trim() || attachment));
 
-  const submit = (event: React.FormEvent) => {
+  const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (needsAttachment && !attachment) {
       setLocalError(T.response.attachmentRequired);
@@ -175,11 +178,22 @@ export function RespondForm({
     setLocalError(null);
 
     if (attachment) {
-      const form = new FormData();
-      form.append("decision", decision);
-      form.append("justification", justification);
-      form.append("attachment", attachment);
-      action.mutation.mutate({ path: "respond/", formData: form });
+      setUploading(true);
+      try {
+        const payload = await prepareFileSubmission({
+          file: attachment,
+          purpose: "response",
+          fileFieldName: "attachment",
+          extraFields: { decision, justification },
+        });
+        action.mutation.mutate(
+          { path: "respond/", ...payload },
+          { onSettled: () => setUploading(false) }
+        );
+      } catch (err) {
+        setUploading(false);
+        setLocalError(errorMessage(err));
+      }
       return;
     }
     action.mutation.mutate({ path: "respond/", body: { decision, justification } });
@@ -224,6 +238,7 @@ export function RespondForm({
         <Field label={`${T.response.attachment}${needsAttachment ? " *" : ""}`} className="max-w-md">
           <input
             type="file"
+            accept={FILE_INPUT_ACCEPT}
             onChange={(event) => setAttachment(event.target.files?.[0] ?? null)}
             className="block w-full border border-line bg-surface px-3 py-2 text-sm file:me-3 file:border-0 file:bg-subtle file:px-3 file:py-1 file:text-sm file:text-ink"
           />
@@ -248,9 +263,9 @@ export function RespondForm({
 
         <ErrorBanner message={localError ?? action.error} />
 
-        <Button type="submit" disabled={action.mutation.isPending}>
+        <Button type="submit" disabled={action.mutation.isPending || uploading}>
           <Send className="size-4" />
-          {T.response.submit}
+          {uploading || action.mutation.isPending ? T.common.uploading : T.response.submit}
         </Button>
       </form>
     </div>

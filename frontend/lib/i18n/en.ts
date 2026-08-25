@@ -149,6 +149,7 @@ export const TRAIL_ACTION_LABELS: Record<string, string> = {
   execution_resumed: "Implementation Resumed",
   step_progress_updated: "Step Progress Updated",
   evidence_uploaded: "Evidence Uploaded",
+  evidence_deleted: "Evidence Deleted",
   marked_implemented: "Implementation Completed — Sent for Department Review",
   implementation_submitted_to_audit: "Department Forwarded Implementation to Internal Audit",
   implementation_returned_by_head: "Department Returned Implementation to Employee",
@@ -388,6 +389,11 @@ export const T = {
     noChartData: "Insufficient data to display this indicator",
     httpError: "Error ({status})",
     connectionError: "Unable to connect to the server",
+    connectionErrorHint:
+      "The upload could not be completed. Use a smaller file, or check your connection and try again.",
+    fileTooLarge: "The file is larger than {mb} MB. Compress it or upload a smaller PDF.",
+    uploadFailed: "The file could not be uploaded. Try again.",
+    uploading: "Uploading file…",
     today: "Today",
     day: "day",
     days: "days",
@@ -783,6 +789,10 @@ export const T = {
     unlinked: "Not linked to a stage",
     maxSize: "Maximum 20 MB",
     allowedTypes: "PDF, images, Word, Excel, CSV, text, ZIP",
+    disallowedType: "That file type is not allowed. Use a PDF, image, Word, or Excel file.",
+    deleteFile: "Delete file",
+    deleteConfirm: "Remove this file from the evidence register? This cannot be undone.",
+    deleted: "The file has been removed.",
   },
   /** Verification workspace */
   verify: {

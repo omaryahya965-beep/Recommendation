@@ -17,7 +17,7 @@ from apps.core.permissions import (
     scope_reports,
 )
 from apps.workflow import services
-from apps.workflow.models import ActionStep
+from apps.workflow.models import ActionStep, Evidence
 from apps.workflow.serializers import (
     ActionPlanInputSerializer,
     EvidenceInputSerializer,
@@ -220,6 +220,7 @@ class RecommendationViewSet(viewsets.ModelViewSet):
             justification=serializer.validated_data.get("justification", ""),
             attachment=serializer.validated_data.get("attachment"),
             plan_data=plan_data,
+            stored_name=serializer.validated_data.get("stored_name") or "",
         )
         return self._detail(request, recommendation)
 
@@ -292,18 +293,21 @@ class RecommendationViewSet(viewsets.ModelViewSet):
                 return Response({"detail": "Step not found."}, status=status.HTTP_404_NOT_FOUND)
         evidence = services.add_evidence(
             recommendation, request.user,
-            file=serializer.validated_data["file"],
+            file=serializer.validated_data.get("file"),
             step=step,
             notes=serializer.validated_data.get("notes", ""),
+            stored_name=serializer.validated_data.get("stored_name") or "",
         )
+        return self._detail(request, recommendation)
+
+    @action(detail=True, methods=["post"], url_path=r"evidence/(?P<evidence_id>\d+)/delete")
+    def delete_evidence(self, request, pk=None, evidence_id=None):
+        recommendation = self.get_object()
         try:
-            from django.conf import settings as django_settings
-            if django_settings.AI_ENABLED and evidence is not None:
-                from apps.ai.services.evidence_analyzer import analyze_evidence
-                analyze_evidence(evidence, request.user)
-        except Exception:
-            import logging
-            logging.getLogger("apps.ai").warning("ai_on_evidence_skipped", exc_info=True)
+            evidence = Evidence.objects.get(pk=evidence_id, recommendation=recommendation)
+        except Evidence.DoesNotExist:
+            return Response({"detail": "Evidence not found."}, status=status.HTTP_404_NOT_FOUND)
+        services.delete_evidence(recommendation, request.user, evidence)
         return self._detail(request, recommendation)
 
     @action(detail=True, methods=["post"], url_path="mark-implemented")

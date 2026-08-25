@@ -94,7 +94,14 @@ class CloudinaryMediaStorage(Storage):
         }
         if folder:
             options["folder"] = folder
-        result = cloudinary.uploader.upload(content, **options)
+        try:
+            result = cloudinary.uploader.upload(content, timeout=40, **options)
+        except Exception as exc:
+            from apps.core.exceptions import StorageUnavailable
+
+            raise StorageUnavailable(
+                "Could not store the uploaded file. Try again with a smaller PDF or image."
+            ) from exc
         return self._stored_name(
             result, fallback_name=name, resource_type=resource_type
         )
@@ -151,7 +158,7 @@ class CloudinaryMediaStorage(Storage):
     def _open(self, name, mode="rb"):
         from urllib.request import urlopen
 
-        with urlopen(self.url(name)) as response:
+        with urlopen(self.url(name), timeout=20) as response:
             return ContentFile(response.read(), name=name)
 
     def get_accessed_time(self, name):

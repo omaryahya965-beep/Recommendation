@@ -52,6 +52,16 @@ class MockedCloudinaryUploadTests(SimpleTestCase):
         self.assertEqual(upload.call_args.kwargs["resource_type"], "image")
         self.assertEqual(name, "evidence/2026/08/photo.jpg")
 
+    @patch("cloudinary.uploader.upload", side_effect=RuntimeError("cdn down"))
+    def test_upload_failure_is_storage_unavailable(self, _upload):
+        from apps.core.exceptions import StorageUnavailable
+
+        with self.assertRaises(StorageUnavailable):
+            self.storage._save(
+                "evidence/2026/08/deposit-slip.pdf",
+                ContentFile(b"%PDF-1.4 smoke evidence\n"),
+            )
+
     @patch("cloudinary.uploader.destroy")
     def test_delete_does_not_call_live_api(self, destroy):
         destroy.return_value = {"result": "ok"}

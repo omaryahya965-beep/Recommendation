@@ -49,9 +49,13 @@ export class ApiError extends Error {
   }
 }
 
+/** Client-side validation or Cloudinary upload failure — not a dropped HTTP call. */
+export class ClientError extends Error {}
+
 /** Extracts a human-readable message from DRF error payloads. */
 export function errorMessage(err: unknown): string {
   const T = currentT();
+  if (err instanceof ClientError) return err.message;
   if (err instanceof ApiError) {
     const body = err.body as Record<string, unknown> | null;
     if (body) {
@@ -64,6 +68,10 @@ export function errorMessage(err: unknown): string {
       if (parts.length) return parts.join(" — ");
     }
     return T.common.httpError.replace("{status}", String(err.status));
+  }
+  const msg = err instanceof Error ? err.message : "";
+  if (/failed to fetch|networkerror|load failed|network request failed/i.test(msg)) {
+    return T.common.connectionErrorHint;
   }
   return T.common.connectionError;
 }

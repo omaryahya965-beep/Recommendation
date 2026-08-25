@@ -149,6 +149,7 @@ export const TRAIL_ACTION_LABELS: Record<string, string> = {
   execution_resumed: "استئناف التنفيذ",
   step_progress_updated: "تحديث تقدم خطوة",
   evidence_uploaded: "رفع دليل",
+  evidence_deleted: "حذف دليل",
   marked_implemented: "إشعار اكتمال التنفيذ — إرسال لمراجعة الإدارة",
   implementation_submitted_to_audit: "الإدارة أرسلت التنفيذ للرقابة الداخلية",
   implementation_returned_by_head: "الإدارة أعادت التنفيذ للموظف",
@@ -387,6 +388,11 @@ export const T = {
     noChartData: "لا توجد بيانات كافية لعرض هذا المؤشر",
     httpError: "خطأ ({status})",
     connectionError: "تعذر الاتصال بالخادم",
+    connectionErrorHint:
+      "تعذر إكمال الرفع. إن كان الملف كبيراً صغّره، أو تحقق من الاتصال وأعد المحاولة.",
+    fileTooLarge: "الملف أكبر من {mb} ميغابايت. صغّره أو ارفعه كملف PDF مضغوط.",
+    uploadFailed: "تعذر رفع الملف. حاول مرة أخرى.",
+    uploading: "جارٍ رفع الملف…",
     today: "اليوم",
     day: "يوم",
     days: "أيام",
@@ -775,6 +781,10 @@ export const T = {
     unlinked: "غير مرتبطة بمرحلة",
     maxSize: "الحد الأقصى 20 ميغابايت",
     allowedTypes: "PDF، صور، Word، Excel، CSV، نص، ZIP",
+    disallowedType: "نوع الملف غير مسموح. استخدم PDF أو صورة أو Word أو Excel.",
+    deleteFile: "حذف الملف",
+    deleteConfirm: "حذف هذا الملف من سجل الأدلة؟ لا يمكن التراجع عن هذا الإجراء.",
+    deleted: "تم حذف الملف.",
   },
   /** Verification workspace */
   verify: {
