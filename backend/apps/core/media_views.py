@@ -38,6 +38,32 @@ def max_upload_bytes(*, direct_upload: bool) -> int:
     return limit
 
 
+def build_signed_upload_params(folder: str, timestamp: int) -> dict[str, str]:
+    """Fields the browser must POST to Cloudinary, as strings.
+
+    ``cloudinary.utils.api_sign_request`` skips falsy values, so a Python
+    ``overwrite=False`` is omitted from the hash while the form still sends
+    ``overwrite=false``. Cloudinary then reports Invalid Signature. String
+    ``"true"`` / ``"false"`` stay in both the hash and the POST body.
+    """
+    return {
+        "folder": folder,
+        "overwrite": "false",
+        "timestamp": str(timestamp),
+        "unique_filename": "true",
+        "use_filename": "true",
+    }
+
+
+def sign_upload_params(params: dict[str, str], api_secret: str) -> str:
+    import cloudinary.utils
+
+    try:
+        return cloudinary.utils.api_sign_request(params, api_secret, signature_version=1)
+    except TypeError:
+        return cloudinary.utils.api_sign_request(params, api_secret)
+
+
 class MediaSignView(APIView):
     """Return signed Cloudinary params, or {direct_upload: false} for local disk."""
 
@@ -55,13 +81,7 @@ class MediaSignView(APIView):
         folder_tpl = PURPOSES[purpose]
         folder = timezone.now().strftime(folder_tpl) if "%Y" in folder_tpl else folder_tpl
         timestamp = int(time.time())
-        params = {
-            "timestamp": timestamp,
-            "folder": folder,
-            "use_filename": True,
-            "unique_filename": True,
-            "overwrite": False,
-        }
+        params = build_signed_upload_params(folder, timestamp)
 
         configure_cloudinary(
             cloudinary_url=getattr(settings, "CLOUDINARY_URL", "") or os.environ.get("CLOUDINARY_URL", ""),
@@ -70,13 +90,12 @@ class MediaSignView(APIView):
             api_secret=getattr(settings, "CLOUDINARY_API_SECRET", "") or os.environ.get("CLOUDINARY_API_SECRET", ""),
         )
         import cloudinary
-        import cloudinary.utils
 
         cfg = cloudinary.config()
         if not cfg.api_secret or not cfg.api_key or not cfg.cloud_name:
             return Response({"direct_upload": False, "max_bytes": max_upload_bytes(direct_upload=False)})
 
-        signature = cloudinary.utils.api_sign_request(params, cfg.api_secret)
+        signature = sign_upload_params(params, cfg.api_secret)
         return Response(
             {
                 "direct_upload": True,
@@ -87,5 +106,6 @@ class MediaSignView(APIView):
                 "folder": folder,
                 "resource_type": resource_type_for_name(filename),
                 "max_bytes": max_upload_bytes(direct_upload=True),
+                "fields": params,
             }
         )

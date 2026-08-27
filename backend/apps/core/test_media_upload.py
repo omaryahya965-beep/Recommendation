@@ -1,9 +1,10 @@
 from unittest.mock import patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from rest_framework.test import APIClient
 
+from apps.core.media_views import build_signed_upload_params
 from apps.workflow.models import Evidence
 from apps.workflow.tests import drive_to_in_progress, make_world
 
@@ -141,7 +142,7 @@ class CloudinarySignReadyTests(TestCase):
 
         with patch("cloudinary.config", return_value=Cfg()), patch(
             "cloudinary.utils.api_sign_request", return_value="signed"
-        ):
+        ) as sign:
             res = self.client.post(
                 "/api/media/sign/",
                 {"filename": "proof.pdf", "purpose": "evidence"},
@@ -152,3 +153,21 @@ class CloudinarySignReadyTests(TestCase):
         self.assertEqual(res.data["signature"], "signed")
         self.assertEqual(res.data["resource_type"], "raw")
         self.assertIn("evidence/", res.data["folder"])
+        signed = sign.call_args[0][0]
+        self.assertEqual(signed["overwrite"], "false")
+        self.assertEqual(signed["use_filename"], "true")
+        self.assertEqual(signed["unique_filename"], "true")
+        self.assertEqual(res.data["fields"]["overwrite"], "false")
+        self.assertNotIn(True, signed.values())
+        self.assertNotIn(False, signed.values())
+
+
+class SignedUploadParamsTests(SimpleTestCase):
+    def test_string_to_sign_matches_cloudinary_form_body(self):
+        params = build_signed_upload_params("evidence/2026/08", 1787826341)
+        to_sign = "&".join(f"{key}={params[key]}" for key in sorted(params))
+        self.assertEqual(
+            to_sign,
+            "folder=evidence/2026/08&overwrite=false&timestamp=1787826341"
+            "&unique_filename=true&use_filename=true",
+        )

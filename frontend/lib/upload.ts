@@ -29,6 +29,8 @@ type SignResponse = {
   folder?: string;
   resource_type?: string;
   max_bytes?: number;
+  /** Exact Cloudinary fields that were hashed. Prefer these over hardcoded flags. */
+  fields?: Record<string, string>;
 };
 
 type CloudinaryUploadResult = {
@@ -79,15 +81,20 @@ export async function prepareFileSubmission(options: {
   if (invalid) throw new ClientError(invalid);
 
   if (sign.direct_upload && sign.cloud_name && sign.api_key && sign.signature != null && sign.timestamp != null) {
+    const fields = sign.fields ?? {
+      timestamp: String(sign.timestamp),
+      folder: sign.folder || "",
+      use_filename: "true",
+      unique_filename: "true",
+      overwrite: "false",
+    };
     const form = new FormData();
     form.append("file", options.file);
     form.append("api_key", sign.api_key);
-    form.append("timestamp", String(sign.timestamp));
     form.append("signature", sign.signature);
-    form.append("folder", sign.folder || "");
-    form.append("use_filename", "true");
-    form.append("unique_filename", "true");
-    form.append("overwrite", "false");
+    for (const [key, value] of Object.entries(fields)) {
+      form.append(key, value);
+    }
     const resourceType = sign.resource_type || "raw";
     const res = await fetch(`https://api.cloudinary.com/v1_1/${sign.cloud_name}/${resourceType}/upload`, {
       method: "POST",
