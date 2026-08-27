@@ -22,8 +22,9 @@ export function ActionNow({
   viewAllHref,
   title,
   hint,
-  limit = 7,
+  limit = 3,
   showDepartment = true,
+  className,
 }: {
   sources: ActionSource[];
   detailBase: string;
@@ -32,6 +33,7 @@ export function ActionNow({
   hint?: string;
   limit?: number;
   showDepartment?: boolean;
+  className?: string;
 }) {
   const { locale } = useI18n();
   const [queue, setQueue] = useState<string | null>(null);
@@ -45,6 +47,7 @@ export function ActionNow({
 
   return (
     <Section
+      className={className}
       title={title ?? T.dashboard.actionCenter}
       hint={hint ?? T.dashboard.actionCenterHint}
       actions={
@@ -57,13 +60,13 @@ export function ActionNow({
       }
     >
       {live.length ? (
-        <div className="flex gap-2 overflow-x-auto border-b border-line bg-subtle/50 px-4 py-3 scrollbar-thin md:flex-wrap">
+        <div className="flex min-w-0 gap-2 overflow-x-auto overscroll-x-contain border-b border-line bg-subtle/50 px-4 py-3 md:flex-wrap md:overflow-visible">
           <button
             type="button"
             onClick={() => setQueue(null)}
             aria-pressed={queue === null}
             className={cn(
-              "min-h-11 shrink-0 rounded-full px-4 text-[13px] font-bold transition-all duration-200",
+              "min-h-11 shrink-0 whitespace-nowrap rounded-full px-4 text-[13px] font-bold transition-all duration-200",
               queue === null ? "bg-inverse text-on-inverse shadow-sm" : "bg-surface text-ink-soft ring-1 ring-line hover:bg-surface hover:text-ink"
             )}
           >
@@ -76,7 +79,7 @@ export function ActionNow({
               onClick={() => setQueue((prev) => (prev === source.key ? null : source.key))}
               aria-pressed={queue === source.key}
               className={cn(
-                "inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full px-4 text-[13px] font-bold transition-all duration-200",
+                "inline-flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-4 text-[13px] font-bold transition-all duration-200",
                 queue === source.key ? "bg-inverse text-on-inverse shadow-sm" : "bg-surface text-ink-soft ring-1 ring-line hover:bg-surface hover:text-ink"
               )}
             >
@@ -96,7 +99,7 @@ export function ActionNow({
               const next = STATUS_NEXT_ACTION[item.status];
               const stage = stageForStatus(item.status);
               return (
-                <li key={item.id} className="relative overflow-hidden border-s-4 border-s-transparent bg-surface px-4 py-4 md:px-5 md:py-5">
+                <li key={item.id} className="relative overflow-hidden border-s-4 border-s-transparent bg-surface px-3 py-3 md:px-5 md:py-5">
                   <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
@@ -141,7 +144,7 @@ export function ActionNow({
               href={viewAllHref}
               className="inline-flex items-center gap-2 text-[14px] font-bold text-primary-dark hover:text-primary transition-colors"
             >
-              {T.dashboard.viewAll}
+              {T.notify.loadMore}
               <DirForward className="size-4.5" />
             </Link>
           </footer>

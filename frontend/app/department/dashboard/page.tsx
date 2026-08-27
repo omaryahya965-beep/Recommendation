@@ -85,7 +85,7 @@ export default function DepartmentDashboard() {
           detailHref={(item) => `${BASE}/${item.id}`}
           showDepartment={false}
         />
-        <RecentActivity detailBase={BASE} limit={5} compact />
+        <RecentActivity detailBase={BASE} compact />
       </div>
     </div>
   );

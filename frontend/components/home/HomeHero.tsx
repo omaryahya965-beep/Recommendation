@@ -57,7 +57,7 @@ export function HomeHero({
       />
       <div className="absolute inset-0" style={{background: "linear-gradient(to top, rgba(12,32,44,0.97) 0%, rgba(12,32,44,0.58) 55%, rgba(12,32,44,0.08) 100%)"}} />
 
-      <div className="relative z-10 flex h-full min-h-[11.5rem] flex-col justify-end gap-3 px-4 py-5 md:min-h-[18rem] md:gap-5 md:px-10 md:py-10">
+      <div className="relative z-10 flex h-full min-h-[11.5rem] flex-col justify-end gap-2 px-3 py-4 md:min-h-[18rem] md:gap-5 md:px-10 md:py-10">
         <div className="max-w-4xl min-w-0">
           <div className="flex flex-wrap items-center gap-2 md:gap-3">
             <p className="text-[14px] font-medium text-white/90">
@@ -74,11 +74,11 @@ export function HomeHero({
           <p className="mt-1 hidden text-[14px] font-medium text-white/80 md:mt-2 md:block" dir={locale === "ar" ? "rtl" : "ltr"}>
             {formatLongDate()}
           </p>
-          <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-white/90 md:mt-3 md:text-[15px]">{subtitle}</p>
+          <p className="mt-1.5 max-w-2xl text-[13px] leading-snug text-white/90 md:mt-3 md:text-[15px] md:leading-relaxed">{subtitle}</p>
         </div>
 
         {actions.length ? (
-          <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-3" aria-label={T.dashboard.quickActions}>
+          <div className="mt-1 grid min-w-0 grid-cols-3 gap-1.5 sm:flex sm:flex-row sm:flex-wrap sm:gap-3" aria-label={T.dashboard.quickActions}>
             {actions.map((action) => {
               const Icon = action.icon;
               return (
@@ -86,14 +86,14 @@ export function HomeHero({
                   key={action.href + action.label}
                   href={action.href}
                   className={cn(
-                    "inline-flex min-h-12 items-center justify-center gap-2.5 rounded-lg px-5 py-2.5 text-[14px] font-bold transition-all duration-200 active:scale-95",
+                    "inline-flex min-h-11 min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1.5 py-2 text-center text-[11px] font-bold leading-tight sm:min-h-12 sm:w-auto sm:flex-row sm:gap-2.5 sm:px-5 sm:py-2.5 sm:text-[14px] transition-all duration-200 active:scale-95",
                     action.primary
                       ? "bg-white text-inverse hover:bg-white/90 shadow-md"
                       : "bg-white/10 text-white hover:bg-white/20 backdrop-blur-md ring-1 ring-white/30"
                   )}
                 >
-                  <Icon className="size-4.5 shrink-0" />
-                  {action.label}
+                  <Icon className="size-4 shrink-0 sm:size-4.5" />
+                  <span className="min-w-0">{action.label}</span>
                 </Link>
               );
             })}

@@ -8,7 +8,6 @@ import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { ActionNow } from "@/components/home/ActionNow";
 import { HomeHero } from "@/components/home/HomeHero";
 import { PriorityMetrics } from "@/components/home/PriorityMetrics";
-import { RecurrenceWatch } from "@/components/home/RecurrenceWatch";
 import { TodayAgenda } from "@/components/home/TodayAgenda";
 import { ErrorBanner } from "@/components/ui/Base";
 import { DashboardSkeleton } from "@/components/ui/EmptyState";
@@ -43,10 +42,9 @@ export default function AuditDashboard() {
     href: queue.href,
   }));
   const approaching = approachingSource(sources, BASE);
-  const recurrences = data.action_center.possible_recurrences?.items ?? [];
 
   return (
-    <div className="animate-fade-in space-y-4">
+    <div className="animate-fade-in min-w-0 space-y-4">
       <HomeHero
         role="audit"
         title={T.dashboard.auditTitle}
@@ -67,27 +65,23 @@ export default function AuditDashboard() {
         }))}
       />
 
-      <ActionNow
-        sources={sources}
-        detailBase={BASE}
-        viewAllHref={BASE}
-        title={T.dashboard.hottest}
-        hint={T.dashboard.auditReviewHint}
-      />
-
-      <RecurrenceWatch
-        items={recurrences}
-        detailHref={(item) => `${BASE}/${item.id}`}
-        viewAllHref={`${BASE}?is_recurring=true`}
-      />
-
-      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-        <TodayAgenda
-          items={uniqueRecommendations(approaching ? [...sources, approaching] : sources)}
-          detailHref={(item) => `${BASE}/${item.id}`}
+      <div className="grid min-w-0 grid-cols-1 items-stretch gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(16rem,0.6fr)]">
+        <ActionNow
+          className="h-full"
+          sources={sources}
+          detailBase={BASE}
+          viewAllHref={BASE}
+          limit={3}
+          title={T.dashboard.hottest}
+          hint={T.dashboard.auditReviewHint}
         />
-        <RecentActivity detailBase={BASE} limit={7} />
+        <RecentActivity detailBase={BASE} />
       </div>
+
+      <TodayAgenda
+        items={uniqueRecommendations(approaching ? [...sources, approaching] : sources)}
+        detailHref={(item) => `${BASE}/${item.id}`}
+      />
     </div>
   );
 }

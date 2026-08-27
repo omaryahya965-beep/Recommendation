@@ -570,8 +570,8 @@ function ShellFrame({
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-40 border-b border-line bg-surface/95 pt-[env(safe-area-inset-top)] shadow-sm backdrop-blur-md">
-          <div className="flex h-14 items-center gap-1 px-2 md:justify-between md:gap-3 md:px-6">
+        <header className="sticky top-0 z-40 min-w-0 border-b border-line bg-surface/95 pt-[env(safe-area-inset-top)] shadow-sm backdrop-blur-md">
+          <div className="flex h-14 min-w-0 items-center gap-1 px-2 md:justify-between md:gap-3 md:px-6">
             <div className="flex min-w-0 flex-1 items-center gap-1 md:gap-3">
               <button
                 type="button"

@@ -88,7 +88,7 @@ export default function MyTasksPage() {
 
       <div className="grid items-stretch gap-4 xl:grid-cols-2">
         <TodayAgenda items={uniqueRecommendations(sources, tasks)} detailHref={(item) => `${HOME}/${item.id}`} />
-        <RecentActivity detailBase={HOME} limit={5} compact />
+        <RecentActivity detailBase={HOME} compact />
       </div>
 
       <div className="grid items-stretch gap-4 xl:grid-cols-2">

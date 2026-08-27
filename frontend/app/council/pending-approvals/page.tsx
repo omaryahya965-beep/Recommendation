@@ -149,7 +149,7 @@ export default function PendingApprovalsPage() {
 
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
         <TodayAgenda items={uniqueRecommendations(sources, closures)} detailHref={(item) => `${BASE}/${item.id}`} />
-        <RecentActivity detailBase={BASE} limit={7} />
+        <RecentActivity detailBase={BASE} />
       </div>
     </div>
   );
