@@ -13,18 +13,17 @@ import { formatDate, recordCode } from "@/lib/format";
 import { RESOLUTION_LABELS, T, useI18n } from "@/lib/i18n";
 import type { RecommendationDetail } from "@/lib/types";
 import { stageForStatus } from "@/lib/workflow";
-import { cn } from "@/lib/cn";
 
 function Meta({ label, children, icon: Icon }: { label: string; children: React.ReactNode; icon: React.ComponentType<{ className?: string }> }) {
   useI18n();
   return (
-    <div className="min-w-0 border-s border-line px-5 py-3.5 first:border-s-0 first:ps-0 flex items-start gap-2.5">
-      <div className="p-2 bg-subtle rounded-lg text-muted shrink-0">
+    <div className="min-w-0 border-b border-line px-3 py-3 first:ps-3 sm:flex sm:items-start sm:gap-2.5 sm:border-b-0 sm:border-s sm:px-5 sm:py-3.5 sm:first:border-s-0 sm:first:ps-0">
+      <div className="mb-1 hidden p-2 bg-subtle rounded-lg text-muted shrink-0 sm:mb-0 sm:block">
         <Icon className="size-4" />
       </div>
       <div className="min-w-0">
-        <p className="text-[11px] font-bold uppercase tracking-wider text-muted mb-0.5">{label}</p>
-        <div className="truncate text-[13px] font-bold text-navy">{children}</div>
+        <p className="mb-0.5 text-[13px] font-bold text-muted">{label}</p>
+        <div className="truncate text-[14px] font-bold text-navy">{children}</div>
       </div>
     </div>
   );
@@ -56,7 +55,7 @@ export function CaseHeader({
     <header className="border-b border-line pb-6">
       <Link
         href={backHref}
-        className="inline-flex items-center gap-1.5 text-[13px] font-bold text-primary-dark transition-colors hover:text-primary"
+        className="inline-flex min-h-11 items-center gap-1.5 text-[14px] font-bold text-primary-dark"
       >
         <DirBack className="size-4" />
         {backLabel}
@@ -64,10 +63,10 @@ export function CaseHeader({
 
       <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <p className="font-mono text-sm font-bold tracking-wider text-muted uppercase" dir="ltr">
+          <p className="font-mono text-sm font-bold text-muted" dir="ltr">
             {recordCode(rec.id)}
           </p>
-          <h1 className="mt-1.5 font-heading text-2xl font-bold leading-tight text-navy">
+          <h1 className="mt-1.5 font-heading text-[1.375rem] font-bold leading-tight text-navy md:text-2xl">
             {title}
           </h1>
         </div>
@@ -87,7 +86,7 @@ export function CaseHeader({
         </p>
       ) : null}
 
-      <dl className="mt-5 flex flex-wrap rounded-xl border border-line bg-surface p-1 shadow-sm divide-y divide-line sm:divide-y-0">
+      <dl className="mt-5 grid grid-cols-1 rounded-xl border border-line bg-surface shadow-sm sm:flex sm:flex-wrap sm:p-1">
         <Meta label={T.common.risk} icon={AlertIcon}>
           <RiskBadge level={rec.risk_level} />
         </Meta>

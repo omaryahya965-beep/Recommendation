@@ -16,7 +16,6 @@ import {
   Settings,
   Sparkles,
   Users,
-  X,
   ChevronRight
 } from "lucide-react";
 import Link from "next/link";
@@ -26,6 +25,8 @@ import { Suspense, useEffect, useMemo, useRef, useState, type ComponentType, typ
 import { MunicipalLogo } from "@/components/brand/MunicipalLogo";
 import { DirCollapse } from "@/components/i18n/DirIcon";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { MobileNavDrawer } from "@/components/shell/MobileNavDrawer";
+import { MobileSearchOverlay } from "@/components/shell/MobileSearchOverlay";
 import { usePrefetchAIInsights } from "@/lib/ai";
 import { StatusBadge } from "@/components/ui/StampBadge";
 import { api, loadAuth, logout, ROLE_HOME } from "@/lib/api";
@@ -368,7 +369,7 @@ function SidebarNav({
 
   const itemCls = (active: boolean) =>
     cn(
-      "group relative flex items-center gap-3 rounded-md px-3 py-2.5 text-[13.5px] transition-all duration-200",
+      "group relative flex min-h-12 items-center gap-3 rounded-md px-3 py-2.5 text-[14px] transition-all duration-200 md:min-h-0 md:text-[13.5px]",
       collapsed && "justify-center px-2 py-3",
       active
         ? "bg-sidebar-hover text-sidebar-text font-semibold"
@@ -380,7 +381,7 @@ function SidebarNav({
       {groups.map((group, groupIndex) => (
         <div key={group.id} className={cn(groupIndex > 0 && "mt-6")}>
           {group.label && !collapsed ? (
-            <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-wider text-sidebar-muted/70">
+            <p className="mb-2 px-3 text-[11px] font-bold text-sidebar-muted/70">
               {group.label}
             </p>
           ) : null}
@@ -456,13 +457,14 @@ function ShellFrame({
   pathname: string;
   children: ReactNode;
 }) {
-  const { dir } = useI18n();
+  useI18n();
   usePrefetchAIInsights(role);
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem("audit_sidebar_collapsed") === "1";
   });
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const searchParams = useSearchParams();
   const settings = settingsFor(role);
 
@@ -487,7 +489,7 @@ function ShellFrame({
           {collapsed ? null : (
             <div className="min-w-0">
               <p className="font-heading text-[15px] font-bold leading-tight text-white">{T.appName}</p>
-              <p className="truncate text-[11px] font-medium text-sidebar-muted tracking-wide">
+              <p className="truncate text-[12px] font-medium text-sidebar-muted">
                 {ROLE_LABELS[user.role]}
               </p>
             </div>
@@ -504,7 +506,7 @@ function ShellFrame({
           title={collapsed ? settings.label : undefined}
           onClick={() => setMobileOpen(false)}
           className={cn(
-            "group relative flex items-center gap-3 rounded-md px-3 py-2.5 text-[13px] transition-colors",
+            "group relative flex min-h-12 items-center gap-3 rounded-md px-3 py-2.5 text-[14px] transition-colors",
             collapsed && "justify-center px-2",
             settingsActive ? "bg-sidebar-hover text-sidebar-text font-medium" : "text-sidebar-muted hover:bg-sidebar-hover/50 hover:text-sidebar-text"
           )}
@@ -516,14 +518,14 @@ function ShellFrame({
           {collapsed ? <span className="sr-only">{settings.label}</span> : settings.label}
         </Link>
         
-        <div className={cn("mt-2 flex items-center gap-3 rounded-lg bg-sidebar-hover/30 p-2", collapsed && "justify-center p-1.5")}>
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-sidebar-hover font-heading text-[12px] font-bold text-white shadow-sm ring-1 ring-white/5">
+        <div className={cn("mt-2 flex items-center gap-3 rounded-lg bg-sidebar-hover/30 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]", collapsed && "justify-center p-1.5")}>
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-sidebar-hover font-heading text-[13px] font-bold text-white shadow-sm ring-1 ring-white/5">
             {initials}
           </div>
           {collapsed ? null : (
             <div className="min-w-0 flex-1">
-              <p className="truncate font-heading text-[12px] font-semibold text-white">{user.full_name_ar || user.username}</p>
-              <p className="truncate text-[10px] text-sidebar-muted">{user.municipality_name || ROLE_LABELS[user.role]}</p>
+              <p className="truncate font-heading text-[13px] font-semibold text-white">{user.full_name_ar || user.username}</p>
+              <p className="truncate text-[12px] text-sidebar-muted">{user.municipality_name || ROLE_LABELS[user.role]}</p>
             </div>
           )}
           {collapsed ? null : (
@@ -531,9 +533,10 @@ function ShellFrame({
               type="button"
               onClick={logout}
               title={T.nav.logout}
-              className="rounded-md p-1.5 text-sidebar-muted hover:bg-danger-dark/20 hover:text-danger-dark transition-colors"
+              aria-label={T.nav.logout}
+              className="flex size-12 shrink-0 items-center justify-center rounded-md text-sidebar-muted hover:bg-danger-dark/20 hover:text-danger-dark transition-colors"
             >
-              <LogOut className="size-[15px]" />
+              <LogOut className="size-5" />
             </button>
           )}
         </div>
@@ -553,71 +556,82 @@ function ShellFrame({
         {sidebar}
       </aside>
 
-      {/* Mobile Drawer */}
-      {mobileOpen ? (
-        <div className="fixed inset-0 z-50 md:hidden">
-          <div className="absolute inset-0 bg-overlay backdrop-blur-sm transition-opacity" aria-label={T.nav.close} onClick={() => setMobileOpen(false)} />
-          <aside className="absolute inset-y-0 start-0 flex w-[280px] flex-col bg-sidebar text-sidebar-text shadow-2xl">
-            <button
-              className="absolute end-4 top-6 rounded-full bg-sidebar-hover p-1.5 text-sidebar-muted hover:text-white transition-colors"
-              onClick={() => setMobileOpen(false)}
-              aria-label={T.nav.close}
-            >
-              <X className="size-4" />
-            </button>
-            {sidebar}
-          </aside>
-        </div>
-      ) : null}
+      <MobileNavDrawer
+        open={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+      >
+        {sidebar}
+      </MobileNavDrawer>
+
+      <MobileSearchOverlay
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        role={role}
+      />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Topbar: Desktop 2-row layout / Mobile 1-row */}
-        <header className="sticky top-0 z-40 bg-surface/95 backdrop-blur-md shadow-sm border-b border-line">
-          {/* Top Row: Breadcrumbs & Actions */}
-          <div className="flex h-14 items-center justify-between px-4 md:px-6">
-            <div className="flex items-center gap-3 min-w-0">
+        <header className="sticky top-0 z-40 border-b border-line bg-surface/95 pt-[env(safe-area-inset-top)] shadow-sm backdrop-blur-md">
+          <div className="flex h-14 items-center gap-1 px-2 md:justify-between md:gap-3 md:px-6">
+            <div className="flex min-w-0 flex-1 items-center gap-1 md:gap-3">
               <button
-                className="rounded-md p-1.5 text-ink-soft hover:bg-subtle md:hidden transition-colors"
-                onClick={() => setMobileOpen(true)}
+                type="button"
+                className="flex size-12 shrink-0 items-center justify-center rounded-md text-ink-soft hover:bg-subtle md:hidden"
+                onClick={() => {
+                  setSearchOpen(false);
+                  setMobileOpen(true);
+                }}
                 aria-label={T.nav.menu}
               >
                 <Menu className="size-5" />
               </button>
               <button
-                className="hidden rounded-md p-1.5 text-ink-soft hover:bg-subtle md:inline-flex transition-colors"
+                type="button"
+                className="hidden size-11 items-center justify-center rounded-md text-ink-soft hover:bg-subtle md:inline-flex"
                 onClick={toggleCollapsed}
                 aria-label={collapsed ? T.nav.expand : T.nav.collapse}
               >
                 <DirCollapse collapsed={collapsed} className="size-5" />
               </button>
-              
-              <div className="hidden items-center gap-2 text-[13px] text-muted lg:flex min-w-0">
+
+              <div className="flex min-w-0 flex-1 items-center gap-2 md:hidden">
+                <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-navy text-white">
+                  <MunicipalLogo size="sm" inverted className="text-white" />
+                </div>
+                <p className="min-w-0 truncate font-heading text-[15px] font-bold text-navy">
+                  {pageTitle(pathname)}
+                </p>
+              </div>
+
+              <div className="hidden min-w-0 items-center gap-2 text-[13px] text-muted lg:flex">
                 <span>{T.appName}</span>
                 <ChevronRight className="size-3.5 shrink-0 rtl:rotate-180" />
-                <span className="font-semibold text-navy truncate">{pageTitle(pathname)}</span>
+                <span className="truncate font-semibold text-navy">{pageTitle(pathname)}</span>
               </div>
             </div>
 
-            <div className="flex items-center gap-4 shrink-0">
-              <div className="hidden md:block w-72 lg:w-96">
-                 <GlobalSearch role={role} />
+            <div className="flex shrink-0 items-center gap-0.5 md:gap-4">
+              <button
+                type="button"
+                className="flex size-12 items-center justify-center rounded-md text-ink-soft hover:bg-subtle md:hidden"
+                onClick={() => {
+                  setMobileOpen(false);
+                  setSearchOpen(true);
+                }}
+                aria-label={T.nav.search}
+              >
+                <Search className="size-5" />
+              </button>
+              <div className="hidden w-72 md:block lg:w-96">
+                <GlobalSearch role={role} />
               </div>
-              <div className="h-5 w-px bg-line hidden md:block" />
+              <div className="hidden h-5 w-px bg-line md:block" />
               <NotificationBell role={role} />
             </div>
           </div>
-          
-          {/* Mobile Search Row */}
-          <div className="flex items-center px-4 pb-3 md:hidden">
-            <GlobalSearch role={role} />
-          </div>
         </header>
 
-        {/* Content Area */}
-        <main className="mx-auto w-full max-w-[90rem] flex-1 px-4 py-6 sm:px-6 lg:px-8 xl:py-8">
-          <div className="animate-fade-in">
-            {children}
-          </div>
+        <main className="mx-auto w-full max-w-[90rem] min-w-0 flex-1 px-3 py-4 sm:px-6 md:py-6 lg:px-8 xl:py-8">
+          <div className="animate-fade-in min-w-0">{children}</div>
         </main>
       </div>
     </div>

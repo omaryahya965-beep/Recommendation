@@ -135,7 +135,7 @@ function ReportCard({ report }: { report: AuditReport }) {
 }
 
 export function ReportsRegister() {
-  const { locale } = useI18n();
+  useI18n();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<ReportStatus | "all">("all");
   const [department, setDepartment] = useState("");
@@ -196,7 +196,7 @@ export function ReportsRegister() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-surface p-4 shadow-sm">
-        <div className="relative min-w-[240px] flex-1">
+        <div className="relative min-w-0 flex-1">
           <Search className="pointer-events-none absolute inset-y-0 start-3 my-auto size-4 text-muted" />
           <TextInput
             value={search}
@@ -210,7 +210,7 @@ export function ReportsRegister() {
         <Select
           value={department}
           onChange={(event) => setDepartment(event.target.value)}
-          className="w-auto min-w-[11rem] font-medium"
+          className="w-full min-w-0 font-medium md:w-auto md:min-w-[11rem]"
           aria-label={T.common.department}
         >
           <option value="">{T.common.department}: {T.common.all}</option>
@@ -224,7 +224,7 @@ export function ReportsRegister() {
         <Select
           value={engagement}
           onChange={(event) => setEngagement(event.target.value)}
-          className="w-auto min-w-[10rem] font-medium"
+          className="w-full min-w-0 font-medium md:w-auto md:min-w-[10rem]"
           aria-label={T.create.engagement}
         >
           <option value="">{T.create.engagement}: {T.common.all}</option>
@@ -244,7 +244,7 @@ export function ReportsRegister() {
           <option value="title">{T.reports.sortTitle}</option>
         </Select>
 
-        <div className="flex overflow-hidden rounded-lg border border-line shadow-sm">
+        <div className="hidden overflow-hidden rounded-lg border border-line shadow-sm md:flex">
           <button
             type="button"
             onClick={() => setView("list")}
@@ -274,7 +274,7 @@ export function ReportsRegister() {
             onClick={() => setStatus(item)}
             aria-pressed={status === item}
             className={cn(
-              "whitespace-nowrap rounded-full border px-4 py-2 text-[13px] font-bold transition-all duration-200",
+              "min-h-11 whitespace-nowrap rounded-full border px-4 text-[13px] font-bold transition-all duration-200",
               status === item
                 ? "border-primary bg-primary text-white shadow-sm"
                 : "border-line bg-surface text-ink-soft hover:border-primary/45 hover:text-primary-dark"
@@ -333,61 +333,66 @@ export function ReportsRegister() {
           description={all.length ? T.register.clearFilters : T.reports.emptyHint}
           className="bg-surface py-16"
         />
-      ) : view === "list" ? (
-        <div className="space-y-3.5">
-          {visible.map((report) => (
-            <ReportCard key={report.id} report={report} />
-          ))}
-        </div>
       ) : (
-        <LedgerTable
-          headers={[
-            T.reports.number,
-            T.reports.reportTitle,
-            T.common.department,
-            T.common.status,
-            T.reports.recCount,
-            T.create.deadline,
-            T.workflow.requiredAction,
-          ]}
-        >
-          {visible.map((report) => {
-            const late = deadlineOverdue(report);
-            return (
-              <tr key={report.id} className="group transition-colors hover:bg-subtle/60">
-                <LedgerCell mono>
-                  <Link href={`/audit/reports/${report.id}`} className="font-bold text-primary hover:text-primary-dark hover:underline">
-                    <RecordId id={report.id} prefix="RPT" />
-                  </Link>
-                </LedgerCell>
-                <LedgerCell>
-                  <Link href={`/audit/reports/${report.id}`} className="font-semibold text-ink group-hover:text-primary transition-colors">
-                    {report.title}
-                  </Link>
-                  <p className="mt-0.5 text-[11px] font-semibold text-muted/80">{ENGAGEMENT_LABELS[report.engagement_type]}</p>
-                </LedgerCell>
-                <LedgerCell>{report.department_name}</LedgerCell>
-                <LedgerCell>
-                  <StatusBadge
-                    status={REPORT_STATUS_FAMILY[report.status]}
-                    label={REPORT_STATUS_LABELS[report.status]}
-                  />
-                </LedgerCell>
-                <LedgerCell mono>
-                  <span className="font-mono font-bold text-navy" dir="ltr">{report.recommendations_count}</span>
-                </LedgerCell>
-                <LedgerCell mono>
-                  <span className={cn("font-mono font-medium", late ? "font-bold text-danger-dark" : "text-muted")} dir="ltr">
-                    {formatDate(report.response_deadline)}
-                  </span>
-                </LedgerCell>
-                <LedgerCell>
-                  <span className="text-[13px] font-medium text-ink-soft">{nextAction(report)}</span>
-                </LedgerCell>
-              </tr>
-            );
-          })}
-        </LedgerTable>
+        <>
+          <div className={cn("space-y-3.5", view === "compact" && "md:hidden")}>
+            {visible.map((report) => (
+              <ReportCard key={report.id} report={report} />
+            ))}
+          </div>
+          {view === "compact" ? (
+            <div className="hidden md:block">
+              <LedgerTable
+                headers={[
+                  T.reports.number,
+                  T.reports.reportTitle,
+                  T.common.department,
+                  T.common.status,
+                  T.reports.recCount,
+                  T.create.deadline,
+                  T.workflow.requiredAction,
+                ]}
+              >
+                {visible.map((report) => {
+                  const late = deadlineOverdue(report);
+                  return (
+                    <tr key={report.id} className="group transition-colors hover:bg-subtle/60">
+                      <LedgerCell mono>
+                        <Link href={`/audit/reports/${report.id}`} className="font-bold text-primary hover:text-primary-dark hover:underline">
+                          <RecordId id={report.id} prefix="RPT" />
+                        </Link>
+                      </LedgerCell>
+                      <LedgerCell>
+                        <Link href={`/audit/reports/${report.id}`} className="font-semibold text-ink group-hover:text-primary transition-colors">
+                          {report.title}
+                        </Link>
+                        <p className="mt-0.5 text-[11px] font-semibold text-muted/80">{ENGAGEMENT_LABELS[report.engagement_type]}</p>
+                      </LedgerCell>
+                      <LedgerCell>{report.department_name}</LedgerCell>
+                      <LedgerCell>
+                        <StatusBadge
+                          status={REPORT_STATUS_FAMILY[report.status]}
+                          label={REPORT_STATUS_LABELS[report.status]}
+                        />
+                      </LedgerCell>
+                      <LedgerCell mono>
+                        <span className="font-mono font-bold text-navy" dir="ltr">{report.recommendations_count}</span>
+                      </LedgerCell>
+                      <LedgerCell mono>
+                        <span className={cn("font-mono font-medium", late ? "font-bold text-danger-dark" : "text-muted")} dir="ltr">
+                          {formatDate(report.response_deadline)}
+                        </span>
+                      </LedgerCell>
+                      <LedgerCell>
+                        <span className="text-[13px] font-medium text-ink-soft">{nextAction(report)}</span>
+                      </LedgerCell>
+                    </tr>
+                  );
+                })}
+              </LedgerTable>
+            </div>
+          ) : null}
+        </>
       )}
 
       {!all.length && !isLoading && !isError ? (

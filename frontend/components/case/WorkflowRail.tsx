@@ -36,13 +36,53 @@ export function WorkflowRail({
   return (
     <section className={cn("overflow-hidden border-b border-line pb-5", className)}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-heading text-sm font-bold text-navy uppercase tracking-wider">{T.workflow.title}</h2>
+        <h2 className="font-heading text-sm font-bold text-navy">{T.workflow.title}</h2>
         {yours ? (
           <p className="text-[12px] font-bold text-warning-dark bg-warning-light/50 px-2.5 py-0.5 rounded-full border border-warning/20 ring-1 ring-warning/10">{T.workflow.actNow}</p>
         ) : null}
       </div>
 
-      <div className="scrollbar-thin overflow-x-auto pb-2">
+      <ol className="space-y-3 md:hidden">
+        {beats.map((beat, index) => {
+          const done = beat.state === "completed";
+          const here = beat.state === "current" || beat.state === "returned";
+          return (
+            <li key={beat.id} className="flex items-start gap-3">
+              <span
+                className={cn(
+                  "mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-full border font-mono font-bold",
+                  STATE_DOT[beat.state],
+                )}
+              >
+                {done ? (
+                  <Check className="size-4" strokeWidth={3.5} />
+                ) : beat.state === "returned" ? (
+                  <RotateCcw className="size-4" strokeWidth={3} />
+                ) : (
+                  index + 1
+                )}
+              </span>
+              <div className="min-w-0 pt-1">
+                <p className={cn("text-[15px] leading-snug", here ? "font-bold text-navy" : done ? "font-semibold text-ink-soft" : "font-medium text-muted")}>
+                  {beat.label}
+                </p>
+                {here ? (
+                  <span
+                    className={cn(
+                      "mt-1 inline-flex rounded-full px-2 py-0.5 text-[12px] font-bold",
+                      beat.state === "returned" ? "bg-danger-light text-danger-dark" : "bg-inverse text-on-inverse",
+                    )}
+                  >
+                    {T.workflow.youAreHere}
+                  </span>
+                ) : null}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+
+      <div className="hidden scrollbar-thin overflow-x-auto pb-2 md:block">
         <ol className="flex min-w-[920px] items-start gap-0 px-2">
           {beats.map((beat, index) => {
             const isLast = index === beats.length - 1;

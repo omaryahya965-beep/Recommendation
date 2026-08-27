@@ -3,6 +3,7 @@
 import { Download, FileCheck2, FolderOpen, Info, Trash2, Upload } from "lucide-react";
 import { useState } from "react";
 
+import { EvidenceCard } from "@/components/evidence/EvidenceCard";
 import { AIEvidenceAnalysis } from "@/components/ai/AIEvidenceAnalysis";
 import { Button, Callout, ErrorBanner, Field, Select, TextArea } from "@/components/ui/Base";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -274,14 +275,14 @@ export function EvidenceRegister({
       {canUpload && action ? (
         <form onSubmit={upload} className="space-y-4 border-b border-line pb-5">
           <h3 className="font-heading text-sm font-semibold text-navy">{T.evidenceRegister.uploadTitle}</h3>
-          <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <Field label={T.evidenceRegister.file}>
               <input
                 type="file"
                 accept={FILE_INPUT_ACCEPT}
                 onChange={(event) => setFile(event.target.files?.[0] ?? null)}
                 required
-                className="block w-full border border-line bg-surface px-3 py-2 text-sm file:me-3 file:border-0 file:bg-subtle file:px-3 file:py-1 file:text-sm file:text-ink"
+                className="block min-h-12 w-full border border-line bg-surface px-3 py-3 text-base file:me-3 file:min-h-11 file:border-0 file:bg-subtle file:px-3 file:py-2 file:text-sm file:text-ink"
               />
               <p className="mt-1 text-xs text-muted">
                 {T.evidenceRegister.allowedTypes} · {T.evidenceRegister.maxSize}
@@ -309,7 +310,7 @@ export function EvidenceRegister({
             />
           </Field>
           <ErrorBanner message={localError ?? action.error} />
-          <Button type="submit" disabled={action.mutation.isPending || uploading || !file}>
+          <Button type="submit" disabled={action.mutation.isPending || uploading || !file} className="min-h-12 w-full md:w-auto">
             <Upload className="size-4" />
             {uploading || action.mutation.isPending ? T.common.uploading : T.evidenceRegister.upload}
           </Button>
@@ -326,7 +327,26 @@ export function EvidenceRegister({
         <p className="mb-3 text-[12px] text-muted">{T.evidenceRegister.derivedNote}</p>
 
         {files.length ? (
-          <div className="scrollbar-thin -mx-4 overflow-x-auto md:-mx-5">
+          <>
+            <ul className="space-y-3 md:hidden">
+              {files.map((item) => (
+                <li key={item.id}>
+                  <EvidenceCard evidence={item} />
+                  {canRemoveFile(item, canUpload, role, userId) ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="mt-2 min-h-11 w-full"
+                      onClick={() => removeFile(item)}
+                    >
+                      <Trash2 className="size-4" />
+                      {T.common.delete}
+                    </Button>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+            <div className="hidden scrollbar-thin overflow-x-auto md:block">
             <table className="w-full min-w-[52rem] border-collapse text-[13px]">
               <thead>
                 <tr className="border-y border-line bg-subtle/50 text-start text-[11.5px] font-medium text-ink-soft">
@@ -374,7 +394,8 @@ export function EvidenceRegister({
                 ))}
               </tbody>
             </table>
-          </div>
+            </div>
+          </>
         ) : (
           <EmptyState
             icon={<FolderOpen className="size-6" />}

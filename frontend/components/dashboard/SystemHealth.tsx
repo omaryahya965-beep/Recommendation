@@ -23,9 +23,9 @@ function StatLink({
   return (
     <Link
       href={href}
-      className="group flex min-h-[6.5rem] min-w-[8.5rem] flex-col justify-center border-b border-e border-line px-5 py-4 transition-all duration-200 hover:bg-subtle/50 hover:shadow-inner hover:z-10 relative"
+      className="relative z-10 flex min-h-[5.5rem] min-w-[8.5rem] snap-start flex-col justify-center border-b border-e border-line px-4 py-4 md:min-h-[6.5rem] md:px-5"
     >
-      <p className="text-[12px] font-bold uppercase tracking-wider text-muted mb-2">{label}</p>
+      <p className="mb-2 text-[13px] font-bold text-muted">{label}</p>
       <p
         className={cn(
           "font-heading text-[1.75rem] font-bold tabular-nums leading-none tracking-tight",
@@ -65,8 +65,8 @@ export function SystemHealth({
 
   return (
     <Section title={title ?? T.dashboard.systemHealth} hint={hint ?? T.dashboard.systemHealthHint} className="overflow-hidden bg-surface">
-      <div className="grid grid-cols-2 overflow-hidden sm:grid-cols-3 xl:grid-cols-[minmax(16rem,auto)_repeat(6,minmax(0,1fr))] -mb-px -me-px">
-        <div className="col-span-2 flex items-center gap-5 border-b border-e border-line px-6 py-5 sm:col-span-3 xl:col-span-1 xl:border-b-0 bg-subtle/20">
+      <div className="flex snap-x snap-mandatory overflow-x-auto scrollbar-thin xl:grid xl:grid-cols-[minmax(16rem,auto)_repeat(6,minmax(0,1fr))] xl:overflow-hidden -mb-px -me-px">
+        <div className="flex min-w-[16rem] snap-start items-center gap-4 border-b border-e border-line bg-subtle/20 px-5 py-5 md:min-w-[18rem] xl:min-w-0">
           <Donut
             size={86}
             thickness={10}
@@ -81,7 +81,7 @@ export function SystemHealth({
             }
           />
           <div className="min-w-0">
-            <p className="text-[13px] font-bold uppercase tracking-wider text-navy">{T.stats.completionRate}</p>
+            <p className="text-[13px] font-bold text-navy">{T.stats.completionRate}</p>
             <p className="mt-1 text-[13px] font-medium text-ink-soft">{T.analytics.ofAll}</p>
           </div>
         </div>

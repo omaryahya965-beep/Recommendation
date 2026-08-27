@@ -163,7 +163,41 @@ function DepartmentTable({
 
   return (
     <Section title={T.analytics.departmentPressure} hint={T.analytics.departmentPressureHint} className="bg-surface h-full">
-      <div className="scrollbar-thin overflow-x-auto">
+      <ul className="space-y-3 p-4 md:hidden">
+        {rows.map((row, index) => (
+          <li key={row.department}>
+            <Link href={`${base}?report__department=${row.department}`} className="block rounded-xl border border-line p-4">
+              <p className="font-heading text-[16px] font-bold text-navy">
+                {row.name}
+                {index === 0 && row.overdue > 0 ? (
+                  <span className="ms-2 rounded bg-danger-light px-1.5 py-0.5 text-[11px] font-bold text-danger-dark">
+                    {T.dashboard.highestPressure}
+                  </span>
+                ) : null}
+              </p>
+              <dl className="mt-3 grid grid-cols-2 gap-2 text-[14px]">
+                <div>
+                  <dt className="font-semibold text-muted">{T.analytics.colOpen}</dt>
+                  <dd className="font-mono" dir="ltr">{row.open}</dd>
+                </div>
+                <div>
+                  <dt className="font-semibold text-muted">{T.analytics.colOverdue}</dt>
+                  <dd className={row.overdue ? "font-mono font-bold text-danger-dark" : "font-mono"} dir="ltr">{row.overdue}</dd>
+                </div>
+                <div>
+                  <dt className="font-semibold text-muted">{T.analytics.colHighRisk}</dt>
+                  <dd className="font-mono" dir="ltr">{row.highRisk}</dd>
+                </div>
+                <div>
+                  <dt className="font-semibold text-muted">{T.analytics.colClosed}</dt>
+                  <dd className="font-mono text-success-dark" dir="ltr">{row.closed}</dd>
+                </div>
+              </dl>
+            </Link>
+          </li>
+        ))}
+      </ul>
+      <div className="hidden scrollbar-thin overflow-x-auto md:block">
         <table className="w-full min-w-[50rem] border-collapse text-[13px]">
           <thead className="bg-subtle/80">
             <tr className="border-b border-line text-start text-[11.5px] font-bold uppercase tracking-wider text-ink-soft">

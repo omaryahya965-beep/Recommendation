@@ -39,7 +39,7 @@ export function AppearanceSettings() {
                 aria-checked={active}
                 onClick={() => setTheme(option.id)}
                 className={cn(
-                  "flex items-center justify-between rounded-xl border p-4 text-start transition-all shadow-sm",
+                  "flex min-h-12 items-center justify-between rounded-xl border p-4 text-start shadow-sm",
                   active
                     ? "border-primary bg-primary/8 text-primary-dark font-bold ring-1 ring-primary/20"
                     : "border-line bg-surface text-ink hover:bg-subtle/50"
@@ -71,7 +71,7 @@ export function AppearanceSettings() {
             aria-checked={locale === "ar"}
             onClick={() => setLocale("ar")}
             className={cn(
-              "flex items-center justify-between rounded-xl border p-4 text-start transition-all shadow-sm",
+              "flex min-h-12 items-center justify-between rounded-xl border p-4 text-start shadow-sm",
               locale === "ar"
                 ? "border-primary bg-primary/8 text-primary-dark font-bold ring-1 ring-primary/20"
                 : "border-line bg-surface text-ink hover:bg-subtle/50"
@@ -96,7 +96,7 @@ export function AppearanceSettings() {
             aria-checked={locale === "en"}
             onClick={() => setLocale("en")}
             className={cn(
-              "flex items-center justify-between rounded-xl border p-4 text-start transition-all shadow-sm",
+              "flex min-h-12 items-center justify-between rounded-xl border p-4 text-start shadow-sm",
               locale === "en"
                 ? "border-primary bg-primary/8 text-primary-dark font-bold ring-1 ring-primary/20"
                 : "border-line bg-surface text-ink hover:bg-subtle/50"

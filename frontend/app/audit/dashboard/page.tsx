@@ -3,10 +3,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { ClipboardList, FilePlus2, FileText } from "lucide-react";
 
-import { approachingSource, type ActionSource } from "@/components/dashboard/AttentionBoard";
+import { approachingSource, queueLabel, type ActionSource } from "@/components/dashboard/AttentionBoard";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { ActionNow } from "@/components/home/ActionNow";
 import { HomeHero } from "@/components/home/HomeHero";
+import { PriorityMetrics } from "@/components/home/PriorityMetrics";
 import { RecurrenceWatch } from "@/components/home/RecurrenceWatch";
 import { TodayAgenda } from "@/components/home/TodayAgenda";
 import { ErrorBanner } from "@/components/ui/Base";
@@ -55,6 +56,15 @@ export default function AuditDashboard() {
           { href: "/audit/reports", label: T.nav.reports, icon: FileText },
           { href: BASE, label: T.register.title, icon: ClipboardList },
         ]}
+      />
+
+      <PriorityMetrics
+        items={sources.slice(0, 5).map((source) => ({
+          label: queueLabel(source.key),
+          value: source.block.count,
+          href: source.href,
+          tone: source.key === "overdue" ? "danger" : source.key.includes("review") ? "warning" : "primary",
+        }))}
       />
 
       <ActionNow

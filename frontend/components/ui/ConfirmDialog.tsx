@@ -2,8 +2,9 @@
 
 import { AlertTriangle, X } from "lucide-react";
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
+import { useFocusTrap } from "@/components/mobile/useFocusTrap";
 import { Button } from "@/components/ui/Base";
 import { cn } from "@/lib/cn";
 import { T, useI18n } from "@/lib/i18n";
@@ -38,43 +39,13 @@ export function ConfirmDialog({
   const confirmRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    confirmRef.current?.focus();
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        onCancel();
-        return;
-      }
-      if (event.key !== "Tab") return;
-
-      const focusable = panelRef.current?.querySelectorAll<HTMLElement>(
-        "button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex='-1'])"
-      );
-      if (!focusable?.length) return;
-
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [open, onCancel]);
+  useFocusTrap(open, panelRef, onCancel, confirmRef);
 
   if (!open) return null;
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-overlay/80 p-4 backdrop-blur-sm transition-all"
+      className="fixed inset-0 z-[100] flex items-end justify-center bg-overlay/80 p-0 backdrop-blur-sm transition-all sm:items-center sm:p-4"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onCancel();
       }}
@@ -84,17 +55,17 @@ export function ConfirmDialog({
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="confirm-title"
-        className="relative w-full max-w-md animate-scale-in overflow-hidden rounded-[20px] bg-surface shadow-2xl ring-1 ring-line"
+        className="relative w-full max-w-md animate-scale-in overflow-hidden rounded-t-[20px] bg-surface shadow-2xl ring-1 ring-line sm:rounded-[20px]"
       >
         <button
           onClick={onCancel}
-          className="absolute end-4 top-4 rounded-full p-1.5 text-muted hover:bg-subtle hover:text-ink transition-colors z-10"
+          className="absolute end-3 top-3 z-10 flex size-11 items-center justify-center rounded-full text-muted hover:bg-subtle hover:text-ink"
           aria-label={T.confirm.cancel}
         >
           <X className="size-5" />
         </button>
-        
-        <div className="flex flex-col items-center gap-4 p-8 text-center">
+
+        <div className="flex flex-col items-center gap-4 px-6 py-8 text-center sm:p-8">
           <div
             className={cn(
               "flex size-14 shrink-0 items-center justify-center rounded-full shadow-inner ring-8",
@@ -107,17 +78,17 @@ export function ConfirmDialog({
           >
             <AlertTriangle className="size-7" strokeWidth={2.5} />
           </div>
-          
+
           <div className="min-w-0">
             <h2 id="confirm-title" className="font-heading text-xl font-bold text-navy">
               {title}
             </h2>
-            {body ? <div className="mt-3 text-[14px] leading-relaxed text-ink-soft">{body}</div> : null}
+            {body ? <div className="mt-3 text-[15px] leading-relaxed text-ink-soft">{body}</div> : null}
           </div>
         </div>
 
-        <div className="flex flex-wrap justify-end gap-3 border-t border-line bg-subtle/50 px-8 py-5">
-          <Button variant="ghost" onClick={onCancel} disabled={busy} className="min-w-[100px]">
+        <div className="flex flex-col-reverse gap-3 border-t border-line bg-subtle/50 px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:flex-row sm:flex-wrap sm:justify-end sm:px-8 sm:py-5">
+          <Button variant="ghost" onClick={onCancel} disabled={busy} className="min-h-12 w-full min-w-[100px] sm:w-auto">
             {cancelLabel}
           </Button>
           <Button
@@ -125,7 +96,7 @@ export function ConfirmDialog({
             variant={tone === "danger" ? "danger" : tone === "warn" ? "warn" : "primary"}
             onClick={onConfirm}
             disabled={busy}
-            className="min-w-[100px]"
+            className="min-h-12 w-full min-w-[100px] sm:w-auto"
           >
             {confirmLabel}
           </Button>

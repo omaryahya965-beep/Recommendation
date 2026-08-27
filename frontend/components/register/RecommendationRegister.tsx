@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Download, LayoutList, Rows3, Search, SlidersHorizontal, X, ArrowLeft, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
+import { Download, LayoutList, Rows3, Search, SlidersHorizontal, X, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
@@ -364,9 +364,9 @@ function RegisterInner({
   return (
     <div className="space-y-6">
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-surface p-4 shadow-sm">
+      <div className="flex flex-col gap-3 rounded-xl border border-line bg-surface p-4 shadow-sm md:flex-row md:flex-wrap md:items-center">
         <form
-          className="flex min-w-[240px] flex-1 items-center gap-2"
+          className="flex min-w-0 flex-1 items-center gap-2"
           onSubmit={(event) => {
             event.preventDefault();
             setParams({ search: searchDraft || null });
@@ -408,7 +408,7 @@ function RegisterInner({
           ))}
         </Select>
 
-        <div className="flex overflow-hidden rounded-lg border border-line shadow-sm">
+        <div className="hidden overflow-hidden rounded-lg border border-line shadow-sm md:flex">
           <button
             type="button"
             onClick={() => setView("list")}
@@ -435,17 +435,17 @@ function RegisterInner({
         </Button>
 
         {createHref ? (
-          <Link href={createHref}>
-            <Button className="font-bold shadow-md">{T.register.new}</Button>
+          <Link href={createHref} className="w-full md:w-auto">
+            <Button className="min-h-12 w-full font-bold shadow-md md:w-auto">{T.register.new}</Button>
           </Link>
         ) : null}
       </div>
 
       {/* Filter panel */}
       {filtersOpen ? (
-        <div className="grid gap-5 rounded-xl border border-line bg-surface p-5 shadow-inner ring-1 ring-inset ring-line/50 md:grid-cols-2 lg:grid-cols-4 animate-scale-in">
+        <div className="grid grid-cols-1 gap-5 rounded-xl border border-line bg-surface p-5 shadow-inner ring-1 ring-inset ring-line/50 md:grid-cols-2 lg:grid-cols-4 animate-scale-in">
           <label className="block text-sm">
-            <span className="mb-2 block font-bold text-navy uppercase tracking-wider text-[11px]">{T.register.stage}</span>
+            <span className="mb-2 block text-[13px] font-bold text-navy">{T.register.stage}</span>
             <Select value={stage} onChange={(event) => setParams({ stage: event.target.value || null, status: null })}>
               <option value="">{T.common.all}</option>
               {stages.map((item) => (
@@ -457,7 +457,7 @@ function RegisterInner({
           </label>
 
           <label className="block text-sm">
-            <span className="mb-2 block font-bold text-navy uppercase tracking-wider text-[11px]">{T.common.status}</span>
+            <span className="mb-2 block text-[13px] font-bold text-navy">{T.common.status}</span>
             <Select value={status} onChange={(event) => setParams({ status: event.target.value || null, stage: null })}>
               <option value="">{T.common.all}</option>
               {statusOptions.map(([value, label]) => (
@@ -469,7 +469,7 @@ function RegisterInner({
           </label>
 
           <label className="block text-sm">
-            <span className="mb-2 block font-bold text-navy uppercase tracking-wider text-[11px]">{T.common.risk}</span>
+            <span className="mb-2 block text-[13px] font-bold text-navy">{T.common.risk}</span>
             <Select value={risk} onChange={(event) => setParams({ risk_level: event.target.value || null })}>
               <option value="">{T.common.all}</option>
               {Object.entries(RISK_LABELS).map(([value, label]) => (
@@ -482,7 +482,7 @@ function RegisterInner({
 
           {showDepartmentFilter && !mine && !departmentOnly ? (
             <label className="block text-sm">
-              <span className="mb-2 block font-bold text-navy uppercase tracking-wider text-[11px]">{T.common.department}</span>
+              <span className="mb-2 block text-[13px] font-bold text-navy">{T.common.department}</span>
               <Select
                 value={department}
                 onChange={(event) => setParams({ report__department: event.target.value || null })}
@@ -497,8 +497,8 @@ function RegisterInner({
             </label>
           ) : null}
 
-          <div className="flex flex-wrap items-center gap-6 md:col-span-2 lg:col-span-4 border-t border-line/60 pt-4 mt-1">
-            <label className="flex items-center gap-2.5 text-[13.5px] font-bold text-navy cursor-pointer select-none">
+          <div className="flex flex-col gap-3 border-t border-line/60 pt-4 mt-1 md:col-span-2 md:flex-row md:flex-wrap md:items-center md:gap-6 lg:col-span-4">
+            <label className="flex min-h-11 items-center gap-2.5 text-[14px] font-bold text-navy cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={overdueOnly}
@@ -507,7 +507,7 @@ function RegisterInner({
               />
               {T.filters.overdueOnly}
             </label>
-            <label className="flex items-center gap-2.5 text-[13.5px] font-bold text-navy cursor-pointer select-none">
+            <label className="flex min-h-11 items-center gap-2.5 text-[14px] font-bold text-navy cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={recurringOnly}
@@ -516,6 +516,22 @@ function RegisterInner({
               />
               {T.filters.recurringOnly}
             </label>
+            <div className="flex w-full flex-col gap-2 md:ms-auto md:w-auto md:flex-row">
+              <Button type="button" className="min-h-12 w-full md:w-auto" onClick={() => setFiltersOpen(false)}>
+                {T.filters.apply}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="min-h-12 w-full md:w-auto"
+                onClick={() => {
+                  setSearchDraft("");
+                  router.replace(pathname);
+                }}
+              >
+                {T.filters.reset}
+              </Button>
+            </div>
           </div>
         </div>
       ) : null}
@@ -536,7 +552,7 @@ function RegisterInner({
               if (chip.key === "search") setSearchDraft("");
               setParams({ [chip.key]: null });
             }}
-            className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary-light/50 px-3 py-1 text-xs font-bold text-primary-dark transition-all hover:bg-primary/20 hover:border-primary/40"
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-primary/20 bg-primary-light/50 px-3 py-1 text-[13px] font-bold text-primary-dark"
           >
             {chip.label}
             <X className="size-3.5" />
@@ -549,7 +565,7 @@ function RegisterInner({
               setSearchDraft("");
               router.replace(pathname);
             }}
-            className="text-xs font-bold text-primary-dark hover:text-primary hover:underline ml-2"
+            className="min-h-11 text-[13px] font-bold text-primary-dark"
           >
             {T.register.clearFilters}
           </button>
@@ -568,20 +584,25 @@ function RegisterInner({
           description={chips.length ? T.register.clearFilters : undefined}
           className="bg-surface py-16"
         />
-      ) : view === "list" ? (
-        <ul className="space-y-3">
-          {items.map((item) => (
-            <RegisterCard
-              key={item.id}
-              item={item}
-              href={`${detailBase}/${item.id}`}
-              mine={mine}
-              hideDepartment={hideDepartment}
-            />
-          ))}
-        </ul>
       ) : (
-        <CompactTable items={items} detailBase={detailBase} hideDepartment={hideDepartment} />
+        <>
+          <ul className={cn("space-y-3", view === "compact" && "md:hidden")}>
+            {items.map((item) => (
+              <RegisterCard
+                key={item.id}
+                item={item}
+                href={`${detailBase}/${item.id}`}
+                mine={mine}
+                hideDepartment={hideDepartment}
+              />
+            ))}
+          </ul>
+          {view === "compact" ? (
+            <div className="hidden md:block">
+              <CompactTable items={items} detailBase={detailBase} hideDepartment={hideDepartment} />
+            </div>
+          ) : null}
+        </>
       )}
 
       {totalPages > 1 ? (

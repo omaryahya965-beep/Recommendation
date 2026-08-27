@@ -58,13 +58,13 @@ export function NotificationRow({
   return (
     <article
       className={cn(
-        "border-b border-line px-4 py-4 transition-colors last:border-0",
+        "min-h-14 border-b border-line px-4 py-4 transition-colors last:border-0",
         !item.is_read && "bg-subtle/50",
         selected && "bg-primary/5 border-s-2 border-s-primary",
         "hover:bg-subtle/80"
       )}
     >
-      <button type="button" className="w-full text-start" onClick={() => onSelect?.(item)}>
+      <button type="button" className="min-h-12 w-full text-start" onClick={() => onSelect?.(item)}>
         {/* Type label + timestamp */}
         <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
           <span className={cn(
@@ -138,7 +138,7 @@ export function NotificationRow({
         <Link
           href={href}
           onClick={() => onSelect?.(item)}
-          className="inline-flex items-center gap-1 text-[12.5px] font-bold text-primary-dark hover:underline"
+          className="inline-flex min-h-11 items-center gap-1 text-[13px] font-bold text-primary-dark hover:underline"
         >
           {item.recommendation ? T.notify.openCase : T.notify.open}
           <ArrowUpRight className="size-3" aria-hidden />
@@ -147,7 +147,7 @@ export function NotificationRow({
           <button
             type="button"
             onClick={() => onRemove(item)}
-            className="inline-flex items-center gap-1 text-[12px] font-semibold text-muted hover:text-danger-dark"
+            className="inline-flex min-h-11 items-center gap-1 text-[13px] font-semibold text-muted hover:text-danger-dark"
           >
             <Trash2 className="size-3" aria-hidden />
             {T.notify.remove}

@@ -21,12 +21,12 @@ export function ReportStageBoard({ reports }: { reports: AuditReport[] }) {
   return (
     <Section title={T.dashboard.reportsPipeline} hint={T.dashboard.reportsPipelineHint} className="bg-surface overflow-hidden">
       {total ? (
-        <ol className="grid grid-cols-2 sm:grid-cols-5 -mb-px -me-px">
+        <ol className="flex snap-x snap-mandatory overflow-x-auto scrollbar-thin sm:grid sm:grid-cols-5 sm:overflow-visible -mb-px -me-px">
           {counts.map((stage, index) => {
             const active = stage.count > 0;
             return (
-              <li key={stage.id} className="group flex min-h-[7rem] flex-col justify-center border-b border-e border-line px-5 py-4 transition-colors hover:bg-subtle/50 relative hover:z-10 hover:shadow-inner">
-                <p className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-wider text-muted mb-2">
+              <li key={stage.id} className="flex min-h-[7rem] min-w-[9.5rem] snap-start flex-col justify-center border-b border-e border-line px-5 py-4 sm:min-w-0">
+                <p className="mb-2 flex items-center gap-2 text-[13px] font-bold text-muted">
                   <span
                     className={cn(
                       "flex size-5 items-center justify-center rounded-full font-mono text-[10px] ring-1",
@@ -87,7 +87,32 @@ export function DecisionTable({
   return (
     <Section title={T.dashboard.pendingDecisions} className="bg-surface h-full">
       {rows.length ? (
-        <div className="scrollbar-thin overflow-x-auto">
+        <>
+          <ul className="space-y-3 p-4 md:hidden">
+            {rows.map((row) => (
+              <li key={row.id}>
+                <Link href={row.href} className="block min-w-0 rounded-xl border border-line bg-surface p-4">
+                  <p className="font-mono text-[12px] text-muted" dir="ltr">{row.id}</p>
+                  <h3 className="mt-1 font-heading text-[16px] font-semibold text-navy">{row.title}</h3>
+                  <dl className="mt-3 grid gap-2 text-[14px]">
+                    <div>
+                      <dt className="font-semibold text-muted">{T.common.department}</dt>
+                      <dd>{row.department}</dd>
+                    </div>
+                    <div>
+                      <dt className="font-semibold text-muted">{T.dashboard.requiredDecision}</dt>
+                      <dd className="font-bold text-primary-dark">{row.decision}</dd>
+                    </div>
+                    <div>
+                      <dt className="font-semibold text-muted">{T.common.status}</dt>
+                      <dd>{row.status}</dd>
+                    </div>
+                  </dl>
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <div className="hidden scrollbar-thin overflow-x-auto md:block">
           <table className="w-full min-w-[50rem] text-[13px]">
             <thead className="bg-subtle/80">
               <tr className="border-b border-line text-start text-[11.5px] font-bold uppercase tracking-wider text-ink-soft">
@@ -123,7 +148,8 @@ export function DecisionTable({
               ))}
             </tbody>
           </table>
-        </div>
+          </div>
+        </>
       ) : (
         <EmptyState compact title={T.dashboard.nothingPending} className="border-0 shadow-none py-10" />
       )}

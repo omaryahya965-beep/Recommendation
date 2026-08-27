@@ -39,8 +39,8 @@ export function PageHeader({
         <div className="flex items-start gap-3 min-w-0 flex-1">
           <div className="mt-1.5 h-6 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
           <div className="min-w-0">
-            <h1 className="font-heading text-[1.75rem] font-bold text-navy leading-tight tracking-tight">{title}</h1>
-            {description ? <p className="mt-1.5 max-w-3xl text-[14px] leading-relaxed text-ink-soft">{description}</p> : null}
+            <h1 className="font-heading text-[1.375rem] font-bold leading-tight text-navy md:text-[1.75rem]">{title}</h1>
+            {description ? <p className="mt-1.5 max-w-3xl text-[15px] leading-relaxed text-ink-soft md:text-[14px]">{description}</p> : null}
           </div>
         </div>
         {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2.5 pb-1">{actions}</div> : null}

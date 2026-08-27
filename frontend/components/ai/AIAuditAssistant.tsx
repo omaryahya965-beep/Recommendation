@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation } from "@tanstack/react-query";
-import { Eraser, Send, Copy, Check, Info } from "lucide-react";
+import { Eraser, Send, Copy, Check } from "lucide-react";
 import { useState } from "react";
 
 import { Button, ErrorBanner, TextArea } from "@/components/ui/Base";
@@ -34,7 +34,6 @@ export function AIAuditAssistant() {
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<AIAssistantResponse["messages"]>([]);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
-  const [showDetailsIndex, setShowDetailsIndex] = useState<number | null>(null);
 
   // Extract page context parameters from the URL query
   const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
@@ -99,85 +98,75 @@ export function AIAuditAssistant() {
         ) : null
       }
     >
-      <div className="mb-4 flex flex-wrap gap-2">
+      <div className="-mx-1 mb-4 flex gap-2 overflow-x-auto px-1 pb-1 scrollbar-thin">
         {CHIPS.map((chip) => (
           <button
             key={chip.labelKey}
             type="button"
             onClick={() => send(T.ai[chip.messageKey])}
             disabled={ask.isPending}
-            className="rounded-full border border-ai/20 bg-surface px-4 py-2 text-[12.5px] font-bold text-ai-dark transition-all duration-200 hover:border-ai/55 hover:bg-ai-light disabled:opacity-40"
+            className="min-h-11 shrink-0 rounded-full border border-ai/20 bg-surface px-4 text-[13px] font-bold text-ai-dark disabled:opacity-40"
           >
             {T.ai[chip.labelKey]}
           </button>
         ))}
       </div>
 
-      <div className="scrollbar-thin mb-4 max-h-[30rem] min-h-[12rem] space-y-4 overflow-y-auto rounded-xl border border-ai/15 bg-surface/50 p-4.5 shadow-inner">
+      <div className="scrollbar-thin mb-4 max-h-[min(28rem,55dvh)] min-h-[12rem] space-y-4 overflow-y-auto rounded-xl border border-ai/15 bg-surface/50 p-3 shadow-inner md:p-4.5">
         {visible.length ? (
           visible.map((message, index) => {
             const rtl = isRTL(message.content);
             const metadata = message.metadata || {};
+            const provider = typeof metadata.provider === "string" ? metadata.provider : "";
+            const fallback = !provider || /local|fallback|heuristic/i.test(provider);
             return (
               <div
                 key={`${message.created_at}-${index}`}
-                className={cn("flex flex-col w-full", message.role === "user" ? "items-start" : "items-end")}
+                className={cn("flex w-full min-w-0 flex-col", message.role === "user" ? "items-end" : "items-start")}
               >
                 <div
                   className={cn(
-                    "max-w-[85%] rounded-xl px-4 py-3 text-[13.5px] leading-[1.8] shadow-sm relative group",
+                    "max-w-[92%] min-w-0 rounded-xl px-4 py-3 text-[15px] leading-[1.8] shadow-sm md:max-w-[85%] md:text-[13.5px]",
                     message.role === "user"
-                      ? "bg-subtle text-ink border border-line"
+                      ? "border border-line bg-subtle text-ink"
                       : "border border-ai/15 bg-ai-light/40 text-ink"
                   )}
                   dir={rtl ? "rtl" : "ltr"}
                 >
-                  <div className="flex justify-between items-center mb-1 pb-1 border-b border-line/40">
-                    <p className="font-heading text-[10px] font-bold uppercase tracking-wider text-muted">
+                  <div className="mb-1 flex items-center justify-between gap-2 border-b border-line/40 pb-1">
+                    <p className="font-heading text-[12px] font-bold text-muted">
                       {message.role === "user" ? T.ai.you : T.ai.assistant}
                     </p>
-                    <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-1">
                       <button
+                        type="button"
                         onClick={() => copyText(message.content, index)}
-                        className="text-muted hover:text-navy p-0.5 rounded transition-colors"
-                        title="Copy Response"
+                        className="flex size-11 items-center justify-center rounded-lg text-muted md:size-8"
+                        aria-label={T.common.view}
                       >
-                        {copiedIndex === index ? <Check className="size-3.5 text-success" /> : <Copy className="size-3.5" />}
+                        {copiedIndex === index ? <Check className="size-4 text-success" /> : <Copy className="size-4" />}
                       </button>
-                      {message.role === "assistant" && (metadata.provider || metadata.model) && (
-                        <button
-                          onClick={() => setShowDetailsIndex(showDetailsIndex === index ? null : index)}
-                          className="text-muted hover:text-navy p-0.5 rounded transition-colors"
-                          title="Technical Details"
-                        >
-                          <Info className="size-3.5" />
-                        </button>
-                      )}
                     </div>
                   </div>
                   <p className="whitespace-pre-wrap font-medium">{message.content}</p>
-
-                  {/* Technical Info Expansion */}
-                  {showDetailsIndex === index && message.role === "assistant" && (
-                    <div className="mt-2.5 pt-2 border-t border-line/45 text-[11px] text-muted space-y-0.5 font-mono" dir="ltr">
-                      <div>Provider: <span className="font-bold text-navy">{metadata.provider}</span></div>
-                      <div>Model: <span className="font-bold text-navy">{metadata.model}</span></div>
-                      {metadata.intent && <div>Intent: <span className="font-bold text-navy">{JSON.stringify(metadata.intent)}</span></div>}
-                    </div>
-                  )}
+                  {message.role === "assistant" ? (
+                    <p className="mt-2 text-[12px] font-semibold leading-relaxed text-muted">
+                      {fallback ? T.ai.unavailable : provider}
+                    </p>
+                  ) : null}
                 </div>
               </div>
             );
           })
         ) : (
-          <div className="flex flex-col items-center justify-center h-full py-10 text-center">
-            <p className="text-sm font-semibold text-ink-soft">{T.ai.assistantHint}</p>
+          <div className="flex h-full flex-col items-center justify-center py-10 text-center">
+            <p className="text-[15px] font-semibold text-ink-soft">{T.ai.assistantHint}</p>
           </div>
         )}
         {ask.isPending ? (
-          <div className="flex justify-end">
-            <p className="text-xs font-bold text-ai-dark flex items-center gap-1.5 bg-ai-light/35 px-3 py-1.5 rounded-xl border border-ai/10 animate-pulse">
-              <span className="size-2 rounded-full bg-ai animate-ping" />
+          <div className="flex justify-start">
+            <p className="flex items-center gap-1.5 rounded-xl border border-ai/10 bg-ai-light/35 px-3 py-1.5 text-[13px] font-bold text-ai-dark">
+              <span className="size-2 rounded-full bg-ai animate-pulse" />
               {T.ai.generating}
             </p>
           </div>
@@ -187,7 +176,7 @@ export function AIAuditAssistant() {
       <ErrorBanner message={error} />
 
       <form
-        className="space-y-3 pt-3 border-t border-line"
+        className="sticky bottom-0 space-y-3 border-t border-line bg-ai-light/10 pt-3 pb-[env(safe-area-inset-bottom)]"
         onSubmit={(event) => {
           event.preventDefault();
           send(text);
@@ -196,11 +185,11 @@ export function AIAuditAssistant() {
         <TextArea
           value={text}
           onChange={(event) => setText(event.target.value)}
-          rows={3}
+          rows={2}
           placeholder={T.ai.askPlaceholder}
           className="bg-surface border-line focus:bg-surface focus:border-ai transition-colors"
         />
-        <Button type="submit" disabled={ask.isPending || !text.trim()} className="font-bold gap-2 shadow-md">
+        <Button type="submit" disabled={ask.isPending || !text.trim()} className="min-h-12 w-full font-bold gap-2 shadow-md">
           <Send className="size-4" />
           {T.ai.ask}
         </Button>

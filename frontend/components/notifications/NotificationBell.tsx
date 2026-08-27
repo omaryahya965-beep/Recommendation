@@ -1,9 +1,10 @@
 "use client";
 
-import { Bell } from "lucide-react";
+import { Bell, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { useFocusTrap } from "@/components/mobile/useFocusTrap";
 import { cn } from "@/lib/cn";
 import { formatDateTime, recordCode, relativeTimeAr } from "@/lib/format";
 import { T, useI18n } from "@/lib/i18n";
@@ -34,10 +35,13 @@ export function NotificationBell({ role }: { role: Role }) {
   useI18n();
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
   const { data: count } = useUnreadCount();
   const { data: list, isLoading, isError, refetch } = useNotifications(open);
   const markAll = useMarkAllNotificationsRead();
   const markRead = useMarkNotificationRead();
+
+  useFocusTrap(open, panelRef, () => setOpen(false), closeRef);
 
   useEffect(() => {
     if (!open) return;
@@ -54,11 +58,10 @@ export function NotificationBell({ role }: { role: Role }) {
 
   return (
     <div className="relative" ref={panelRef}>
-      {/* Bell trigger */}
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="relative flex size-9 items-center justify-center rounded-xl text-ink-soft transition-colors hover:bg-subtle hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        className="relative flex size-12 items-center justify-center rounded-xl text-ink-soft transition-colors hover:bg-subtle hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary md:size-9"
         aria-label={T.nav.notifications}
         aria-expanded={open}
       >
@@ -70,34 +73,47 @@ export function NotificationBell({ role }: { role: Role }) {
         ) : null}
       </button>
 
-      {/* Dropdown panel */}
       {open ? (
-        <div className="absolute end-0 z-50 mt-2 w-[26rem] max-w-[92vw] overflow-hidden rounded-2xl border border-line bg-surface shadow-xl">
-          {/* Header */}
-          <header className="flex items-center justify-between border-b border-line px-4 py-3">
-            <div>
-              <p className="text-[13.5px] font-bold text-navy">{T.notify.previewTitle}</p>
-              <p className="text-[11px] font-medium text-muted">{T.notify.subtitle}</p>
+        <div
+          className="fixed inset-0 z-50 flex flex-col bg-surface md:absolute md:inset-auto md:end-0 md:mt-2 md:max-h-[min(28rem,80vh)] md:w-[26rem] md:max-w-[92vw] md:overflow-hidden md:rounded-2xl md:border md:border-line md:shadow-xl"
+          role="dialog"
+          aria-modal="true"
+          aria-label={T.nav.notifications}
+        >
+          <header className="flex items-center justify-between gap-2 border-b border-line px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 md:pt-3">
+            <div className="min-w-0">
+              <p className="text-[15px] font-bold text-navy md:text-[13.5px]">{T.notify.previewTitle}</p>
+              <p className="text-[13px] font-medium text-muted md:text-[11px]">{T.notify.subtitle}</p>
             </div>
-            {unread > 0 ? (
+            <div className="flex shrink-0 items-center gap-1">
+              {unread > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => markAll.mutate()}
+                  className="min-h-11 rounded-lg px-3 text-[13px] font-bold text-primary-dark"
+                >
+                  {T.notify.markAllRead}
+                </button>
+              ) : null}
               <button
+                ref={closeRef}
                 type="button"
-                onClick={() => markAll.mutate()}
-                className="text-[12px] font-bold text-primary-dark hover:underline"
+                onClick={() => setOpen(false)}
+                className="flex size-11 items-center justify-center rounded-lg text-ink-soft hover:bg-subtle md:size-9"
+                aria-label={T.nav.close}
               >
-                {T.notify.markAllRead}
+                <X className="size-5" />
               </button>
-            ) : null}
+            </div>
           </header>
 
-          {/* List */}
-          <div className="max-h-[28rem] overflow-y-auto">
+          <div className="min-h-0 flex-1 overflow-y-auto">
             {isLoading ? (
-              <p className="px-4 py-10 text-center text-sm font-semibold text-ink-soft">{T.common.loading}</p>
+              <p className="px-4 py-10 text-center text-[15px] font-semibold text-ink-soft">{T.common.loading}</p>
             ) : isError ? (
               <div className="px-4 py-8 text-center">
-                <p className="text-sm font-semibold text-ink-soft">{T.common.error}</p>
-                <button type="button" onClick={() => refetch()} className="mt-2 text-sm font-bold text-primary-dark hover:underline">
+                <p className="text-[15px] font-semibold text-ink-soft">{T.common.error}</p>
+                <button type="button" onClick={() => refetch()} className="mt-2 min-h-11 text-[15px] font-bold text-primary-dark">
                   {T.common.retry}
                 </button>
               </div>
@@ -115,39 +131,30 @@ export function NotificationBell({ role }: { role: Role }) {
                           if (!item.is_read) markRead.mutate(item.id);
                           setOpen(false);
                         }}
-                        className="block px-4 py-3 transition-colors hover:bg-subtle/80"
+                        className="block min-h-14 px-4 py-4"
                       >
-                        {/* Type label */}
-                        <p className={cn("inline-flex items-center gap-1.5 text-[11.5px] font-bold", TONE[meta.tone])}>
+                        <p className={cn("inline-flex items-center gap-1.5 text-[13px] font-bold", TONE[meta.tone])}>
                           <span aria-hidden>{meta.marker}</span>
                           {meta.label}
                           {!item.is_read ? (
-                            <span className="size-1.5 rounded-full bg-primary" aria-label={T.notify.unread} />
+                            <span className="size-2 rounded-full bg-primary" aria-label={T.notify.unread} />
                           ) : null}
                         </p>
-
-                        {/* Message */}
-                        <p className={cn("mt-1 text-[13.5px] leading-snug text-ink", !item.is_read && "font-semibold")}>
+                        <p className={cn("mt-1 text-[15px] leading-snug text-ink", !item.is_read && "font-semibold")}>
                           {item.message}
                         </p>
-
-                        {/* Record code */}
                         {item.recommendation ? (
-                          <p className="mt-0.5 font-mono text-[11px] font-medium text-muted" dir="ltr">
+                          <p className="mt-0.5 font-mono text-[12px] font-medium text-muted" dir="ltr">
                             {recordCode(item.recommendation)}
                           </p>
                         ) : null}
-
-                        {/* Required action */}
                         {mustAct && action ? (
-                          <p className="mt-1.5 text-[12px] font-semibold text-navy">
+                          <p className="mt-1.5 text-[13px] font-semibold text-navy">
                             {T.notify.requiredAction}: {action}
                           </p>
                         ) : null}
-
-                        {/* Timestamp */}
                         <time
-                          className="mt-1 block font-mono text-[10px] text-muted"
+                          className="mt-1 block font-mono text-[12px] text-muted"
                           dateTime={item.sent_at}
                           title={formatDateTime(item.sent_at)}
                         >
@@ -159,16 +166,15 @@ export function NotificationBell({ role }: { role: Role }) {
                 })}
               </ul>
             ) : (
-              <p className="px-4 py-10 text-center text-sm font-semibold text-ink-soft">{T.notify.emptyHint}</p>
+              <p className="px-4 py-10 text-center text-[15px] font-semibold text-ink-soft">{T.notify.emptyHint}</p>
             )}
           </div>
 
-          {/* Footer */}
-          <footer className="border-t border-line bg-subtle/30 px-4 py-3">
+          <footer className="border-t border-line bg-subtle/30 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
             <Link
               href={centerHref(role)}
               onClick={() => setOpen(false)}
-              className="block text-center text-[13px] font-bold text-primary-dark hover:underline"
+              className="flex min-h-12 items-center justify-center text-center text-[15px] font-bold text-primary-dark"
             >
               {T.notify.viewAll}
             </Link>

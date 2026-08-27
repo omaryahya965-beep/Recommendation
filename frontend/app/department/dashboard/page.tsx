@@ -3,11 +3,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { ClipboardList, Users } from "lucide-react";
 
-import { type ActionSource } from "@/components/dashboard/AttentionBoard";
+import { queueLabel, type ActionSource } from "@/components/dashboard/AttentionBoard";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { ActionNow } from "@/components/home/ActionNow";
 import { ExecutionNow } from "@/components/home/ExecutionNow";
 import { HomeHero } from "@/components/home/HomeHero";
+import { PriorityMetrics } from "@/components/home/PriorityMetrics";
 import { TodayAgenda } from "@/components/home/TodayAgenda";
 import { ErrorBanner } from "@/components/ui/Base";
 import { DashboardSkeleton } from "@/components/ui/EmptyState";
@@ -54,6 +55,21 @@ export default function DepartmentDashboard() {
         ]}
       />
 
+      <PriorityMetrics
+        items={sources.slice(0, 4).map((source) => ({
+          label: queueLabel(source.key),
+          value: source.block.count,
+          href: source.href,
+          tone: source.key === "overdue" ? "danger" : "warning",
+        }))}
+      />
+
+      <ExecutionNow
+        items={inExecution}
+        detailHref={(item) => `${BASE}/${item.id}`}
+        viewAllHref="/department/team-progress"
+      />
+
       <ActionNow
         sources={sources}
         detailBase={BASE}
@@ -61,12 +77,6 @@ export default function DepartmentDashboard() {
         title={T.dashboard.departmentPriorities}
         hint={T.dashboard.deptActionHint}
         showDepartment={false}
-      />
-
-      <ExecutionNow
-        items={inExecution}
-        detailHref={(item) => `${BASE}/${item.id}`}
-        viewAllHref="/department/team-progress"
       />
 
       <div className="grid items-stretch gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">

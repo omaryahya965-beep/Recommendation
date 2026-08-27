@@ -23,7 +23,7 @@ const CARD_META: Array<{ key: string; label: keyof typeof T.ai; icon: ReactNode 
 
 function InsightsSkeleton() {
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
       {Array.from({ length: 4 }).map((_, index) => (
         <Skeleton key={index} className="h-24 rounded-xl" />
       ))}
@@ -68,7 +68,7 @@ export function AIIntelligence({
       {showSkeleton ? <InsightsSkeleton /> : null}
 
       {!showSkeleton && liveCards.length ? (
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {liveCards.map((card) => {
             const bucket = data?.cards?.[card.key];
             const count = bucket?.count ?? 0;
@@ -80,7 +80,7 @@ export function AIIntelligence({
                 aria-pressed={active}
                 onClick={() => setOpen((prev) => (prev === card.key ? null : card.key))}
                 className={cn(
-                  "rounded-xl border p-4.5 text-start transition-all duration-200 shadow-sm",
+                  "min-h-16 rounded-xl border p-4 text-start shadow-sm",
                   active
                     ? "border-ai bg-ai text-white ring-4 ring-ai/20"
                     : "border-ai/20 bg-surface hover:border-ai hover:bg-ai-light/30"
@@ -88,7 +88,7 @@ export function AIIntelligence({
               >
                 <span className={cn("flex items-center gap-1.5", active ? "text-white/90" : "text-ai-dark")}>
                   {card.icon}
-                  <span className="text-[12.5px] font-bold leading-tight uppercase tracking-wide">{T.ai[card.label]}</span>
+                  <span className="text-[13px] font-bold leading-tight">{T.ai[card.label]}</span>
                 </span>
                 <span
                   className={cn("mt-2.5 block font-heading text-2xl font-bold leading-none tracking-tight", active ? "text-white" : "text-navy")}

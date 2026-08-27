@@ -35,7 +35,29 @@ export function TeamLoad({
       }
     >
       {workloads.length ? (
-        <div className="scrollbar-thin overflow-x-auto">
+        <>
+          <ul className="space-y-3 p-4 md:hidden">
+            {workloads.map((row) => (
+              <li key={row.name} className="rounded-xl border border-line bg-surface p-4">
+                <p className="font-heading text-[16px] font-bold text-ink">{row.name}</p>
+                <dl className="mt-3 grid grid-cols-3 gap-2 text-[13px]">
+                  <div>
+                    <dt className="font-semibold text-muted">{T.team.load}</dt>
+                    <dd className="font-mono font-bold" dir="ltr">{row.items.length}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-semibold text-muted">{T.team.overdueLoad}</dt>
+                    <dd className={row.overdue ? "font-mono font-bold text-danger-dark" : "font-mono"} dir="ltr">{row.overdue}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-semibold text-muted">{T.team.nearest}</dt>
+                    <dd className="font-mono" dir="ltr">{formatDate(row.nearest)}</dd>
+                  </div>
+                </dl>
+              </li>
+            ))}
+          </ul>
+          <div className="hidden scrollbar-thin overflow-x-auto md:block">
           <table className="w-full min-w-[36rem] text-[13px]">
             <thead className="bg-subtle/80">
               <tr className="border-b border-line text-start text-[11.5px] font-bold uppercase tracking-wider text-ink-soft">
@@ -64,7 +86,8 @@ export function TeamLoad({
               ))}
             </tbody>
           </table>
-        </div>
+          </div>
+        </>
       ) : (
         <EmptyState compact icon={<Users className="size-6" />} title={T.team.empty} description={T.team.emptyHint} className="border-0 shadow-none py-10" />
       )}

@@ -42,7 +42,7 @@ function offsetFromForm(direction: Direction, days: string): number | null {
 function EscalationTag() {
   useI18n();
   return (
-    <span className="ms-2 inline-flex rounded-full bg-danger/10 px-2 py-0.5 font-heading text-[10px] font-bold text-danger-dark border border-danger/15 uppercase tracking-wider">
+    <span className="ms-2 inline-flex rounded-full border border-danger/15 bg-danger/10 px-2 py-0.5 font-heading text-[10px] font-bold text-danger-dark">
       {T.reminders.escalationTag}
     </span>
   );
@@ -56,9 +56,9 @@ function DirectionToggle({ value, onChange }: { value: Direction; onChange: (nex
     { id: "after", label: T.reminders.afterDeadline },
   ];
   return (
-    <fieldset className="min-w-[260px] flex-1">
-      <legend className="mb-2 font-heading text-[12px] font-bold uppercase tracking-wider text-muted">{T.reminders.direction}</legend>
-      <div role="radiogroup" className="flex rounded-xl border border-line bg-subtle/55 p-1">
+    <fieldset className="min-w-0 w-full flex-1">
+      <legend className="mb-2 font-heading text-[12px] font-bold text-muted">{T.reminders.direction}</legend>
+      <div role="radiogroup" className="flex flex-col rounded-xl border border-line bg-subtle/55 p-1 sm:flex-row">
         {options.map((option) => {
           const selected = value === option.id;
           return (
@@ -68,7 +68,7 @@ function DirectionToggle({ value, onChange }: { value: Direction; onChange: (nex
               role="radio"
               aria-checked={selected}
               onClick={() => onChange(option.id)}
-              className={`flex-1 rounded-lg px-2.5 py-1.5 font-heading text-[12px] font-bold transition-all
+              className={`min-h-11 flex-1 rounded-lg px-2 py-2 font-heading text-[13px] font-bold transition-all
                 ${selected ? "bg-navy text-white shadow-sm" : "text-ink-soft hover:text-ink hover:bg-subtle"}`}
             >
               {option.label}
@@ -176,7 +176,7 @@ function AuditReminderEditor() {
             {list.map((rule) => {
               const switchLabel = `${rule.enabled ? T.reminders.enabled : T.reminders.disabled} — ${T.reminders.toggleRule}`;
               return (
-                <li key={rule.id} className="flex items-center gap-4 py-4 first:pt-0 last:pb-0">
+                <li key={rule.id} className="flex flex-col items-stretch gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:gap-4">
                   <ToggleSwitch
                     checked={rule.enabled}
                     onCheckedChange={() => toggleRule.mutate(rule)}
@@ -198,7 +198,7 @@ function AuditReminderEditor() {
                     onClick={() => deleteRule.mutate(rule)}
                     disabled={deleteRule.isPending}
                     aria-label={T.reminders.deleteRule}
-                    className="flex size-8 items-center justify-center rounded-lg border border-danger/15 bg-surface text-danger-dark transition-colors hover:bg-danger/10 disabled:opacity-40"
+                    className="flex size-11 items-center justify-center self-end rounded-lg border border-danger/15 bg-surface text-danger-dark hover:bg-danger/10 disabled:opacity-40 sm:self-auto"
                   >
                     <Trash2 className="size-4" />
                   </button>
@@ -221,10 +221,10 @@ function AuditReminderEditor() {
           }}
           className="mt-6 border-t border-line/65 pt-6 space-y-4"
         >
-          <div className="flex flex-wrap items-end gap-4">
+          <div className="flex flex-col gap-4 md:flex-row md:flex-wrap md:items-end">
             <DirectionToggle value={direction} onChange={setDirection} />
             {direction === "on" ? null : (
-              <Field label={T.reminders.dayCount} className="w-28">
+              <Field label={T.reminders.dayCount} className="w-full md:w-28">
                 <TextInput
                   type="number"
                   min={1}
@@ -236,7 +236,7 @@ function AuditReminderEditor() {
                 />
               </Field>
             )}
-            <Field label={T.reminders.recipient} className="min-w-[200px]">
+            <Field label={T.reminders.recipient} className="w-full min-w-0 md:min-w-[200px] md:w-auto">
               <Select value={recipient} onChange={(e) => setRecipient(e.target.value)}>
                 {Object.entries(RECIPIENT_ROLE_LABELS).map(([value, text]) => (
                   <option key={value} value={value}>
@@ -245,10 +245,10 @@ function AuditReminderEditor() {
                 ))}
               </Select>
             </Field>
-            <Field label={T.reminders.labelOptional} className="flex-1 min-w-[200px]">
+            <Field label={T.reminders.labelOptional} className="w-full min-w-0 flex-1">
               <TextInput value={label} onChange={(e) => setLabel(e.target.value)} />
             </Field>
-            <Button type="submit" disabled={createRule.isPending} className="gap-1.5 font-bold shadow-sm h-[40px] px-4">
+            <Button type="submit" disabled={createRule.isPending} className="min-h-12 w-full gap-1.5 font-bold shadow-sm md:h-[40px] md:w-auto md:min-h-11 px-4">
               <Plus className="size-4" />
               {T.common.add}
             </Button>

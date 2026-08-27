@@ -170,32 +170,32 @@ export function NotificationCenter({ role, embedded = false }: { role: Role; emb
       )}
 
       {/* Summary stat bar */}
-      <dl className="grid grid-cols-3 gap-3">
-        <div className="rounded-2xl border border-line bg-surface p-4 text-center shadow-sm">
-          <dt className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1">{T.notify.actionRequired}</dt>
+      <dl className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-1 scrollbar-thin md:mx-0 md:grid md:grid-cols-3 md:overflow-visible md:px-0 md:pb-0">
+        <div className="min-w-[9.5rem] snap-start rounded-2xl border border-line bg-surface p-4 text-center shadow-sm md:min-w-0">
+          <dt className="mb-1 text-[11px] font-bold text-muted">{T.notify.actionRequired}</dt>
           <dd className="font-heading text-[26px] font-bold text-navy" dir="ltr">{actionable}</dd>
         </div>
-        <div className="rounded-2xl border border-line bg-surface p-4 text-center shadow-sm">
-          <dt className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1">{T.notify.overdue}</dt>
+        <div className="min-w-[9.5rem] snap-start rounded-2xl border border-line bg-surface p-4 text-center shadow-sm md:min-w-0">
+          <dt className="mb-1 text-[11px] font-bold text-muted">{T.notify.overdue}</dt>
           <dd className={cn("font-heading text-[26px] font-bold", overdue ? "text-danger-dark" : "text-navy")} dir="ltr">{overdue}</dd>
         </div>
-        <div className="rounded-2xl border border-line bg-surface p-4 text-center shadow-sm">
-          <dt className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1">{T.notify.unread}</dt>
+        <div className="min-w-[9.5rem] snap-start rounded-2xl border border-line bg-surface p-4 text-center shadow-sm md:min-w-0">
+          <dt className="mb-1 text-[11px] font-bold text-muted">{T.notify.unread}</dt>
           <dd className="font-heading text-[26px] font-bold text-navy" dir="ltr">{unread}</dd>
         </div>
       </dl>
 
       {/* Filter bar */}
       <div className="space-y-2.5">
-        <div className="flex flex-wrap items-center gap-2">
-          <Filter className="size-3.5 text-muted shrink-0" aria-hidden />
+        <div className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1 scrollbar-thin">
+          <Filter className="size-3.5 shrink-0 text-muted" aria-hidden />
           {filters.map((item) => (
             <button
               key={item.id}
               type="button"
               onClick={() => setFilter(item.id)}
               className={cn(
-                "rounded-full border px-3 py-1 text-[12.5px] font-bold transition-colors",
+                "min-h-11 shrink-0 rounded-full border px-3 text-[13px] font-bold transition-colors",
                 filter === item.id
                   ? "border-navy bg-navy text-white"
                   : "border-line bg-surface text-ink-soft hover:border-navy/40 hover:text-navy"
@@ -204,7 +204,7 @@ export function NotificationCenter({ role, embedded = false }: { role: Role; emb
               {item.label}
             </button>
           ))}
-          <label className="ms-auto flex items-center gap-2 text-[12px] font-semibold text-muted">
+          <label className="ms-auto flex min-h-11 shrink-0 items-center gap-2 text-[12px] font-semibold text-muted">
             <SlidersHorizontal className="size-3.5" aria-hidden />
             <select
               value={sortMode}
@@ -243,7 +243,7 @@ export function NotificationCenter({ role, embedded = false }: { role: Role; emb
           <div className={cn("lg:border-e border-line", selected && "hidden lg:block")}>
             {grouped.map((group) => (
               <section key={group.id}>
-                <h2 className="sticky top-0 z-10 flex items-center gap-2 border-b border-line bg-subtle px-4 py-2.5 text-[11.5px] font-bold uppercase tracking-wider text-navy">
+                <h2 className="sticky top-0 z-10 flex min-h-11 items-center gap-2 border-b border-line bg-subtle px-4 py-2.5 text-[13px] font-bold text-navy">
                   {group.label}
                   <span className="rounded-full bg-surface border border-line px-2 py-0.5 font-mono text-[10px] font-bold text-muted" dir="ltr">
                     {group.items.length}
@@ -279,7 +279,7 @@ export function NotificationCenter({ role, embedded = false }: { role: Role; emb
               <>
                 <button
                   type="button"
-                  className="mb-4 inline-flex items-center gap-1.5 text-[13px] font-semibold text-ink-soft lg:hidden"
+                  className="mb-4 inline-flex min-h-12 items-center gap-1.5 text-[15px] font-semibold text-ink-soft lg:hidden"
                   onClick={() => setSelectedId(null)}
                 >
                   <DirBack className="size-4" />

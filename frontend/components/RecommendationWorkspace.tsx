@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, ClipboardList, Repeat2, Send, Stamp, Clock, Building, BarChart4, AlertTriangle } from "lucide-react";
+import { CheckCircle2, ClipboardList, Repeat2, Send, Stamp } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
@@ -531,7 +531,7 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
           className="px-4 bg-subtle/30 border-b border-line pt-2"
         />
 
-        <div className="p-6">
+        <div className="p-4 md:p-6">
           {resolvedTab === "overview" ? (
             <div className="space-y-6">
               <OverviewTab rec={rec} />

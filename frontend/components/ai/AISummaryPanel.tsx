@@ -6,6 +6,7 @@ import { useState } from "react";
 import { LayoutGrid } from "lucide-react";
 
 import { AIPanel } from "@/components/ai/AIPrimitives";
+import { ExpandableSection } from "@/components/mobile/ExpandableSection";
 import { Button, ErrorBanner, Select } from "@/components/ui/Base";
 import { uiLanguage } from "@/lib/ai";
 import { api, errorMessage } from "@/lib/api";
@@ -109,7 +110,7 @@ export function AISummaryPanel({
           {/* Executive Summary */}
           {out.executive_summary ? (
             <div className="space-y-1">
-              <h4 className="text-[12px] font-bold uppercase tracking-wider text-ai-dark">{uiLanguage() === "ar" ? "الملخص التنفيذي" : "Executive Summary"}</h4>
+              <h4 className="text-[12px] font-bold uppercase text-ai-dark">{uiLanguage() === "ar" ? "الملخص التنفيذي" : "Executive Summary"}</h4>
               <p className="whitespace-pre-wrap leading-relaxed text-ink font-medium bg-surface rounded-xl p-4 border border-line">{String(out.executive_summary)}</p>
             </div>
           ) : null}
@@ -117,7 +118,7 @@ export function AISummaryPanel({
           {/* Key Findings */}
           {Array.isArray(out.key_findings) && out.key_findings.length ? (
             <div className="space-y-2">
-              <h4 className="text-[12px] font-bold uppercase tracking-wider text-navy">{uiLanguage() === "ar" ? "النتائج الرئيسية" : "Key Findings"}</h4>
+              <h4 className="text-[12px] font-bold uppercase text-navy">{uiLanguage() === "ar" ? "النتائج الرئيسية" : "Key Findings"}</h4>
               <ul className="space-y-2 bg-surface rounded-xl p-4 border border-line">
                 {(out.key_findings as SummaryItem[]).map((item, idx: number) => (
                   <li key={idx} className="flex flex-col gap-1 text-ink font-medium">
@@ -143,7 +144,7 @@ export function AISummaryPanel({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {Array.isArray(out.status_overview) && out.status_overview.length ? (
                 <div className="space-y-2">
-                  <h4 className="text-[12px] font-bold uppercase tracking-wider text-navy">{uiLanguage() === "ar" ? "نظرة عامة على الحالة" : "Status Overview"}</h4>
+                  <h4 className="text-[12px] font-bold uppercase text-navy">{uiLanguage() === "ar" ? "نظرة عامة على الحالة" : "Status Overview"}</h4>
                   <div className="bg-surface rounded-xl border border-line divide-y divide-line">
                     {(out.status_overview as SummaryItem[]).map((item, idx: number) => (
                       <div key={idx} className="p-3 flex justify-between items-center text-[12.5px] font-medium">
@@ -157,7 +158,7 @@ export function AISummaryPanel({
 
               {Array.isArray(out.risk_overview) && out.risk_overview.length ? (
                 <div className="space-y-2">
-                  <h4 className="text-[12px] font-bold uppercase tracking-wider text-danger-dark">{uiLanguage() === "ar" ? "نظرة عامة على المخاطر" : "Risk Overview"}</h4>
+                  <h4 className="text-[12px] font-bold uppercase text-danger-dark">{uiLanguage() === "ar" ? "نظرة عامة على المخاطر" : "Risk Overview"}</h4>
                   <div className="bg-surface rounded-xl border border-line divide-y divide-line">
                     {(out.risk_overview as SummaryItem[]).map((item, idx: number) => (
                       <div key={idx} className="p-3 flex justify-between items-center text-[12.5px] font-medium">
@@ -174,7 +175,7 @@ export function AISummaryPanel({
           {/* Important Deadlines */}
           {Array.isArray(out.important_deadlines) && out.important_deadlines.length ? (
             <div className="space-y-2">
-              <h4 className="text-[12px] font-bold uppercase tracking-wider text-navy">{uiLanguage() === "ar" ? "مواعيد هامة" : "Important Deadlines"}</h4>
+              <h4 className="text-[12px] font-bold uppercase text-navy">{uiLanguage() === "ar" ? "مواعيد هامة" : "Important Deadlines"}</h4>
               <div className="bg-surface rounded-xl border border-line divide-y divide-line">
                 {(out.important_deadlines as SummaryItem[]).map((item, idx: number) => (
                   <div key={idx} className="p-3 flex justify-between items-center text-[12.5px] font-medium">
@@ -189,7 +190,7 @@ export function AISummaryPanel({
           {/* Recommended Next Steps */}
           {Array.isArray(out.recommended_next_steps) && out.recommended_next_steps.length ? (
             <div className="space-y-2">
-              <h4 className="text-[12px] font-bold uppercase tracking-wider text-success-dark">{uiLanguage() === "ar" ? "الخطوات التالية الموصى بها" : "Recommended Next Steps"}</h4>
+              <h4 className="text-[12px] font-bold uppercase text-success-dark">{uiLanguage() === "ar" ? "الخطوات التالية الموصى بها" : "Recommended Next Steps"}</h4>
               <ul className="space-y-2 bg-success/5 rounded-xl p-4 border border-success/10">
                 {(out.recommended_next_steps as SummaryItem[]).map((item, idx: number) => (
                   <li key={idx} className="flex gap-2.5 font-medium leading-relaxed text-ink">
@@ -204,7 +205,7 @@ export function AISummaryPanel({
           {/* Open Questions */}
           {Array.isArray(out.open_questions) && out.open_questions.length ? (
             <div className="space-y-2">
-              <h4 className="text-[12px] font-bold uppercase tracking-wider text-warning-dark">{uiLanguage() === "ar" ? "أسئلة مفتوحة للمراجعة" : "Open Questions for Review"}</h4>
+              <h4 className="text-[12px] font-bold uppercase text-warning-dark">{uiLanguage() === "ar" ? "أسئلة مفتوحة للمراجعة" : "Open Questions for Review"}</h4>
               <ul className="space-y-2 bg-warning/5 rounded-xl p-4 border border-warning/10">
                 {(out.open_questions as SummaryItem[]).map((item, idx: number) => (
                   <li key={idx} className="flex gap-2.5 font-medium leading-relaxed text-ink">
@@ -219,7 +220,7 @@ export function AISummaryPanel({
           {/* Limitations */}
           {Array.isArray(out.limitations) && out.limitations.length ? (
             <div className="space-y-2">
-              <h4 className="text-[12px] font-bold uppercase tracking-wider text-muted">{uiLanguage() === "ar" ? "محددات وتنبيهات" : "Limitations & Disclaimers"}</h4>
+              <h4 className="text-[12px] font-bold uppercase text-muted">{uiLanguage() === "ar" ? "محددات وتنبيهات" : "Limitations & Disclaimers"}</h4>
               <ul className="space-y-2 bg-subtle/50 rounded-xl p-4 border border-line">
                 {(out.limitations as SummaryItem[]).map((item, idx: number) => (
                   <li key={idx} className="flex gap-2.5 font-medium leading-relaxed text-ink-soft">
@@ -233,17 +234,16 @@ export function AISummaryPanel({
 
           {/* Sources */}
           {Array.isArray(out.sources) && out.sources.length ? (
-            <div className="space-y-2 pt-2 border-t border-line">
-              <h4 className="text-[12px] font-bold uppercase tracking-wider text-muted">{uiLanguage() === "ar" ? "المصادر والمراجع" : "Sources & References"}</h4>
+            <ExpandableSection summary={uiLanguage() === "ar" ? "المصادر والمراجع" : "Sources & References"}>
               <div className="flex flex-wrap gap-2">
                 {(out.sources as SummaryItem[]).map((item, idx: number) => (
-                  <div key={idx} className="flex items-center gap-1.5 px-3 py-1.5 text-[11.5px] font-bold bg-subtle hover:bg-line rounded-lg border border-line transition-colors">
+                  <div key={idx} className="flex min-h-11 min-w-0 items-center gap-1.5 rounded-lg border border-line bg-subtle px-3 py-2 text-[13px] font-bold">
                     <span className="font-mono text-navy">{item.id}</span>
-                    {item.title ? <span className="text-ink-soft font-normal">| {item.title}</span> : null}
+                    {item.title ? <span className="min-w-0 truncate font-normal text-ink-soft">| {item.title}</span> : null}
                   </div>
                 ))}
               </div>
-            </div>
+            </ExpandableSection>
           ) : null}
 
           <div className="border-t border-line pt-4">

@@ -51,20 +51,20 @@ export function ActionNow({
         total ? (
           <span className="flex items-center gap-2 rounded-full bg-primary-light px-3 py-1 text-sm font-bold text-primary-dark ring-1 ring-primary/20">
             <span className="font-mono">{total}</span>
-            <span className="text-[11px] uppercase tracking-wider">{T.dashboard.open}</span>
+          <span className="text-[12px] font-semibold text-primary-dark">{T.dashboard.open}</span>
           </span>
         ) : null
       }
     >
       {live.length ? (
-        <div className="flex flex-wrap gap-2 border-b border-line bg-subtle/50 px-5 py-3">
+        <div className="flex gap-2 overflow-x-auto border-b border-line bg-subtle/50 px-4 py-3 scrollbar-thin md:flex-wrap">
           <button
             type="button"
             onClick={() => setQueue(null)}
             aria-pressed={queue === null}
             className={cn(
-              "rounded-full px-4 py-1.5 text-[13px] font-bold transition-all duration-200",
-              queue === null ? "bg-inverse text-on-inverse shadow-sm" : "bg-surface text-ink-soft hover:bg-surface hover:text-ink ring-1 ring-line"
+              "min-h-11 shrink-0 rounded-full px-4 text-[13px] font-bold transition-all duration-200",
+              queue === null ? "bg-inverse text-on-inverse shadow-sm" : "bg-surface text-ink-soft ring-1 ring-line hover:bg-surface hover:text-ink"
             )}
           >
             {T.reports.filterAll}
@@ -76,12 +76,12 @@ export function ActionNow({
               onClick={() => setQueue((prev) => (prev === source.key ? null : source.key))}
               aria-pressed={queue === source.key}
               className={cn(
-                "inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[13px] font-bold transition-all duration-200",
-                queue === source.key ? "bg-inverse text-on-inverse shadow-sm" : "bg-surface text-ink-soft hover:bg-surface hover:text-ink ring-1 ring-line"
+                "inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full px-4 text-[13px] font-bold transition-all duration-200",
+                queue === source.key ? "bg-inverse text-on-inverse shadow-sm" : "bg-surface text-ink-soft ring-1 ring-line hover:bg-surface hover:text-ink"
               )}
             >
               {queueLabel(source.key)}
-              <span className={cn("flex size-5 items-center justify-center rounded-full text-[10px] font-mono", queue === source.key ? "bg-white/20 text-white" : "bg-subtle text-ink-soft")} dir="ltr">
+              <span className={cn("flex size-5 items-center justify-center rounded-full font-mono text-[10px]", queue === source.key ? "bg-white/20 text-white" : "bg-subtle text-ink-soft")} dir="ltr">
                 {source.block.count}
               </span>
             </button>
@@ -96,23 +96,22 @@ export function ActionNow({
               const next = STATUS_NEXT_ACTION[item.status];
               const stage = stageForStatus(item.status);
               return (
-                <li key={item.id} className="group relative overflow-hidden bg-surface px-5 py-5 transition-all duration-200 hover:bg-subtle/40">
-                  <div className="absolute start-0 top-0 bottom-0 w-1 bg-primary scale-y-0 opacity-0 group-hover:scale-y-100 group-hover:opacity-100 transition-all duration-300" aria-hidden />
-                  <div className="flex flex-wrap items-start justify-between gap-4">
+                <li key={item.id} className="relative overflow-hidden border-s-4 border-s-transparent bg-surface px-4 py-4 md:px-5 md:py-5">
+                  <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-3">
+                      <div className="flex flex-wrap items-center gap-2">
                         <RecordId id={item.id} />
-                        <span className="rounded bg-navy/5 px-2 py-0.5 text-[11px] font-bold text-navy/70 tracking-wide uppercase">{reason}</span>
+                        <span className="rounded bg-navy/5 px-2 py-0.5 text-[12px] font-bold text-navy/70">{reason}</span>
                         <OverdueBadge targetDate={item.target_date} overdue={item.overdue} />
                       </div>
-                      <p className="mt-3 text-[13px] font-bold text-primary-dark tracking-wide uppercase">{next?.action ?? T.dashboard.open}</p>
+                      <p className="mt-2 text-[14px] font-bold text-primary-dark">{next?.action ?? T.dashboard.open}</p>
                       <Link
                         href={`${detailBase}/${item.id}`}
-                        className="mt-1 block font-heading text-[16px] font-semibold leading-snug text-navy hover:text-primary transition-colors"
+                        className="mt-1 block font-heading text-[16px] font-semibold leading-snug text-navy"
                       >
                         {caseTitle(item.text, 110)}
                       </Link>
-                      <div className="mt-3 flex items-center gap-2 text-[12.5px] text-ink-soft">
+                      <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2 text-[13px] text-ink-soft">
                         <span className="font-medium">{showDepartment ? item.department_name : item.responsible_employee ?? T.team.unassigned}</span>
                         {showDepartment && item.responsible_employee ? <span className="text-muted/50">•</span> : null}
                         {showDepartment && item.responsible_employee ? <span>{item.responsible_employee}</span> : null}
@@ -122,11 +121,11 @@ export function ActionNow({
                         <span className="font-mono text-muted" dir="ltr">{formatDate(item.target_date)}</span>
                       </div>
                     </div>
-                    <div className="flex shrink-0 flex-col items-end justify-between gap-4 self-stretch">
+                    <div className="flex shrink-0 items-center justify-between gap-3 sm:flex-col sm:items-end">
                       <RiskBadge level={item.risk_level} />
                       <Link
                         href={`${detailBase}/${item.id}`}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-surface px-4 py-2 text-[13px] font-bold text-navy ring-1 ring-line hover:bg-navy hover:text-white hover:ring-navy transition-all shadow-sm"
+                        className="inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-surface px-4 py-2 text-[14px] font-bold text-navy ring-1 ring-line"
                       >
                         {T.dashboard.open}
                         <DirForward className="size-4" />

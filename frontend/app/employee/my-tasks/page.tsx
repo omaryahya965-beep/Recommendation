@@ -2,8 +2,9 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { ClipboardList } from "lucide-react";
+import Link from "next/link";
 
-import { splitDue, type ActionSource } from "@/components/dashboard/AttentionBoard";
+import { rank, splitDue, type ActionSource } from "@/components/dashboard/AttentionBoard";
 import { EmployeeEvidence, EmployeePlans } from "@/components/dashboard/EmployeeDesk";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { ActionNow } from "@/components/home/ActionNow";
@@ -11,10 +12,15 @@ import { HomeHero } from "@/components/home/HomeHero";
 import { TodayAgenda } from "@/components/home/TodayAgenda";
 import { ErrorBanner } from "@/components/ui/Base";
 import { DashboardSkeleton } from "@/components/ui/EmptyState";
+import { RecordId } from "@/components/ui/Ledger";
+import { OverdueBadge } from "@/components/ui/OverdueBadge";
+import { RiskBadge } from "@/components/ui/RiskBadge";
 import { api } from "@/lib/api";
+import { caseTitle } from "@/lib/finding";
 import { uniqueRecommendations } from "@/lib/home";
 import { T, useI18n } from "@/lib/i18n";
 import type { DashboardData } from "@/lib/types";
+import { STATUS_NEXT_ACTION } from "@/lib/workflow";
 
 const HOME = "/employee/my-tasks";
 const REGISTER = "/employee/recommendations";
@@ -39,6 +45,8 @@ export default function MyTasksPage() {
   if (waiting) sources.push({ key: "waiting_head_review", block: waiting, href: REGISTER });
 
   const tasks = data.active_tasks?.items ?? [];
+  const next = rank(sources)[0];
+  const nextAction = next ? STATUS_NEXT_ACTION[next.item.status] : null;
 
   return (
     <div className="animate-fade-in space-y-4">
@@ -48,6 +56,27 @@ export default function MyTasksPage() {
         subtitle={T.dashboard.employeeHint}
         actions={[{ href: REGISTER, label: T.dashboard.myRecommendations, icon: ClipboardList, primary: true }]}
       />
+
+      {next ? (
+        <section className="rounded-2xl border border-inverse bg-inverse p-5 text-on-inverse shadow-sm">
+          <p className="text-[13px] font-bold text-white/70">{T.workflow.actNow}</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <RecordId id={next.item.id} />
+            <RiskBadge level={next.item.risk_level} />
+            <OverdueBadge targetDate={next.item.target_date} overdue={next.item.overdue} />
+          </div>
+          <h2 className="mt-3 font-heading text-[1.25rem] font-bold leading-snug">
+            {nextAction?.action ?? T.dashboard.open}
+          </h2>
+          <p className="mt-2 text-[15px] leading-relaxed text-white/90">{caseTitle(next.item.text, 140)}</p>
+          <Link
+            href={`${HOME}/${next.item.id}`}
+            className="mt-4 flex min-h-12 w-full items-center justify-center rounded-lg bg-white text-[15px] font-bold text-inverse"
+          >
+            {T.dashboard.open}
+          </Link>
+        </section>
+      ) : null}
 
       <ActionNow
         sources={sources}

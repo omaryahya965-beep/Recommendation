@@ -125,13 +125,8 @@ export default function LoginPage() {
           className="login-bg relative flex min-h-0 min-w-0 flex-1 flex-col justify-between lg:min-h-dvh lg:w-1/2"
         >
           {/* Toolbar */}
-          <div className="flex justify-between items-center px-6 pt-4 sm:px-8 lg:px-10 lg:pt-6">
-            <div className="lg:hidden">
-              <RamallahMark size="sm" layout="horizontal" />
-            </div>
-            <div className="ms-auto">
-              <LoginToolbar />
-            </div>
+          <div className="hidden justify-end px-6 pt-4 sm:px-8 lg:flex lg:px-10 lg:pt-6">
+            <LoginToolbar />
           </div>
 
           {/* Form Container */}
@@ -171,7 +166,7 @@ export default function LoginPage() {
                     <div>
                       <label
                         htmlFor="login-username"
-                        className="text-[12px] font-bold uppercase tracking-wider text-navy"
+                        className="text-[13px] font-bold text-navy"
                       >
                         {T.login.username}
                       </label>
@@ -209,7 +204,7 @@ export default function LoginPage() {
                     <div>
                       <label
                         htmlFor="login-password"
-                        className="text-[12px] font-bold uppercase tracking-wider text-navy"
+                        className="text-[13px] font-bold text-navy"
                       >
                         {T.login.password}
                       </label>
@@ -304,7 +299,7 @@ export default function LoginPage() {
                 {/* Divider */}
                 <div className="mt-6 flex items-center gap-3">
                   <span className="h-px flex-1 bg-line" />
-                  <span className="text-[12px] font-bold text-muted uppercase tracking-wider">{T.login.orDivider}</span>
+                  <span className="text-[12px] font-bold text-muted">{T.login.orDivider}</span>
                   <span className="h-px flex-1 bg-line" />
                 </div>
 
@@ -326,7 +321,7 @@ export default function LoginPage() {
                     />
                   </button>
                   {showDemo ? (
-                    <ul className="mt-3 grid grid-cols-2 gap-2">
+                    <ul className="mt-3 grid grid-cols-1 gap-2 min-[360px]:grid-cols-2">
                       {DEMO_ACCOUNTS.map((account) => (
                         <li key={account.username}>
                           <button

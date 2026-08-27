@@ -38,8 +38,6 @@
   background: var(--login-card);
   border: 1px solid var(--login-border);
   box-shadow: var(--login-shadow);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
 }
 
 .login-field {
@@ -64,12 +62,12 @@
 
 [data-theme="dark"] .login-shell {
   --login-bg: #0b1319;
-  --login-card: rgba(20, 31, 41, 0.8);
-  --login-text: #f1f5f9;
-  --login-muted: #94a3b8;
-  --login-border: rgba(255, 255, 255, 0.08);
-  --login-field: #141f29;
-  --login-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.5);
+  --login-card: #141f29;
+  --login-text: #f8fafc;
+  --login-muted: #cbd5e1;
+  --login-border: rgba(255, 255, 255, 0.18);
+  --login-field: #1c2a36;
+  --login-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.55);
 }
 
 [data-theme="dark"] .login-field {

@@ -17,7 +17,7 @@ export interface MetricItem {
 function Cell({ item }: { item: MetricItem }) {
   const inner = (
     <div className="flex flex-col h-full justify-center">
-      <p className="text-[12px] font-bold uppercase tracking-wider text-muted mb-2">{item.label}</p>
+      <p className="mb-2 text-[13px] font-bold text-muted">{item.label}</p>
       <p
         className={cn(
           "font-heading text-[1.75rem] font-bold tabular-nums leading-none tracking-tight",
@@ -34,7 +34,7 @@ function Cell({ item }: { item: MetricItem }) {
   );
 
   const className =
-    "group flex min-h-[6.5rem] min-w-[8.5rem] flex-1 flex-col border-b border-e border-line px-5 py-4 transition-all duration-200 hover:bg-subtle/50 hover:shadow-inner hover:z-10 relative";
+    "group relative z-10 flex min-h-[6.5rem] min-w-[9.5rem] snap-start flex-1 flex-col border-b border-e border-line px-5 py-4";
   
   if (item.href) {
     return (
@@ -61,7 +61,7 @@ export function MetricStrip({
   useI18n();
   return (
     <Section title={title} hint={hint} className="overflow-hidden bg-surface">
-      <div className="flex min-w-0 flex-wrap items-stretch overflow-hidden -mb-px -me-px">
+      <div className="flex min-w-0 snap-x snap-mandatory overflow-x-auto scrollbar-thin md:flex-wrap md:overflow-hidden -mb-px -me-px">
         {leading ? (
           <div className="flex items-center justify-center border-b border-e border-line px-6 py-4 bg-subtle/30">{leading}</div>
         ) : null}

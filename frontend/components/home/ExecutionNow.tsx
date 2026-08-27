@@ -48,18 +48,17 @@ export function ExecutionNow({
           {rows.map((item) => {
             const next = STATUS_NEXT_ACTION[item.status];
             return (
-              <li key={item.id} className="group relative overflow-hidden bg-surface px-5 py-5 transition-all duration-200 hover:bg-subtle/40">
-                <div className="absolute start-0 top-0 bottom-0 w-1 bg-primary scale-y-0 opacity-0 group-hover:scale-y-100 group-hover:opacity-100 transition-all duration-300" aria-hidden />
-                <div className="flex flex-wrap items-start justify-between gap-4">
+              <li key={item.id} className="bg-surface px-4 py-4 md:px-5 md:py-5">
+                <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-2">
                       <RecordId id={item.id} />
                       <OverdueBadge targetDate={item.target_date} overdue={item.overdue} />
                     </div>
-                    <Link href={detailHref(item)} className="mt-3 block font-heading text-[15px] font-semibold leading-snug text-navy hover:text-primary transition-colors">
+                    <Link href={detailHref(item)} className="mt-2 block font-heading text-[15px] font-semibold leading-snug text-navy">
                       {caseTitle(item.text, 100)}
                     </Link>
-                    <div className="mt-2.5 flex flex-wrap items-center gap-2 text-[12.5px] text-ink-soft">
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-[13px] text-ink-soft">
                       <span className="font-bold text-ink">{item.responsible_employee ?? T.team.unassigned}</span>
                       <span className="text-muted/50">•</span>
                       <span>{stageForStatus(item.status).label}</span>
@@ -67,14 +66,14 @@ export function ExecutionNow({
                       <span className="font-mono text-muted" dir="ltr">{formatDate(item.target_date)}</span>
                     </div>
                     {next?.action ? (
-                      <div className="mt-2 inline-flex items-center rounded bg-primary-light/30 px-2 py-0.5 text-[11px] font-bold text-primary-dark uppercase tracking-wider">
+                      <div className="mt-2 inline-flex items-center rounded bg-primary-light/30 px-2 py-1 text-[12px] font-bold text-primary-dark">
                         {next.action}
                       </div>
                     ) : null}
                   </div>
                   <Link
                     href={detailHref(item)}
-                    className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-surface px-3 py-1.5 text-[12px] font-bold text-navy ring-1 ring-line hover:bg-navy hover:text-white hover:ring-navy transition-all shadow-sm"
+                    className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-surface px-4 py-2 text-[14px] font-bold text-navy ring-1 ring-line"
                   >
                     {T.dashboard.open}
                     <DirForward className="size-3.5" />

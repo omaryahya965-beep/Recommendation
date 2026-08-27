@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Check, FileText, Save, ArrowLeft, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
+import { AlertTriangle, Check, FileText, Save, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
@@ -59,7 +59,7 @@ const RECOMMENDATION_IDS: FindingSectionId[] = [
 function StepRail({ current, onJump }: { current: number; onJump: (index: number) => void }) {
   useI18n();
   return (
-    <ol className="scrollbar-thin flex gap-2 overflow-x-auto rounded-xl border border-line bg-surface p-2 shadow-sm">
+    <ol className="flex flex-col gap-2 rounded-xl border border-line bg-surface p-2 shadow-sm md:flex-row md:overflow-x-auto md:scrollbar-thin">
       {wizardSteps().map((step, index) => {
         const done = index < current;
         const active = index === current;
@@ -70,7 +70,7 @@ function StepRail({ current, onJump }: { current: number; onJump: (index: number
               onClick={() => onJump(index)}
               disabled={index > current}
               aria-current={active ? "step" : undefined}
-              className={`flex w-full items-center gap-2.5 whitespace-nowrap rounded-lg px-4.5 py-2.5 text-start text-[13px] font-bold transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-40 ${
+              className={`flex min-h-12 w-full items-center gap-2.5 rounded-lg px-4 py-2.5 text-start text-[14px] font-bold transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-40 ${
                 active
                   ? "bg-primary text-white shadow-md ring-2 ring-primary/20"
                   : done
@@ -433,24 +433,24 @@ function NewRecommendationWizard() {
       ) : null}
 
       {/* Navigation */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line/60 pt-5">
+      <div className="sticky bottom-0 z-20 -mx-3 flex flex-col gap-2 border-t border-line bg-bg/95 px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md sm:static sm:mx-0 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:bg-transparent sm:px-0 sm:py-5 sm:backdrop-blur-none">
         <Button
           variant="ghost"
           onClick={() => setStep((value) => Math.max(0, value - 1))}
           disabled={step === 0}
-          className="font-bold gap-1"
+          className="min-h-12 w-full font-bold gap-1 sm:w-auto"
         >
           <DirBack className="size-4" />
           {T.create.back}
         </Button>
 
         {step < steps.length - 1 ? (
-          <Button onClick={() => setStep((value) => value + 1)} disabled={!canAdvance()} className="font-bold gap-1 shadow-md">
+          <Button onClick={() => setStep((value) => value + 1)} disabled={!canAdvance()} className="min-h-12 w-full font-bold gap-1 shadow-md sm:w-auto">
             {T.create.next}
             <DirForward className="size-4" />
           </Button>
         ) : (
-          <Button onClick={() => create.mutate()} disabled={missing.length > 0 || create.isPending} className="font-bold gap-2 shadow-md">
+          <Button onClick={() => create.mutate()} disabled={missing.length > 0 || create.isPending} className="min-h-12 w-full font-bold gap-2 shadow-md sm:w-auto">
             <Save className="size-4.5" />
             {T.create.save}
           </Button>

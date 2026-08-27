@@ -1,7 +1,8 @@
 "use client";
 
+import { ChevronDown } from "lucide-react";
 import type { ReactNode } from "react";
-import { useId } from "react";
+import { useId, useState } from "react";
 
 import { cn } from "@/lib/cn";
 import { T, useI18n } from "@/lib/i18n";
@@ -71,10 +72,11 @@ export function Button({
     <button
       ref={ref}
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-md px-4 py-2.5",
-        "text-[13.5px] font-semibold transition-all duration-200 active:scale-[0.98]",
+        "inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-4 py-2.5",
+        "text-[14px] font-semibold transition-all duration-200 active:scale-[0.98]",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
         "disabled:pointer-events-none disabled:opacity-50",
+        variant === "primary" && "min-h-12",
         BUTTON_VARIANTS[variant],
         className
       )}
@@ -105,7 +107,7 @@ export function Field({
 }
 
 const FIELD_CLASS =
-  "w-full rounded-md border border-line bg-surface px-3.5 py-2.5 text-[14px] " +
+  "w-full min-h-11 rounded-md border border-line bg-surface px-3.5 py-2.5 text-base md:text-[14px] " +
   "text-ink outline-none transition-all duration-200 hover:border-muted/40 focus:border-primary focus:bg-surface focus:ring-4 focus:ring-primary/10";
 
 export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
@@ -225,7 +227,7 @@ export function DataField({
   useI18n();
   return (
     <div className={cn("min-w-0 group", className)}>
-      <dt className="text-[11px] font-bold uppercase tracking-wider text-muted mb-1">{label}</dt>
+      <dt className="mb-1 text-[13px] font-bold text-muted">{label}</dt>
       <dd className="text-[14px] font-medium leading-relaxed text-ink group-hover:text-navy transition-colors">{children}</dd>
       {hint ? <p className="mt-1 text-[12px] text-muted">{hint}</p> : null}
     </div>
@@ -248,7 +250,7 @@ export function ProseBlock({
   return (
     <div className={cn("rounded-md border border-line bg-surface p-4 shadow-sm relative overflow-hidden", className)}>
       <div className="absolute start-0 top-0 bottom-0 w-1 bg-line" aria-hidden />
-      <p className="text-[11px] font-bold uppercase tracking-wider text-muted mb-2">{label}</p>
+      <p className="mb-2 text-[13px] font-bold text-muted">{label}</p>
       <div className="whitespace-pre-wrap text-[14px] leading-relaxed text-ink">{children}</div>
       {hint ? <p className="mt-3 border-t border-line pt-2 text-[12px] text-muted">{hint}</p> : null}
     </div>
@@ -323,7 +325,19 @@ export interface TabItem {
   active?: boolean;
 }
 
-/** Horizontal scrollable tab bar. Pill style. */
+function TabLabel({ item, selected }: { item: TabItem; selected: boolean }) {
+  return (
+    <span className="flex min-w-0 items-center justify-center gap-2">
+      <span className="min-w-0 truncate">{item.label}</span>
+      {typeof item.count === "number" && item.count > 0 ? (
+        <span className={cn("rounded-full px-2 py-0.5 font-mono text-[11px] font-bold", selected ? "bg-primary-light text-primary-dark" : "bg-line/50 text-ink-soft")}>{item.count}</span>
+      ) : null}
+      {item.active ? <span aria-hidden className="size-2 shrink-0 rounded-full bg-warning" /> : null}
+    </span>
+  );
+}
+
+/** Horizontal scrollable tab bar on desktop; expandable section list on mobile. */
 export function Tabs({
   items,
   value,
@@ -335,53 +349,91 @@ export function Tabs({
   onChange: (id: string) => void;
   className?: string;
 }) {
-  useI18n();
+  const { dir } = useI18n();
+  const [open, setOpen] = useState(false);
   const enabled = items.filter((item) => !item.disabled);
+  const current = items.find((item) => item.id === value) ?? items[0];
 
   const onKeyDown = (event: React.KeyboardEvent) => {
     if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
     event.preventDefault();
     const index = enabled.findIndex((item) => item.id === value);
     if (index < 0) return;
-    const delta = event.key === "ArrowLeft" ? 1 : -1;
+    const forward = dir === "rtl" ? "ArrowLeft" : "ArrowRight";
+    const delta = event.key === forward ? 1 : -1;
     const next = enabled[(index + delta + enabled.length) % enabled.length];
     onChange(next.id);
   };
 
   return (
-    <div
-      role="tablist"
-      onKeyDown={onKeyDown}
-      className={cn("scrollbar-thin flex gap-1.5 overflow-x-auto rounded-lg bg-subtle p-1.5 ring-1 ring-inset ring-line", className)}
-    >
-      {items.map((item) => {
-        const selected = item.id === value;
-        return (
-          <button
-            key={item.id}
-            role="tab"
-            type="button"
-            aria-selected={selected}
-            disabled={item.disabled}
-            tabIndex={selected ? 0 : -1}
-            onClick={() => onChange(item.id)}
-            className={cn(
-              "relative flex-1 shrink-0 whitespace-nowrap rounded-md px-4 py-2 text-[13px] font-semibold transition-all duration-200 min-w-[100px]",
-              "disabled:cursor-not-allowed disabled:opacity-40",
-              selected ? "bg-surface text-primary-dark shadow-sm ring-1 ring-line/50" : "text-ink-soft hover:text-ink hover:bg-surface/50"
-            )}
-          >
-            <span className="flex items-center justify-center gap-2">
-              {item.label}
-              {typeof item.count === "number" && item.count > 0 ? (
-                <span className={cn("rounded-full px-2 py-0.5 font-mono text-[11px] font-bold", selected ? "bg-primary-light text-primary-dark" : "bg-line/50 text-ink-soft")}>{item.count}</span>
-              ) : null}
-              {item.active ? <span aria-hidden className="size-2 rounded-full bg-warning shadow-[0_0_6px_rgba(201,138,26,0.6)]" /> : null}
-            </span>
-          </button>
-        );
-      })}
-    </div>
+    <>
+      <div className={cn("md:hidden", className)}>
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-haspopup="listbox"
+          onClick={() => setOpen((value) => !value)}
+          className="flex min-h-12 w-full items-center justify-between gap-3 rounded-lg border border-line bg-surface px-4 text-start text-[14px] font-semibold text-navy"
+        >
+          {current ? <TabLabel item={current} selected /> : null}
+          <ChevronDown className={cn("size-5 shrink-0", open && "rotate-180")} aria-hidden />
+        </button>
+        {open ? (
+          <div role="listbox" className="mt-2 overflow-hidden rounded-lg border border-line bg-surface">
+            {items.map((item) => {
+              const selected = item.id === value;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="option"
+                  aria-selected={selected}
+                  disabled={item.disabled}
+                  onClick={() => {
+                    onChange(item.id);
+                    setOpen(false);
+                  }}
+                  className={cn(
+                    "flex min-h-12 w-full items-center px-4 text-start text-[14px] font-semibold",
+                    "disabled:cursor-not-allowed disabled:opacity-40",
+                    selected ? "bg-primary-light text-primary-dark" : "text-ink hover:bg-subtle",
+                  )}
+                >
+                  <TabLabel item={item} selected={selected} />
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
+      </div>
+      <div
+        role="tablist"
+        onKeyDown={onKeyDown}
+        className={cn("scrollbar-thin hidden gap-1.5 overflow-x-auto rounded-lg bg-subtle p-1.5 ring-1 ring-inset ring-line md:flex", className)}
+      >
+        {items.map((item) => {
+          const selected = item.id === value;
+          return (
+            <button
+              key={item.id}
+              role="tab"
+              type="button"
+              aria-selected={selected}
+              disabled={item.disabled}
+              tabIndex={selected ? 0 : -1}
+              onClick={() => onChange(item.id)}
+              className={cn(
+                "relative min-h-11 min-w-[100px] flex-1 shrink-0 whitespace-nowrap rounded-md px-4 py-2 text-[13px] font-semibold transition-all duration-200",
+                "disabled:cursor-not-allowed disabled:opacity-40",
+                selected ? "bg-surface text-primary-dark shadow-sm ring-1 ring-line/50" : "text-ink-soft hover:text-ink hover:bg-surface/50"
+              )}
+            >
+              <TabLabel item={item} selected={selected} />
+            </button>
+          );
+        })}
+      </div>
+    </>
   );
 }
 
@@ -399,14 +451,14 @@ export function ChoiceCards<T extends string>({
 }) {
   useI18n();
   return (
-    <div role="radiogroup" className="grid gap-3 sm:grid-cols-2">
+    <div role="radiogroup" className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       {options.map((option) => {
         const selected = option.value === value;
         return (
           <label
             key={option.value}
             className={cn(
-              "cursor-pointer rounded-lg border-2 p-4 transition-all duration-200",
+              "min-h-12 cursor-pointer rounded-lg border-2 p-4 transition-all duration-200",
               selected ? "border-primary bg-primary-light/40 shadow-sm" : "border-line bg-surface hover:border-primary/30 hover:bg-subtle/50"
             )}
           >
@@ -455,7 +507,7 @@ export function ToggleSwitch({
     if (!disabled) onCheckedChange(!checked);
   };
   return (
-    <div className={cn("flex items-center gap-3", disabled && "opacity-60")}>
+    <div className={cn("flex min-h-11 items-center gap-3", disabled && "opacity-60")}>
       <button
         type="button"
         role="switch"
@@ -466,7 +518,7 @@ export function ToggleSwitch({
         disabled={disabled}
         onClick={toggle}
         className={cn(
-          "relative h-6 w-11 shrink-0 cursor-pointer rounded-full transition-all duration-300",
+          "relative h-7 w-12 shrink-0 cursor-pointer rounded-full transition-all duration-300",
           "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
           "disabled:cursor-not-allowed",
           checked ? "bg-primary shadow-inner" : "bg-line"
@@ -475,8 +527,8 @@ export function ToggleSwitch({
         <span
           aria-hidden
           className={cn(
-            "absolute top-1 size-4 rounded-full bg-white shadow-sm transition-[inset-inline-start] duration-300",
-            checked ? "start-[26px]" : "start-1"
+            "absolute top-1.5 size-4 rounded-full bg-white shadow-sm transition-[inset-inline-start] duration-300",
+            checked ? "start-[1.75rem]" : "start-1.5"
           )}
         />
       </button>

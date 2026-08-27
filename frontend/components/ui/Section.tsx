@@ -25,7 +25,7 @@ export function Section({
   return (
     <section className={cn("flex h-fit flex-col overflow-hidden rounded-xl border border-line bg-surface shadow-sm transition-shadow hover:shadow-md", className)}>
       {title || actions || hint ? (
-        <header className="flex flex-wrap items-center justify-between gap-4 border-b border-line px-5 py-4">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3 md:gap-4 md:px-5 md:py-4">
           <div className="flex items-start gap-3 min-w-0">
             {title ? <div className="mt-1 h-4 w-1 shrink-0 rounded-full bg-primary" aria-hidden /> : null}
             <div className="min-w-0">

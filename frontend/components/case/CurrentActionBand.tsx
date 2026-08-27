@@ -2,6 +2,7 @@
 
 import { AlertTriangle } from "lucide-react";
 
+import { StickyActionBar } from "@/components/mobile/StickyActionBar";
 import { Button } from "@/components/ui/Base";
 import { cn } from "@/lib/cn";
 import { formatDate } from "@/lib/format";
@@ -112,7 +113,7 @@ export function CurrentActionBand({
         </div>
 
         {yours && onAct && !closed ? (
-          <div className="flex min-w-[14rem] flex-col justify-center gap-2 border-t border-white/10 px-5 py-5 sm:border-s sm:border-t-0 md:px-6 bg-white/5">
+          <div className="hidden min-w-[14rem] flex-col justify-center gap-2 border-s border-white/10 bg-white/5 px-5 py-5 md:flex md:px-6">
             {acting ? (
               <p className="text-[13px] font-medium leading-relaxed text-white/80">{T.workflow.onDecisionTab}</p>
             ) : (
@@ -130,6 +131,13 @@ export function CurrentActionBand({
           </div>
         ) : null}
       </div>
+      {yours && onAct && !closed && !acting ? (
+        <StickyActionBar>
+          <Button className="min-h-12 w-full font-bold" onClick={onAct}>
+            {T.workflow.goToAction}
+          </Button>
+        </StickyActionBar>
+      ) : null}
     </section>
   );
 }
