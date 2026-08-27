@@ -487,7 +487,7 @@ function ShellFrame({
           {collapsed ? null : (
             <div className="min-w-0">
               <p className="font-heading text-[15px] font-bold leading-tight text-white">{T.appName}</p>
-              <p className="truncate text-[11px] font-medium text-primary-dark/80 tracking-wide">
+              <p className="truncate text-[11px] font-medium text-sidebar-muted tracking-wide">
                 {ROLE_LABELS[user.role]}
               </p>
             </div>

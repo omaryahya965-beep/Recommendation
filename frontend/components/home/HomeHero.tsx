@@ -55,7 +55,7 @@ export function HomeHero({
         sizes="100vw"
         className="object-cover object-[center_30%]"
       />
-      <div className="absolute inset-0 bg-gradient-to-t from-navy/95 via-navy/60 to-navy/10" />
+      <div className="absolute inset-0" style={{background: "linear-gradient(to top, rgba(12,32,44,0.97) 0%, rgba(12,32,44,0.58) 55%, rgba(12,32,44,0.08) 100%)"}} />
 
       <div className="relative z-10 flex h-full min-h-[16rem] flex-col justify-end gap-5 px-6 py-8 md:min-h-[18rem] md:px-10 md:py-10">
         <div className="max-w-4xl">
@@ -68,7 +68,7 @@ export function HomeHero({
               {ROLE_LABELS[role]}
             </span>
           </div>
-          <h1 className="mt-3 font-heading text-[2rem] font-bold leading-tight text-white drop-shadow-md md:text-[2.5rem]">
+          <h1 className="mt-3 font-heading text-[1.5rem] font-bold leading-tight text-white drop-shadow-md md:text-[1.75rem]">
             {title}
           </h1>
           <p className="mt-2 text-[14px] font-medium text-white/80" dir={locale === "ar" ? "rtl" : "ltr"}>

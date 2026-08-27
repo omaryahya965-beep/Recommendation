@@ -163,26 +163,28 @@ body {
   letter-spacing: 0;
 }
 
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  font-family: var(--font-heading);
-  color: var(--color-navy);
-  line-height: 1.35;
-  letter-spacing: 0;
-}
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-heading);
+    color: inherit;
+    line-height: 1.35;
+    letter-spacing: 0;
+  }
 
-h1 {
-  font-size: 1.5rem;
-  font-weight: 700;
-}
+  h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+  }
 
-h2 {
-  font-size: 1.125rem;
-  font-weight: 600;
+  h2 {
+    font-size: 1.125rem;
+    font-weight: 600;
+  }
 }
 
 input,
