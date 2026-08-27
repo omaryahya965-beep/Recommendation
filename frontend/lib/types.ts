@@ -331,7 +331,7 @@ export interface AIAssistantResponse {
   conversation_id: number;
   answer: string;
   tools: string[];
-  tool_results: Record<string, unknown>;
+  tool_results?: Record<string, unknown>;
   provider: string;
   model: string;
   advisory: boolean;

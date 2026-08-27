@@ -17,6 +17,7 @@ urlpatterns = [
     path("summaries/", views.SummaryView.as_view(), name="ai-summaries"),
     path("assistant/", views.AssistantView.as_view(), name="ai-assistant"),
     path("assistant/conversations/", views.AssistantClearView.as_view(), name="ai-assistant-clear"),
+    path("assistant/conversations/memory/", views.AssistantClearMemoryView.as_view(), name="ai-assistant-clear-memory"),
     path("jobs/<int:pk>/", views.AIJobStatusView.as_view(), name="ai-job"),
     path("analyses/<int:pk>/review/", views.AnalysisReviewView.as_view(), name="ai-analysis-review"),
 ]

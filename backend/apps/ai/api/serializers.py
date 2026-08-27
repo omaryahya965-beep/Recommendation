@@ -3,7 +3,10 @@ from rest_framework import serializers
 
 class SummaryRequestSerializer(serializers.Serializer):
     scope = serializers.ChoiceField(
-        choices=("recommendation", "department", "report", "municipality", "followup_period")
+        choices=(
+            "recommendation", "department", "report", "municipality", "followup_period",
+            "recommendation_list", "council_queue", "employee_tasks"
+        )
     )
     language = serializers.CharField(required=False, default="ar")
     recommendation_id = serializers.IntegerField(required=False)

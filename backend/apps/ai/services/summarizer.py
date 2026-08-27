@@ -322,6 +322,30 @@ def generate_summary(user, payload: dict, language: str = "ar") -> AIAnalysis:
         title = "ملخص البلدية" if lang == "ar" else "Municipality summary"
         target_type, target_id = "municipality", user.municipality_id
         municipality = user.municipality
+    elif scope == "recommendation_list":
+        status = payload.get("status")
+        qs = recs
+        if status:
+            qs = qs.filter(status=status)
+        dept_id = payload.get("department_id")
+        if dept_id:
+            qs = qs.filter(report__department_id=dept_id)
+        stats = _stats_from_qs(qs)
+        title = "ملخص قائمة التوصيات" if lang == "ar" else "Filtered recommendation list summary"
+        target_type, target_id = "recommendation_list", 0
+        municipality = user.municipality
+    elif scope == "council_queue":
+        qs = recs.filter(status__in=[S.PENDING_CLOSURE_COUNCIL, S.PENDING_COUNCIL, S.SUBMITTED_FOR_VERIFICATION])
+        stats = _stats_from_qs(qs)
+        title = "ملخص قائمة الموافقات للمجلس" if lang == "ar" else "Council approval queue summary"
+        target_type, target_id = "council_queue", 0
+        municipality = user.municipality
+    elif scope == "employee_tasks":
+        qs = recs.filter(action_plan__responsible_employee=user)
+        stats = _stats_from_qs(qs)
+        title = "ملخص مهام الموظف" if lang == "ar" else "Employee task list summary"
+        target_type, target_id = "employee_tasks", user.id
+        municipality = user.municipality
     else:
         raise AIError("Unknown summary scope.")
 

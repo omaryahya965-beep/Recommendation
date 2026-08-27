@@ -343,6 +343,8 @@ class AssistantView(APIView):
                     "route": ser.validated_data.get("route"),
                 }
             )
+            # Safe browser response enforcement: strip raw database tool outputs
+            result.pop("tool_results", None)
             return Response(result)
         except Exception as exc:
             return _ai_error(exc)
@@ -354,6 +356,16 @@ class AssistantClearView(APIView):
     def delete(self, request):
         clear_conversation(request.user)
         return Response({"cleared": True})
+
+
+class AssistantClearMemoryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request):
+        convo = AIConversation.objects.filter(user=request.user, municipality=request.user.municipality).first()
+        if convo:
+            convo.messages.filter(role=AIMessage.Role.SYSTEM).delete()
+        return Response({"memory_cleared": True})
 
 
 class AIJobStatusView(APIView):
