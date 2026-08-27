@@ -3,6 +3,7 @@
 import { CheckCircle2, MessageSquareWarning, Paperclip, Send, XCircle } from "lucide-react";
 import { useState } from "react";
 
+import { toPlanPayload, type PlanDraft } from "@/components/action-plan/ActionPlanBuilder";
 import {
   Button,
   Callout,
@@ -146,14 +147,14 @@ export function RespondForm({
   rec,
   action,
   requirePlan,
+  planDraft,
   planSlot,
-  planReady,
 }: {
   rec: RecommendationDetail;
   action: WorkflowAction;
   requirePlan: boolean;
+  planDraft?: PlanDraft;
   planSlot?: React.ReactNode;
-  planReady?: boolean;
 }) {
   useI18n();
   const [decision, setDecision] = useState<"agree" | "disagree">("agree");
@@ -163,6 +164,8 @@ export function RespondForm({
   const [uploading, setUploading] = useState(false);
 
   const needsAttachment = decision === "disagree";
+  const plan = decision === "agree" && planDraft ? toPlanPayload(planDraft) : null;
+  const planReady = Boolean(plan);
   useUnsavedChanges(Boolean(justification.trim() || attachment));
 
   const submit = async (event: React.FormEvent) => {
@@ -175,7 +178,17 @@ export function RespondForm({
       setLocalError(T.common.required);
       return;
     }
+    if (requirePlan && decision === "agree" && !plan) {
+      setLocalError(T.response.planRequired);
+      return;
+    }
     setLocalError(null);
+
+    const extraFields: Record<string, string> = {
+      decision,
+      justification,
+    };
+    if (plan) extraFields.plan = JSON.stringify(plan);
 
     if (attachment) {
       setUploading(true);
@@ -184,7 +197,7 @@ export function RespondForm({
           file: attachment,
           purpose: "response",
           fileFieldName: "attachment",
-          extraFields: { decision, justification },
+          extraFields,
         });
         action.mutation.mutate(
           { path: "respond/", ...payload },
@@ -196,7 +209,14 @@ export function RespondForm({
       }
       return;
     }
-    action.mutation.mutate({ path: "respond/", body: { decision, justification } });
+    action.mutation.mutate({
+      path: "respond/",
+      body: {
+        decision,
+        justification,
+        ...(plan ? { plan } : {}),
+      },
+    });
   };
 
   return (

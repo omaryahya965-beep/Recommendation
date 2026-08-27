@@ -535,7 +535,7 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
                   rec={rec}
                   action={action}
                   requirePlan={requirePlan}
-                  planReady={Boolean(planDraft.responsible_employee && planDraft.target_date)}
+                  planDraft={planDraft}
                   planSlot={
                     <ActionPlanBuilder
                       draft={planDraft}

@@ -675,6 +675,7 @@ export const T = {
     auditNotes: "Audit comments on the response",
     withPlan: "Attach the action plan with the response",
     withPlanHint: "Municipal policy requires the action plan to be submitted with the response.",
+    planRequired: "Enter the responsible employee, the target date, and at least one implementation stage before sending the response.",
     proposedDate: "Proposed date",
     responsibleParty: "Responsible party",
     recommendation: "Recommendation",
