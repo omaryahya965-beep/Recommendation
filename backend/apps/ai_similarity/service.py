@@ -119,7 +119,7 @@ def ensure_embedding(recommendation):
     return vector
 
 
-def find_similar(recommendation, top_k=3, min_score=0.0):
+def find_similar(recommendation, top_k=3, min_score=0.0, user=None):
     """Top-k most similar prior recommendations in the same municipality.
 
     Near-identical texts are collapsed so the UI does not list the same
@@ -127,6 +127,7 @@ def find_similar(recommendation, top_k=3, min_score=0.0):
     """
     from apps.audits.finding import semantic_payload
     from apps.audits.models import Recommendation
+    from apps.core.permissions import scope_recommendations
 
     vector = ensure_embedding(recommendation)
     candidates = (
@@ -134,8 +135,10 @@ def find_similar(recommendation, top_k=3, min_score=0.0):
             report__municipality=recommendation.report.municipality
         )
         .exclude(pk=recommendation.pk)
-        .select_related("report", "action_plan")
     )
+    if user is not None:
+        candidates = scope_recommendations(candidates, user)
+    candidates = candidates.select_related("report", "action_plan")
     scored = []
     for rec in candidates[:300]:
         other = rec.embedding

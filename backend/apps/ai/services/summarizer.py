@@ -281,7 +281,6 @@ def generate_summary(user, payload: dict, language: str = "ar") -> AIAnalysis:
             fup = FollowUpReport.objects.filter(pk=fup_id, municipality=user.municipality).first()
             if fup is None:
                 raise AIError("Follow-up report not found.", http_status=404)
-            # Prefer the stored snapshot totals so we do not invent a parallel dataset.
             snap = fup.snapshot or {}
             totals = snap.get("totals") or {}
             stats = {
@@ -306,7 +305,7 @@ def generate_summary(user, payload: dict, language: str = "ar") -> AIAnalysis:
             overdue_depts = {}
             for item in snap.get("items") or []:
                 if item.get("overdue"):
-                    overdue_depts[item.get("department")] = overdue_depts.get(item.get("department"), 0) + 1
+                     overdue_depts[item.get("department")] = overdue_depts.get(item.get("department"), 0) + 1
             stats["overdue_by_department"] = overdue_depts
             stats["top_overdue_department"] = max(overdue_depts, key=overdue_depts.get) if overdue_depts else None
             target_id = fup.id
@@ -318,7 +317,7 @@ def generate_summary(user, payload: dict, language: str = "ar") -> AIAnalysis:
         municipality = user.municipality
     elif scope == "municipality":
         if user.role not in (User.Role.AUDIT, User.Role.COUNCIL):
-            raise AIError("Municipality summaries are limited to audit and council.", http_status=403)
+             raise AIError("Municipality summaries are limited to audit and council.", http_status=403)
         stats = _stats_from_qs(recs)
         title = "ملخص البلدية" if lang == "ar" else "Municipality summary"
         target_type, target_id = "municipality", user.municipality_id
@@ -333,56 +332,78 @@ def generate_summary(user, payload: dict, language: str = "ar") -> AIAnalysis:
             f"{stats['closed']}",
             f"{stats['overdue']}",
         ]
+
     prompt_name = "case_summary_v1.txt" if scope == "recommendation" else "summary_generation_v1.txt"
     trusted = {k: v for k, v in stats.items() if k != "items"}
     trusted["item_count"] = len(stats.get("items") or [])
+
     prompt = render_prompt(
         prompt_name,
         language="Modern Standard Arabic" if lang == "ar" else "English",
         trusted_json=json.dumps(trusted, ensure_ascii=False),
     )
-    llm_out = generate_structured(
-        prompt,
-        fallback={"title": title, "body": body, "highlights": highlights, "confidence": 88},
-    )
-    llm_body = (llm_out.get("body") or "")[:1200] if isinstance(llm_out.get("body"), str) else ""
-    if scope == "recommendation":
-        # Keep the grounded case summary as the primary body; LLM may add a short elaboration.
-        if llm_body.strip() and llm_body.strip() != body.strip():
-            elaboration = llm_body
-        else:
-            elaboration = ""
-        if isinstance(llm_out.get("highlights"), list) and llm_out["highlights"]:
-            extra = [str(x)[:180] for x in llm_out["highlights"][:6] if str(x).strip()]
-            highlights = list(dict.fromkeys([*highlights, *extra]))[:8]
-    else:
-        elaboration = llm_body
-    output = {
-        "title": title,
-        "body": body,
-        "llm_elaboration": elaboration,
-        "highlights": highlights,
-        "stats": trusted,
-        "scope": scope,
-        "confidence": 90,
-        "advisory": True,
-        "generated_at": timezone.now().isoformat(),
-    }
-    allowed = {item["id"] for item in stats.get("items") or [] if item.get("id")}
-    for token in __import__("re").findall(r"REC-(\d+)", output["llm_elaboration"]):
-        if int(token) not in allowed and scope != "recommendation":
-            output["llm_elaboration"] = ""
-            break
 
     meta = provider_meta()
-    digest = content_hash(scope, trusted, lang, meta["model"], "summary_v2")
+
+    fallback = {
+        "title": title,
+        "executive_summary": body,
+        "body": body,
+        "key_findings": [{"text": h, "source_ids": []} for h in highlights],
+        "risk_overview": [],
+        "status_overview": [],
+        "important_deadlines": [],
+        "recommended_next_steps": [],
+        "open_questions": [],
+        "limitations": [],
+        "sources": [{"id": stats.get("reference") or "", "title": stats.get("title") or ""}],
+        "language": lang,
+        "provider": meta["provider"],
+        "model": meta["model"]
+    }
+
+    llm_out = generate_structured(
+        prompt,
+        fallback=fallback,
+    )
+
+    # Validate output schema keys
+    for key in ["title", "executive_summary", "body", "key_findings", "risk_overview", "status_overview", "important_deadlines", "recommended_next_steps", "open_questions", "limitations", "sources"]:
+        if key not in llm_out:
+            llm_out[key] = fallback.get(key) or []
+
+    # Map executive_summary to body and vice versa
+    if "body" not in llm_out or not llm_out["body"]:
+        llm_out["body"] = llm_out.get("executive_summary") or fallback["body"]
+    if "executive_summary" not in llm_out or not llm_out["executive_summary"]:
+        llm_out["executive_summary"] = llm_out.get("body") or fallback["executive_summary"]
+
+    # Filter out hallucinated source IDs
+    allowed_ids = {f"REC-{item['id']}" for item in stats.get("items") or [] if item.get("id")}
+    if scope == "recommendation" and stats.get("reference"):
+        allowed_ids.add(stats["reference"])
+
+    for key in ["key_findings", "risk_overview", "status_overview", "important_deadlines", "recommended_next_steps", "open_questions", "limitations"]:
+        items_list = llm_out.get(key)
+        if isinstance(items_list, list):
+            for idx in range(len(items_list)):
+                item = items_list[idx]
+                if isinstance(item, dict) and "source_ids" in item:
+                    item["source_ids"] = [sid for sid in item["source_ids"] if sid in allowed_ids]
+
+    llm_out["language"] = lang
+    llm_out["provider"] = meta["provider"]
+    llm_out["model"] = meta["model"]
+    llm_out["stats"] = trusted
+
+    digest = content_hash(scope, trusted, lang, meta["model"], "summary_v3")
     return store_analysis(
         analysis_type=AIAnalysis.AnalysisType.SUMMARY,
         target_type=target_type,
         target_id=target_id or 0,
         municipality=municipality,
         digest=digest,
-        output=output,
+        output=llm_out,
         confidence=90,
         user=user,
     )

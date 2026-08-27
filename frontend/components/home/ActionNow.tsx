@@ -64,7 +64,7 @@ export function ActionNow({
             aria-pressed={queue === null}
             className={cn(
               "rounded-full px-4 py-1.5 text-[13px] font-bold transition-all duration-200",
-              queue === null ? "bg-navy text-white shadow-sm" : "bg-surface text-ink-soft hover:bg-surface hover:text-ink ring-1 ring-line"
+              queue === null ? "bg-inverse text-on-inverse shadow-sm" : "bg-surface text-ink-soft hover:bg-surface hover:text-ink ring-1 ring-line"
             )}
           >
             {T.reports.filterAll}
@@ -77,7 +77,7 @@ export function ActionNow({
               aria-pressed={queue === source.key}
               className={cn(
                 "inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[13px] font-bold transition-all duration-200",
-                queue === source.key ? "bg-navy text-white shadow-sm" : "bg-surface text-ink-soft hover:bg-surface hover:text-ink ring-1 ring-line"
+                queue === source.key ? "bg-inverse text-on-inverse shadow-sm" : "bg-surface text-ink-soft hover:bg-surface hover:text-ink ring-1 ring-line"
               )}
             >
               {queueLabel(source.key)}

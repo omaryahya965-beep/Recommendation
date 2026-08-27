@@ -3,6 +3,15 @@ from django.conf import settings
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.throttling import SimpleRateThrottle
+
+class AIUserRateThrottle(SimpleRateThrottle):
+    rate = '30/min'
+
+    def get_cache_key(self, request, view):
+        if request.user.is_authenticated:
+            return f"throttle_ai_user_{request.user.id}"
+        return self.get_ident(request)
 
 from apps.accounts.models import User
 from apps.ai.exceptions import AIError
@@ -80,14 +89,17 @@ class AIHealthView(APIView):
             "enabled": settings.AI_ENABLED,
             "provider": meta["provider"],
             "model": meta["model"],
+            "local_or_remote_mode": meta.get("local_or_remote_mode", "local"),
             "embedding_backend": active_backend(),
             "embedding_model": meta["embedding_model"],
+            "configuration_status": meta.get("configuration_status", "ok"),
             "similarity_threshold": settings.AI_SIMILARITY_THRESHOLD,
         })
 
 
 class RecommendationAnalyzeView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [AIUserRateThrottle]
 
     def get(self, request, pk):
         try:
@@ -125,6 +137,7 @@ class RecommendationAnalyzeView(APIView):
 
 class RecommendationSimilarView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [AIUserRateThrottle]
 
     def get(self, request, pk):
         try:
@@ -155,6 +168,7 @@ class RecommendationSimilarView(APIView):
 
 class ActionPlanSuggestView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [AIUserRateThrottle]
 
     def post(self, request, pk):
         try:
@@ -180,6 +194,7 @@ class ActionPlanSuggestView(APIView):
 
 class RecommendationRiskView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [AIUserRateThrottle]
 
     def get(self, request, pk):
         try:
@@ -217,6 +232,7 @@ class RecommendationRiskView(APIView):
 
 class EvidenceAnalyzeView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [AIUserRateThrottle]
 
     def get(self, request, pk):
         try:
@@ -267,6 +283,7 @@ class DashboardInsightsView(APIView):
 
 class SummaryView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [AIUserRateThrottle]
 
     def get(self, request):
         scope = request.query_params.get("scope") or "recommendation"
@@ -306,6 +323,7 @@ class SummaryView(APIView):
 
 class AssistantView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [AIUserRateThrottle]
 
     def post(self, request):
         ser = AssistantRequestSerializer(data=request.data)
@@ -317,6 +335,13 @@ class AssistantView(APIView):
                 ser.validated_data["message"],
                 ser.validated_data.get("language") or "ar",
                 ser.validated_data.get("conversation_id"),
+                context={
+                    "recommendation_id": ser.validated_data.get("recommendation_id"),
+                    "report_id": ser.validated_data.get("report_id"),
+                    "department_id": ser.validated_data.get("department_id"),
+                    "role": ser.validated_data.get("role"),
+                    "route": ser.validated_data.get("route"),
+                }
             )
             return Response(result)
         except Exception as exc:

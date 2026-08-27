@@ -335,5 +335,5 @@ export interface AIAssistantResponse {
   provider: string;
   model: string;
   advisory: boolean;
-  messages: Array<{ role: string; content: string; created_at: string }>;
+  messages: Array<{ role: string; content: string; created_at: string; metadata?: Record<string, unknown> }>;
 }

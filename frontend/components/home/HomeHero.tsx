@@ -88,7 +88,7 @@ export function HomeHero({
                   className={cn(
                     "inline-flex items-center gap-2.5 rounded-lg px-5 py-2.5 text-[14px] font-bold transition-all duration-200 active:scale-95",
                     action.primary
-                      ? "bg-white text-navy hover:bg-white/90 shadow-md"
+                      ? "bg-white text-inverse hover:bg-white/90 shadow-md"
                       : "bg-white/10 text-white hover:bg-white/20 backdrop-blur-md ring-1 ring-white/30"
                   )}
                 >
