@@ -108,31 +108,27 @@ export default function LoginPage() {
   const passwordToggleLabel = showPassword ? T.login.hidePassword : T.login.showPassword;
 
   return (
-    <main className="login-shell relative min-h-dvh min-w-0 overflow-x-clip bg-subtle/30">
-      {/* Decorative Blur Orbs */}
-      <div className="pointer-events-none absolute -start-20 -top-20 z-0 size-96 rounded-full bg-primary/10 blur-[100px]" />
-      <div className="pointer-events-none absolute -bottom-20 -end-20 z-0 size-96 rounded-full bg-ai/10 blur-[100px]" />
-
-      <div className="relative z-10 flex min-h-dvh min-w-0 flex-col lg:flex-row" dir="ltr">
+    <main className="login-shell relative flex min-h-dvh min-w-0 flex-col lg:h-dvh">
+      <div className="flex min-h-dvh min-w-0 flex-1 flex-col lg:h-full lg:min-h-0 lg:flex-row" dir="ltr">
         {/* Hero Section */}
-        <div className="relative min-w-0 lg:w-1/2 lg:shrink-0 lg:min-h-dvh">
+        <div className="relative min-w-0 lg:h-full lg:w-1/2 lg:shrink-0 lg:min-h-0">
           <LoginHero />
         </div>
 
         {/* Form Section */}
         <section
           dir={dir}
-          className="login-bg relative flex min-h-0 min-w-0 flex-1 flex-col justify-between lg:min-h-dvh lg:w-1/2"
+          className="login-bg relative flex min-h-0 min-w-0 flex-1 flex-col justify-between lg:h-full lg:w-1/2"
         >
           {/* Toolbar */}
-          <div className="hidden justify-end px-6 pt-4 sm:px-8 lg:flex lg:px-10 lg:pt-6">
+          <div className="hidden justify-end px-6 pt-4 sm:px-8 lg:flex lg:px-10 lg:pt-4">
             <LoginToolbar />
           </div>
 
           {/* Form Container */}
-          <div className="flex flex-1 flex-col items-center justify-center px-4 py-8 sm:px-8 lg:px-12">
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-4 py-8 sm:px-8 lg:overflow-y-auto lg:px-12 lg:py-4">
             <div className="flex w-full max-w-[28rem] flex-col items-center text-[var(--login-text)]">
-              <div className="mb-4 hidden lg:block">
+              <div className="mb-3 hidden lg:block">
                 <RamallahMark size="md" layout="stacked" />
               </div>
               <h1
@@ -149,7 +145,7 @@ export default function LoginPage() {
               </p>
 
               {/* Login Card */}
-              <div className="login-card mt-6 w-full rounded-2xl px-5 py-6 sm:px-8 sm:py-8 shadow-md">
+              <div className="login-card mt-5 w-full rounded-2xl px-5 py-6 sm:px-8">
                 <form
                   onSubmit={submit}
                   aria-labelledby="login-heading"
@@ -353,7 +349,7 @@ export default function LoginPage() {
           </div>
 
           {/* Footer copyright */}
-          <p className="px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-center text-[11px] font-semibold leading-5 text-muted lg:px-10 lg:pb-6">
+          <p className="px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-center text-[11px] font-semibold leading-5 text-muted lg:px-10 lg:pb-4">
             © 2024 {T.login.footerOwner}
             <span className="mx-1.5 text-muted/30">|</span>
             {T.login.footerPlatform}
