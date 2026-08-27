@@ -1,5 +1,7 @@
+from django.contrib.auth import get_user_model
 from rest_framework import serializers
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.exceptions import AuthenticationFailed
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer
 
 from .models import User
 
@@ -32,3 +34,17 @@ class RoleTokenObtainPairSerializer(TokenObtainPairSerializer):
         data = super().validate(attrs)
         data["user"] = UserSerializer(self.user).data
         return data
+
+
+class SafeTokenRefreshSerializer(TokenRefreshSerializer):
+    """SimpleJWT looks up the token's user with `.get()` and otherwise 500s
+    when that row is gone (re-seed, restored DB, leftover browser tokens)."""
+
+    def validate(self, attrs):
+        try:
+            return super().validate(attrs)
+        except get_user_model().DoesNotExist as exc:
+            raise AuthenticationFailed(
+                self.error_messages["no_active_account"],
+                "no_active_account",
+            ) from exc

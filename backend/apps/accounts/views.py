@@ -1,17 +1,21 @@
 from django.contrib.auth import get_user_model
 from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.permissions import IsAuthenticated
-from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from apps.core.permissions import IsAuditOrDepartmentHead
 
-from .serializers import RoleTokenObtainPairSerializer, UserSerializer
+from .serializers import RoleTokenObtainPairSerializer, SafeTokenRefreshSerializer, UserSerializer
 
 User = get_user_model()
 
 
 class LoginView(TokenObtainPairView):
     serializer_class = RoleTokenObtainPairSerializer
+
+
+class RefreshView(TokenRefreshView):
+    serializer_class = SafeTokenRefreshSerializer
 
 
 class MeView(RetrieveAPIView):
