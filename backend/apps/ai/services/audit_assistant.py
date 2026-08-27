@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 import re
-
+import logging
 from datetime import timedelta
 
 from django.db.models import Count, Q
@@ -22,6 +22,8 @@ from apps.audits.serializers import is_overdue
 from apps.core.permissions import scope_recommendations
 from apps.followup.models import FollowUpReport
 from apps.workflow.models import VerificationDecision
+
+logger = logging.getLogger("apps.ai")
 
 S = Recommendation.Status
 OPEN = [s for s, _ in S.choices if s not in (S.CLOSED, S.DRAFT)]
@@ -128,7 +130,6 @@ def _qs(user):
         ),
         user,
     )
-    # Audit drafts are real cases in the register; other roles only see issued work.
     if user.role != "audit":
         qs = qs.exclude(status=S.DRAFT)
     return qs
@@ -139,7 +140,6 @@ def _display_title(text: str) -> str:
 
 
 def _name_query(message: str) -> str:
-    """Only when the user is clearly asking for a recommendation by name/title."""
     text = (message or "").strip()
     if not text:
         return ""
@@ -194,37 +194,30 @@ def tool_get_recommendation(user, rec_id: int):
     return facts
 
 
-def _field_q(tok: str) -> Q:
-    return (
-        Q(text__icontains=tok)
-        | Q(root_cause__icontains=tok)
-        | Q(report__title__icontains=tok)
-        | Q(report__department__name__icontains=tok)
-        | Q(action_plan__responsible_employee__username__icontains=tok)
-        | Q(action_plan__responsible_employee__full_name_ar__icontains=tok)
-    )
-
-
 def tool_search_recommendations(user, query: str = "", department: str = "", status: str = ""):
     qs = _qs(user)
     term = (query or "").strip()[:80]
     tokens = re.findall(r"[A-Za-z0-9_\u0600-\u06FF]{2,}", term)[:8]
     if tokens:
-        combined = _field_q(tokens[0])
+        combined = (
+            Q(text__icontains=tokens[0])
+            | Q(root_cause__icontains=tokens[0])
+            | Q(report__title__icontains=tokens[0])
+            | Q(report__department__name__icontains=tokens[0])
+        )
         for tok in tokens[1:]:
-            combined &= _field_q(tok)
-        filtered = qs.filter(combined).distinct()
-        if not filtered.exists() and len(tokens) > 1:
-            combined_or = _field_q(tokens[0])
-            for tok in tokens[1:]:
-                combined_or |= _field_q(tok)
-            filtered = qs.filter(combined_or).distinct()
-        qs = filtered
+            combined &= (
+                Q(text__icontains=tok)
+                | Q(root_cause__icontains=tok)
+                | Q(report__title__icontains=tok)
+                | Q(report__department__name__icontains=tok)
+            )
+        qs = qs.filter(combined)
     if department:
         qs = qs.filter(report__department__name__icontains=department[:80])
     if status:
         qs = qs.filter(status=status)
-    matches = [_brief(rec) for rec in qs[:15]]
+    matches = [_brief(rec) for rec in qs.distinct()[:15]]
     return {"query": term, "count": len(matches), "matches": matches}
 
 
@@ -325,8 +318,6 @@ def tool_get_followup_reports(user):
 
 
 def tool_get_approaching_deadlines(user):
-    from datetime import timedelta
-
     today = timezone.localdate()
     until = today + timedelta(days=14)
     qs = _qs(user).filter(
@@ -349,7 +340,6 @@ def _bucket(qs, limit=12) -> dict:
 
 
 def tool_get_portfolio(user):
-    """Live scoped snapshot so every turn can answer counts without guessing."""
     qs = _qs(user)
     today = timezone.localdate()
     until = today + timedelta(days=14)
@@ -444,13 +434,6 @@ TOOLS = {
 }
 
 
-STRUCTURED = {
-    "overdue", "high_risk", "verification", "recurring", "deadlines",
-    "departments", "insufficient", "followup", "overview", "list",
-    "greeting", "help",
-}
-
-
 def _topic_query(message: str) -> str:
     tokens = re.findall(r"[A-Za-z0-9_\u0600-\u06FF]{2,}", message or "")
     kept = []
@@ -507,7 +490,9 @@ def _parse_query(message: str) -> dict:
         kinds.add("search")
     elif rec_ids:
         kinds.add("rec")
-    elif not (kinds & STRUCTURED):
+    elif not (kinds & {
+        "overdue", "high_risk", "verification", "recurring", "deadlines", "departments", "followup", "overview", "list", "greeting", "help"
+    }):
         topic_q = _topic_query(text)
         if topic_q:
             kinds.add("search")
@@ -622,7 +607,7 @@ def _search_matches(results: dict) -> list:
 def _fmt_items(items: list, ar: bool, limit=8) -> str:
     lang = "ar" if ar else "en"
     bits = []
-    for item in (items or [])[:limit]:
+    for item in (items or []):
         label = item.get("title") or (item.get("text") or "")[:70]
         ref = item.get("reference") or f"REC-{item.get('id')}"
         st = status_label(item.get("status") or "", lang) if item.get("status") else ""
@@ -632,7 +617,7 @@ def _fmt_items(items: list, ar: bool, limit=8) -> str:
         bits.append(core)
     if not bits:
         return "لا يوجد" if ar else "none"
-    return "؛ ".join(bits) if ar else "; ".join(bits)
+    return "؛ ".join(bits[:limit]) if ar else "; ".join(bits[:limit])
 
 
 def _with_advisory(text: str, ar: bool) -> str:
@@ -672,7 +657,7 @@ def _why_overdue_lines(items: list, ar: bool) -> str:
                 else f"{days} day(s) past the target date ({item.get('target_date')})"
             )
         elif item.get("target_date"):
-            reasons.append(
+             reasons.append(
                 f"الموعد المستهدف {item.get('target_date')}"
                 if ar
                 else f"target date {item.get('target_date')}"
@@ -828,7 +813,7 @@ def _local_answer(message: str, results: dict, language: str, parsed: dict | Non
         bucket = portfolio.get("insufficient_evidence") or {}
         items = results.get("get_insufficient_verification") if isinstance(results.get("get_insufficient_verification"), list) else bucket.get("items") or []
         count = bucket.get("count") if bucket else len(items)
-        listed = _fmt_items(items, ar) if items else ""
+        listed = _fmt_items(items, ar)
         parts.append(
             f"توصيات بتحقق أدلة غير كافٍ: {count or 0}." + (f" {listed}" if listed and listed != "لا يوجد" else "")
             if ar
@@ -903,7 +888,7 @@ def _local_answer(message: str, results: dict, language: str, parsed: dict | Non
 
     if "list" in kinds:
         total = portfolio.get("total") or 0
-        listed = _fmt_items(hits, ar) if hits else ""
+        listed = _fmt_items(hits, ar)
         if listed and listed not in ("لا يوجد", "none"):
             parts.append(
                 f"ضمن صلاحياتك {total} توصية. منها: {listed}."
@@ -934,7 +919,6 @@ def _local_answer(message: str, results: dict, language: str, parsed: dict | Non
 
 
 def _should_use_llm(candidate: str, tool_results: dict, name_q: str, kinds: set) -> bool:
-    """Keep grounded local answers when the model invents IDs or dumps a generic snapshot."""
     if not (candidate or "").strip():
         return False
     allowed = _collect_allowed_ids(tool_results)
@@ -953,6 +937,25 @@ def _should_use_llm(candidate: str, tool_results: dict, name_q: str, kinds: set)
     if GENERIC_DUMP.search(candidate) and not (kinds & {"overview", "list"}):
         return False
     return True
+
+
+def normalize_text(text: str) -> str:
+    if not text:
+        return ""
+    val = text.lower().strip()
+    # Remove Arabic diacritics
+    val = re.sub(r"[\u064B-\u0652]", "", val)
+    # Normalize Alef variations
+    val = re.sub(r"[إأآ]", "ا", val)
+    # Normalize Teh Marbuta
+    val = re.sub(r"ة\b", "ه", val)
+    # Normalize Alef Maksura
+    val = re.sub(r"ى\b", "ي", val)
+    # Remove punctuation
+    val = re.sub(r"[.,\/#!$%\^&\*;:{}=\-_`~()؟?!\'\"]", " ", val)
+    # Collapse whitespace
+    val = " ".join(val.split())
+    return val
 
 
 def get_or_create_conversation(user) -> AIConversation:
@@ -975,7 +978,7 @@ def clear_conversation(user):
     AIConversation.objects.filter(user=user, municipality=user.municipality).delete()
 
 
-def run_assistant(user, message: str, language: str = "ar", conversation_id: int | None = None) -> dict:
+def run_assistant(user, message: str, language: str = "ar", conversation_id: int | None = None, context: dict | None = None) -> dict:
     lang = language_of(language)
     ar = lang != "en"
     if conversation_id:
@@ -987,18 +990,274 @@ def run_assistant(user, message: str, language: str = "ar", conversation_id: int
     else:
         convo = get_or_create_conversation(user)
 
-    prior = list(convo.messages.order_by("-created_at")[:8])
+    # 1. Initialize persistent system memory message (Task memory stores)
+    memory_msg = convo.messages.filter(role=AIMessage.Role.SYSTEM).first()
+    if not memory_msg:
+        memory_msg = AIMessage.objects.create(
+            conversation=convo,
+            role=AIMessage.Role.SYSTEM,
+            content="Persistent conversation memory",
+            metadata={
+                "summary": "",
+                "referenced_rec_ids": [],
+                "referenced_report_ids": [],
+                "referenced_department": None,
+                "current_language": lang,
+                "unresolved_questions": [],
+                "current_filters": {}
+            }
+        )
+
+    memory = memory_msg.metadata or {}
+
+    # 2. Scoped bounded memory
+    prior = list(convo.messages.order_by("-created_at")[:20])
     prior.reverse()
-    history_prior = [{"role": m.role, "content": m.content[:800]} for m in prior]
+    history_prior = []
+    for m in prior:
+        if m.role == AIMessage.Role.SYSTEM:
+            continue
+        history_prior.append({
+            "role": m.role,
+            "content": m.content[:800],
+            "metadata": m.metadata
+        })
+
+    # 3. Normalized Repetition and Semantic Variation Checks
+    norm_msg = normalize_text(message)
+    is_what_changed = any(x in norm_msg for x in ("تغير", "تغيير", "what changed", "any change", "updates", "تحديث"))
+    is_tell_more = any(x in norm_msg for x in ("زياده", "اكثر", "tell me more", "more details", "تفاصيل", "توسع"))
+    is_repeat_request = any(x in norm_msg for x in ("نفس المعلومات", "رجع نفس", "same info", "repeat", "نفس الجواب"))
+
+    last_user_norm = None
+    last_assistant_msg = None
+    for m in reversed(history_prior):
+        if m["role"] == "user" and not last_user_norm:
+            last_user_norm = normalize_text(m["content"])
+        elif m["role"] == "assistant" and not last_assistant_msg:
+            last_assistant_msg = m["content"]
+
+    is_repetition = False
+    if last_user_norm and norm_msg == last_user_norm:
+        is_repetition = True
+    if is_repeat_request:
+        is_repetition = True
+
+    # Check if database has changed since last conversation update
+    data_changed = False
+    if convo.updated_at:
+        changed_count = _qs(user).filter(updated_at__gt=convo.updated_at).count()
+        if changed_count > 0:
+            data_changed = True
+
+    # 4. Handle repetitions and semantic queries
+    if is_repetition and not data_changed and not is_tell_more and not is_what_changed:
+        rep_answer = (
+            "لقد عرضت هذه المعلومات للتو ولم تتغير البيانات في النظام. هل هناك تفاصيل محددة ترغب في استكشافها؟"
+            if ar else
+            "I have already displayed this information and the system data has not changed. Is there a specific detail you want to explore?"
+        )
+        meta = provider_meta()
+        AIMessage.objects.create(conversation=convo, role=AIMessage.Role.USER, content=message[:4000])
+        AIMessage.objects.create(
+            conversation=convo,
+            role=AIMessage.Role.ASSISTANT,
+            content=rep_answer,
+            metadata={
+                "tools": [],
+                "provider": meta["provider"],
+                "model": meta["model"],
+                "intent": ["repetition"],
+            }
+        )
+        convo.save(update_fields=["updated_at"])
+        history = [
+            {"role": m.role, "content": m.content, "created_at": m.created_at.isoformat(), "metadata": m.metadata}
+            for m in convo.messages.order_by("created_at")[:40]
+        ]
+        return {
+            "conversation_id": convo.id,
+            "answer": rep_answer,
+            "tools": [],
+            "tool_results": {},
+            "provider": meta["provider"],
+            "model": meta["model"],
+            "intent": ["repetition"],
+            "advisory": True,
+            "messages": history,
+        }
+
+    # Save user message
     AIMessage.objects.create(conversation=convo, role=AIMessage.Role.USER, content=message[:4000])
 
+    # Intent routing and contextual resolution
     parsed = _parse_query(message)
-    follow_ids = _followup_rec_ids(message, history_prior)
-    if follow_ids and not parsed["rec_ids"]:
-        parsed["rec_ids"] = follow_ids
-        parsed["kinds"].add("rec")
-        parsed["kinds"].discard("unclear")
 
+    # Detect genuinely unclear / gibberish input:
+    # If the only inferred intent is 'search' but there is nothing meaningful to search for
+    # (no name_query, no rec_ids, and no Arabic content / useful English keyword),
+    # then the input is ambiguous and requires clarification.
+    if parsed["kinds"] == {"search"} and not parsed.get("name_query") and not parsed.get("rec_ids"):
+        has_arabic = bool(re.search(r'[\u0600-\u06FF]', message))
+        has_useful_token = bool(re.search(r'\b(recommend|report|overdue|risk|task|department|summary|status|find|list|show|get|help)\b', message, re.I))
+        if not has_arabic and not has_useful_token:
+            parsed["kinds"] = {"unclear"}
+
+    # Intent-based repetition check: if asking for same metric/intent and data has not changed
+    last_intent = None
+    for m in reversed(history_prior):
+        if m["role"] == "assistant" and m.get("metadata") and m["metadata"].get("intent"):
+            last_intent = m["metadata"]["intent"]
+            break
+
+    if last_intent and parsed["kinds"] == set(last_intent) and not data_changed and (parsed["kinds"] & {"overdue", "high_risk", "verification", "recurring", "deadlines", "departments", "overview", "list"}):
+        is_repetition = True
+
+    # Context injected from page parameters or persistent memory
+    if context:
+        if context.get("recommendation_id") and not parsed.get("rec_ids") and any(x in message for x in ("لخص", "هذه", "this", "summary", "summarize", "it", "them")):
+            parsed["rec_ids"] = [int(context["recommendation_id"])]
+            parsed["kinds"].add("rec")
+            parsed["kinds"].discard("unclear")
+        if context.get("department_id") and not parsed.get("department"):
+            from apps.organizations.models import Department
+            d = Department.objects.filter(pk=context["department_id"]).first()
+            if d:
+                parsed["department"] = d.name
+
+    # Persistent long-term memory resolution for "لخصها", "أي واحدة", etc.
+    if not parsed.get("rec_ids"):
+        follow_ids = _followup_rec_ids(message, history_prior)
+        if follow_ids:
+            parsed["rec_ids"] = follow_ids
+            parsed["kinds"].add("rec")
+            parsed["kinds"].discard("unclear")
+        elif memory.get("referenced_rec_ids") and any(x in norm_msg for x in ("لخص", "اخص", "اخطر", "هذه", "تفاصيل", "اي واحدة", "that one", "summary", "summarize", "it", "them", "which one", "worst", "highest", "risk")):
+            parsed["rec_ids"] = list(memory["referenced_rec_ids"][:5])
+            parsed["kinds"].add("rec")
+            parsed["kinds"].discard("unclear")
+
+    # Intent confidence and low-confidence clarification fallback
+    intent_confidence = 1.0
+    needs_clarification = False
+    if "unclear" in parsed["kinds"]:
+        intent_confidence = 0.3
+        needs_clarification = True
+
+    if needs_clarification:
+        clarification_answer = (
+            "لم أستطع تحديد موضوع استفسارك بدقة. هل تقصد البحث عن توصية معينة، أم استعراض التوصيات المتأخرة أو عالية الخطورة؟"
+            if ar else
+            "I could not pinpoint the topic of your query. Did you mean to search for a specific recommendation, or view overdue or high-risk items?"
+        )
+        meta = provider_meta()
+        AIMessage.objects.create(
+            conversation=convo,
+            role=AIMessage.Role.ASSISTANT,
+            content=clarification_answer,
+            metadata={
+                "tools": [],
+                "provider": meta["provider"],
+                "model": meta["model"],
+                "intent": ["clarification"],
+            }
+        )
+        convo.save(update_fields=["updated_at"])
+        history = [
+            {"role": m.role, "content": m.content, "created_at": m.created_at.isoformat(), "metadata": m.metadata}
+            for m in convo.messages.order_by("created_at")[:40]
+        ]
+        return {
+            "conversation_id": convo.id,
+            "answer": clarification_answer,
+            "tools": [],
+            "tool_results": {},
+            "provider": meta["provider"],
+            "model": meta["model"],
+            "intent": ["clarification"],
+            "advisory": True,
+            "messages": history,
+        }
+
+    # Greetings and help handling separately
+    if "greeting" in parsed["kinds"] or "help" in parsed["kinds"]:
+        if "greeting" in parsed["kinds"]:
+            answer = (
+                "أهلًا بك! أنا مساعد التدقيق الذكي. يمكنني مساعدتك في استعراض التوصيات والتقارير والمهام ومستويات الخطورة. كيف يمكنني مساعدتك اليوم؟"
+                if ar else
+                "Hello! I am your audit intelligence assistant. I can help you review recommendations, reports, tasks, and risk levels. How can I help you today?"
+            )
+        else:
+            answer = (
+                "يمكنني مساعدتك في: البحث عن التوصيات والتقارير، معرفة التوصيات المتأخرة وسبب التأخير، استعراض المواعيد النهائية، تحليل أدلة الإغلاق، ومتابعة الموافقات المطلوبة."
+                if ar else
+                "I can assist you with: searching recommendations and reports, listing overdue items and their causes, tracking upcoming deadlines, analyzing closure evidence, and reviewing council approvals."
+            )
+        meta = provider_meta()
+        AIMessage.objects.create(
+            conversation=convo,
+            role=AIMessage.Role.ASSISTANT,
+            content=answer,
+            metadata={
+                "tools": [],
+                "provider": meta["provider"],
+                "model": meta["model"],
+                "intent": list(parsed["kinds"]),
+            }
+        )
+        convo.save(update_fields=["updated_at"])
+        history = [
+            {"role": m.role, "content": m.content, "created_at": m.created_at.isoformat(), "metadata": m.metadata}
+            for m in convo.messages.order_by("created_at")[:40]
+        ]
+        return {
+            "conversation_id": convo.id,
+            "answer": answer,
+            "tools": [],
+            "tool_results": {},
+            "provider": meta["provider"],
+            "model": meta["model"],
+            "intent": list(parsed["kinds"]),
+            "advisory": True,
+            "messages": history,
+        }
+
+    # "What changed" / "tell me more" contextual helpers
+    if is_what_changed:
+        if not data_changed:
+            answer = (
+                "لم يطرأ أي تغيير على التوصيات أو حالتها منذ آخر استفسار."
+                if ar else
+                "No changes have occurred to the recommendations or their statuses since the last query."
+            )
+        else:
+            changed_recs = _qs(user).filter(updated_at__gt=convo.updated_at)[:5]
+            recs_fmt = _fmt_items([_brief(r) for r in changed_recs], ar)
+            answer = (
+                f"تم تحديث التوصيات التالية مؤخراً: {recs_fmt}."
+                if ar else
+                f"The following recommendations were updated recently: {recs_fmt}."
+            )
+        meta = provider_meta()
+        AIMessage.objects.create(conversation=convo, role=AIMessage.Role.ASSISTANT, content=answer, metadata={"tools": [], "provider": meta["provider"], "model": meta["model"], "intent": ["what_changed"]})
+        convo.save(update_fields=["updated_at"])
+        history = [
+            {"role": m.role, "content": m.content, "created_at": m.created_at.isoformat(), "metadata": m.metadata}
+            for m in convo.messages.order_by("created_at")[:40]
+        ]
+        return {
+            "conversation_id": convo.id,
+            "answer": answer,
+            "tools": [],
+            "tool_results": {},
+            "provider": meta["provider"],
+            "model": meta["model"],
+            "intent": ["what_changed"],
+            "advisory": True,
+            "messages": history,
+        }
+
+    # Scoped entity retrieval
     calls = _route_tools(parsed, message)
     tool_results = {}
     for name, args in calls:
@@ -1011,6 +1270,8 @@ def run_assistant(user, message: str, language: str = "ar", conversation_id: int
             tool_results[name] = {"error": "tool_failed"}
 
     local = _local_answer(message, tool_results, lang, parsed)
+
+    # Render structured prompt
     prompt = render_prompt(
         "assistant_v1.txt",
         language="Modern Standard Arabic" if ar else "English",
@@ -1023,12 +1284,36 @@ def run_assistant(user, message: str, language: str = "ar", conversation_id: int
         prompt,
         fallback={"answer": local, "used_tools": list(tool_results.keys())},
     )
+
     answer = local
     name_q = parsed.get("name_query") or ""
     if isinstance(llm_out.get("answer"), str) and llm_out["answer"].strip():
         candidate = llm_out["answer"].strip()
         if _should_use_llm(candidate, tool_results, name_q, parsed["kinds"]):
             answer = _with_advisory(candidate[:4000], ar)
+
+    # Update persistent memory metadata
+    new_rec_ids = list(memory.get("referenced_rec_ids") or [])
+    for r_id in parsed.get("rec_ids") or []:
+        if r_id not in new_rec_ids:
+            new_rec_ids.append(r_id)
+    memory["referenced_rec_ids"] = new_rec_ids[-20:]
+    if parsed.get("department"):
+        memory["referenced_department"] = parsed["department"]
+    memory["last_intent"] = list(parsed["kinds"])
+    memory["last_answer_snippet"] = answer[:200]
+    
+    # Persistent compact summary logs
+    prev_summary = memory.get("summary") or ""
+    new_log = f"U: {message[:60]}. A: {answer[:60]}."
+    if prev_summary:
+        memory["summary"] = f"{prev_summary} | {new_log}"[:800]
+    else:
+        memory["summary"] = new_log[:800]
+
+    memory_msg.metadata = memory
+    memory_msg.save(update_fields=["metadata"])
+
     meta = provider_meta()
     AIMessage.objects.create(
         conversation=convo,
@@ -1043,7 +1328,7 @@ def run_assistant(user, message: str, language: str = "ar", conversation_id: int
     )
     convo.save(update_fields=["updated_at"])
     history = [
-        {"role": m.role, "content": m.content, "created_at": m.created_at.isoformat()}
+        {"role": m.role, "content": m.content, "created_at": m.created_at.isoformat(), "metadata": m.metadata}
         for m in convo.messages.order_by("created_at")[:40]
     ]
     return {

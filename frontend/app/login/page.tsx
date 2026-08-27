@@ -31,8 +31,8 @@ const DEMO_ACCOUNTS: Array<{
 
 function fieldClass(invalid: boolean) {
   return cn(
-    "login-field h-12 min-w-0 w-full rounded-[10px] px-3.5 text-base outline-none transition-[border-color,box-shadow] duration-150",
-    invalid && "border-[#C94B4B] focus:border-[#C94B4B] focus:shadow-[0_0_0_3px_rgb(201_75_75/0.18)]"
+    "login-field h-12 min-w-0 w-full rounded-xl px-4 text-base outline-none transition-[border-color,box-shadow,background-color] duration-150",
+    invalid && "border-danger focus:border-danger focus:shadow-[0_0_0_3px_rgba(239,68,68,0.15)]"
   );
 }
 
@@ -58,8 +58,6 @@ export default function LoginPage() {
   useEffect(() => {
     const saved = localStorage.getItem(REMEMBER_KEY);
     if (saved) {
-      // localStorage is unreadable during SSR, so the remembered username has
-      // to be synced in after mount. Runs once and cannot cascade.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setUsername(saved);
       setRemember(true);
@@ -110,37 +108,48 @@ export default function LoginPage() {
   const passwordToggleLabel = showPassword ? T.login.hidePassword : T.login.showPassword;
 
   return (
-    <main className="login-shell min-h-dvh min-w-0 overflow-x-clip bg-[#F7F9FA]">
-      <div className="flex min-h-dvh min-w-0 flex-col lg:flex-row" dir="ltr">
+    <main className="login-shell relative min-h-dvh min-w-0 overflow-x-clip bg-subtle/30">
+      {/* Decorative Blur Orbs */}
+      <div className="pointer-events-none absolute -start-20 -top-20 z-0 size-96 rounded-full bg-primary/10 blur-[100px]" />
+      <div className="pointer-events-none absolute -bottom-20 -end-20 z-0 size-96 rounded-full bg-ai/10 blur-[100px]" />
+
+      <div className="relative z-10 flex min-h-dvh min-w-0 flex-col lg:flex-row" dir="ltr">
+        {/* Hero Section */}
         <div className="relative min-w-0 lg:w-1/2 lg:shrink-0 lg:min-h-dvh">
           <LoginHero />
         </div>
 
+        {/* Form Section */}
         <section
           dir={dir}
-          className="login-bg relative z-10 flex min-h-0 min-w-0 flex-1 flex-col lg:min-h-dvh lg:w-1/2"
+          className="login-bg relative flex min-h-0 min-w-0 flex-1 flex-col justify-between lg:min-h-dvh lg:w-1/2"
         >
-          <div className="hidden justify-start px-6 pt-2 sm:px-8 lg:flex lg:px-10 lg:pt-2">
+          {/* Toolbar */}
+          <div className="hidden justify-end px-6 pt-4 sm:px-8 lg:flex lg:px-10 lg:pt-6">
             <LoginToolbar />
           </div>
 
-          <div className="flex flex-1 flex-col items-center justify-start px-4 pb-5 pt-5 sm:px-8 lg:px-12 lg:pt-0">
+          {/* Form Container */}
+          <div className="flex flex-1 flex-col items-center justify-center px-4 py-8 sm:px-8 lg:px-12">
             <div className="flex w-full max-w-[28rem] flex-col items-center text-[var(--login-text)]">
-              <RamallahMark size="md" layout="stacked" className="hidden lg:flex" />
+              <div className="mb-4 hidden lg:block">
+                <RamallahMark size="md" layout="stacked" />
+              </div>
               <h1
                 id="login-heading"
-                className="text-[1.5rem] font-bold leading-tight text-[var(--login-text)] lg:mt-2 lg:text-[1.75rem]"
+                className="text-[20px] font-bold leading-tight text-navy lg:text-[24px]"
               >
                 {T.login.title}
               </h1>
-              <p className="mt-2 text-center text-[0.95rem] font-medium text-[var(--login-text)]">
+              <p className="mt-1.5 text-center text-[14px] font-semibold text-ink-soft">
                 {T.login.platformSubtitle}
               </p>
-              <p className="mt-1.5 max-w-[26rem] text-center text-[13px] leading-6 text-[var(--login-muted)]">
+              <p className="mt-2 max-w-[26rem] text-center text-[12px] font-medium leading-relaxed text-muted">
                 {T.login.welcomeHint}
               </p>
 
-              <div className="login-card mt-4 w-full rounded-[16px] px-4 py-6 sm:px-8 sm:py-8 lg:mt-3">
+              {/* Login Card */}
+              <div className="login-card mt-6 w-full rounded-2xl px-5 py-6 sm:px-8 sm:py-8 shadow-md">
                 <form
                   onSubmit={submit}
                   aria-labelledby="login-heading"
@@ -152,18 +161,19 @@ export default function LoginPage() {
                     <ErrorBanner message={error} />
                   </div>
 
-                  <div className={cn("flex flex-col gap-5", error && "mt-5")}>
+                  <div className={cn("flex flex-col gap-4", error && "mt-4")}>
+                    {/* Username */}
                     <div>
                       <label
                         htmlFor="login-username"
-                        className="text-[13px] font-semibold text-[var(--login-text)]"
+                        className="text-[13px] font-bold text-navy"
                       >
                         {T.login.username}
                       </label>
-                      <div className="relative mt-2 min-w-0">
+                      <div className="relative mt-1.5 min-w-0">
                         <UserRound
-                          className="pointer-events-none absolute start-3.5 top-1/2 size-[18px] -translate-y-1/2 text-[#8A9AA3]"
-                          strokeWidth={1.6}
+                          className="pointer-events-none absolute start-3.5 top-1/2 size-[18px] -translate-y-1/2 text-muted"
+                          strokeWidth={1.8}
                           aria-hidden
                         />
                         <input
@@ -184,23 +194,24 @@ export default function LoginPage() {
                         />
                       </div>
                       {usernameError ? (
-                        <p id={usernameErrorId} className="mt-2 text-sm text-[#9A3535]" role="alert">
+                        <p id={usernameErrorId} className="mt-1.5 text-xs font-bold text-danger" role="alert">
                           {usernameError}
                         </p>
                       ) : null}
                     </div>
 
+                    {/* Password */}
                     <div>
                       <label
                         htmlFor="login-password"
-                        className="text-[13px] font-semibold text-[var(--login-text)]"
+                        className="text-[13px] font-bold text-navy"
                       >
                         {T.login.password}
                       </label>
-                      <div className="relative mt-2 min-w-0">
+                      <div className="relative mt-1.5 min-w-0">
                         <Lock
-                          className="pointer-events-none absolute start-3.5 top-1/2 size-[18px] -translate-y-1/2 text-[#8A9AA3]"
-                          strokeWidth={1.6}
+                          className="pointer-events-none absolute start-3.5 top-1/2 size-[18px] -translate-y-1/2 text-muted"
+                          strokeWidth={1.8}
                           aria-hidden
                         />
                         <input
@@ -229,96 +240,100 @@ export default function LoginPage() {
                           title={passwordToggleLabel}
                           aria-label={passwordToggleLabel}
                           aria-pressed={showPassword}
-                          className="absolute inset-y-0 end-0 flex min-h-12 min-w-12 items-center justify-center text-[#8A9AA3] transition-colors hover:text-[var(--login-text)] focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#08B8B0]"
+                          className="absolute inset-y-0 end-0 flex min-h-12 min-w-12 items-center justify-center text-muted transition-colors hover:text-navy focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary"
                         >
                           {showPassword ? (
-                            <EyeOff className="size-[18px]" strokeWidth={1.6} aria-hidden />
+                            <EyeOff className="size-[18px]" strokeWidth={1.8} aria-hidden />
                           ) : (
-                            <Eye className="size-[18px]" strokeWidth={1.6} aria-hidden />
+                            <Eye className="size-[18px]" strokeWidth={1.8} aria-hidden />
                           )}
                         </button>
                       </div>
                       {passwordError ? (
-                        <p id={passwordErrorId} className="mt-2 text-sm text-[#9A3535]" role="alert">
+                        <p id={passwordErrorId} className="mt-1.5 text-xs font-bold text-danger" role="alert">
                           {passwordError}
                         </p>
                       ) : null}
                     </div>
                   </div>
 
+                  {/* Remember & Forgot options */}
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-                    <label className="flex min-h-10 cursor-pointer items-center gap-2.5 text-[13px] text-[var(--login-text)]">
+                    <label className="flex min-h-10 cursor-pointer items-center gap-2 text-[13px] font-semibold text-navy">
                       <input
                         type="checkbox"
                         checked={remember}
                         onChange={(e) => setRemember(e.target.checked)}
-                        className="size-4 shrink-0 accent-[#087F78]"
+                        className="size-4 shrink-0 accent-primary"
                       />
                       {T.login.rememberMe}
                     </label>
                     <button
                       type="button"
-                      className="inline-flex min-h-10 items-center gap-1 text-[13px] font-medium text-[#08B8B0] transition-colors hover:text-[#087F78] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#08B8B0]"
+                      className="inline-flex min-h-10 items-center gap-0.5 text-[13px] font-bold text-[#08B8B0] transition-colors hover:text-primary-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                     >
                       {T.login.forgotPassword}
                       {dir === "rtl" ? (
-                        <ChevronLeft className="size-3.5" strokeWidth={2} aria-hidden />
+                        <ChevronLeft className="size-3.5" strokeWidth={2.5} aria-hidden />
                       ) : (
-                        <ChevronRight className="size-3.5" strokeWidth={2} aria-hidden />
+                        <ChevronRight className="size-3.5" strokeWidth={2.5} aria-hidden />
                       )}
                     </button>
                   </div>
 
+                  {/* Submit button */}
                   <button
                     type="submit"
                     disabled={busy}
-                    className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-[10px] bg-[#0D7377] text-base font-semibold text-white transition-colors duration-150 hover:bg-[#08666a] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#08B8B0] disabled:cursor-not-allowed disabled:opacity-50"
+                    className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-base font-bold text-white transition-colors duration-150 hover:bg-primary-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50 shadow-sm"
                   >
                     {T.login.submit}
                     {busy ? (
-                      <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden />
+                      <Loader2 className="size-4.5 animate-spin" aria-hidden />
                     ) : (
-                      <LogIn className="size-4" strokeWidth={1.8} aria-hidden />
+                      <LogIn className="size-4.5" strokeWidth={2} aria-hidden />
                     )}
                   </button>
                 </form>
 
+                {/* Divider */}
                 <div className="mt-6 flex items-center gap-3">
-                  <span className="h-px flex-1 bg-[var(--login-border)]" />
-                  <span className="text-[13px] text-[var(--login-muted)]">{T.login.orDivider}</span>
-                  <span className="h-px flex-1 bg-[var(--login-border)]" />
+                  <span className="h-px flex-1 bg-line" />
+                  <span className="text-[12px] font-bold text-muted">{T.login.orDivider}</span>
+                  <span className="h-px flex-1 bg-line" />
                 </div>
 
+                {/* Demo accounts selector */}
                 <div className="mt-5">
                   <button
                     type="button"
                     onClick={() => setShowDemo((v) => !v)}
                     aria-expanded={showDemo}
-                    className="flex h-12 w-full items-center justify-center gap-2 rounded-[10px] border border-[var(--login-border)] bg-[var(--login-card)] text-[14px] font-medium text-[var(--login-text)] transition-colors hover:bg-[var(--login-field)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#08B8B0]"
+                    className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-line bg-surface text-[13.5px] font-bold text-navy transition-colors hover:bg-subtle/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary shadow-sm"
                   >
                     {T.login.demoToggle}
                     <ChevronDown
                       className={cn(
-                        "size-4 transition-transform duration-150 motion-reduce:transition-none",
+                        "size-4 transition-transform duration-150",
                         showDemo && "rotate-180"
                       )}
                       aria-hidden
                     />
                   </button>
                   {showDemo ? (
-                    <ul className="mt-3 grid grid-cols-2 gap-2 lg:flex lg:flex-wrap lg:items-stretch lg:justify-center">
+                    <ul className="mt-3 grid grid-cols-1 gap-2 min-[360px]:grid-cols-2">
                       {DEMO_ACCOUNTS.map((account) => (
-                        <li key={account.username} className="min-w-0 lg:flex-1 lg:basis-[6.5rem]">
+                        <li key={account.username}>
                           <button
                             type="button"
                             disabled={busy}
                             onClick={() => pickDemo(account)}
-                            className="flex h-full min-h-16 w-full flex-col items-center justify-center rounded-[10px] border border-[var(--login-border)] bg-[var(--login-card)] px-2 py-2.5 text-center transition-colors hover:border-[#08B8B0]/50 hover:bg-[var(--login-field)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#08B8B0] disabled:opacity-50"
+                            className="flex h-full min-h-16 w-full flex-col items-center justify-center rounded-xl border border-line bg-surface px-2.5 py-3 text-center transition-all hover:border-primary/40 hover:bg-subtle/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50 shadow-sm"
                           >
-                            <span className="text-[12px] font-semibold leading-5 text-[var(--login-text)]">
+                            <span className="text-[12px] font-bold leading-snug text-navy">
                               {ROLE_LABELS[account.role]}
                             </span>
-                            <span className="mt-0.5 font-mono text-[10px] text-[var(--login-muted)]" dir="ltr">
+                            <span className="mt-0.5 font-mono text-[10px] font-medium text-muted" dir="ltr">
                               {busy && activeDemo === account.username ? "…" : account.username}
                             </span>
                           </button>
@@ -328,7 +343,8 @@ export default function LoginPage() {
                   ) : null}
                 </div>
 
-                <p className="mt-6 flex items-center justify-center gap-2 text-center text-[12px] leading-5 text-[var(--login-muted)]">
+                {/* Secure label */}
+                <p className="mt-6 flex items-center justify-center gap-1.5 text-center text-[12px] font-semibold text-muted">
                   <Lock className="size-3.5 shrink-0" aria-hidden />
                   {T.login.secure}
                 </p>
@@ -336,11 +352,12 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <p className="px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-center text-[11px] leading-5 text-[var(--login-muted)] lg:px-10 lg:pb-5">
+          {/* Footer copyright */}
+          <p className="px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-center text-[11px] font-semibold leading-5 text-muted lg:px-10 lg:pb-6">
             © 2024 {T.login.footerOwner}
-            <span className="mx-1.5">|</span>
+            <span className="mx-1.5 text-muted/30">|</span>
             {T.login.footerPlatform}
-            <span className="mx-1.5">|</span>
+            <span className="mx-1.5 text-muted/30">|</span>
             {T.login.versionLabel}
           </p>
         </section>

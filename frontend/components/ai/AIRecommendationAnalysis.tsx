@@ -100,7 +100,7 @@ export function AIRecommendationAnalysis({
     <AIPanel
       title={T.ai.title}
       actions={
-        <Button variant="secondary" onClick={() => analyze.mutate()} disabled={analyze.isPending}>
+        <Button variant="secondary" onClick={() => analyze.mutate()} disabled={analyze.isPending} className="font-bold text-xs ring-1 ring-line">
           {analysis && !analysis.live ? T.ai.regenerate : T.ai.generate}
         </Button>
       }
@@ -108,77 +108,107 @@ export function AIRecommendationAnalysis({
       <ErrorBanner message={error} />
       <AIJobStatus job={analyze.data} busy={analyze.isPending} />
       {!analysis ? (
-        <p className="text-sm text-ink-soft">{T.ai.empty}</p>
+        <p className="text-sm font-semibold text-ink-soft">{T.ai.empty}</p>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4 text-[13.5px]">
+          {/* Brief */}
           {typeof out.brief === "string" && out.brief ? (
-            <div>
-              <p className="font-heading text-sm font-semibold text-ai-dark">{T.ai.brief}</p>
-              <p className="mt-1 whitespace-pre-wrap text-sm leading-[1.9] text-ink">{out.brief}</p>
+            <div className="space-y-1.5">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-navy">{T.ai.brief}</p>
+              <p className="whitespace-pre-wrap leading-relaxed text-ink font-medium bg-surface rounded-xl p-4 border border-line">{out.brief}</p>
             </div>
           ) : null}
 
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
-            <ScoreRow label={T.ai.quality} value={`${qualityLabel(quality, out.quality_band)} · ${quality}%`} />
-            <ScoreRow label={T.ai.risk} value={asNum(out.risk_score)} />
-            <ScoreRow label={T.ai.priority} value={priorityLabel(out.suggested_priority)} />
+          {/* Score grid */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-xl border border-line bg-surface p-3 text-center">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1">{T.ai.quality}</p>
+              <p className="text-[13px] font-bold text-navy">{qualityLabel(quality, out.quality_band)}</p>
+              <p className="font-mono text-[11px] text-ink-soft">{quality}%</p>
+            </div>
+            <div className="rounded-xl border border-line bg-surface p-3 text-center">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1">{T.ai.risk}</p>
+              <p className="text-[13px] font-bold text-navy">{asNum(out.risk_score)}</p>
+            </div>
+            <div className="rounded-xl border border-line bg-surface p-3 text-center">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1">{T.ai.priority}</p>
+              <p className="text-[13px] font-bold text-navy">{priorityLabel(out.suggested_priority)}</p>
+            </div>
           </div>
-          <AIConfidenceBadge value={asNum(out.confidence, analysis.confidence ?? 0)} />
 
+          <div className="flex items-center">
+            <AIConfidenceBadge value={asNum(out.confidence, analysis.confidence ?? 0)} />
+          </div>
+
+          {/* How to resolve */}
           {typeof out.how_to_resolve === "string" && out.how_to_resolve ? (
-            <div>
-              <p className="font-heading text-sm font-semibold text-ai-dark">{T.ai.howToResolve}</p>
-              <p className="mt-1 text-sm leading-relaxed text-ink">{out.how_to_resolve}</p>
-            </div>
-          ) : null}
-          {typeof out.next_action === "string" && out.next_action ? (
-            <div>
-              <p className="font-heading text-sm font-semibold text-ai-dark">{T.ai.nextAction}</p>
-              <p className="mt-1 text-sm leading-relaxed text-ink">{out.next_action}</p>
+            <div className="space-y-1.5">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-navy">{T.ai.howToResolve}</p>
+              <p className="leading-relaxed text-ink font-medium bg-surface rounded-xl p-4 border border-line">{out.how_to_resolve}</p>
             </div>
           ) : null}
 
+          {/* Next action */}
+          {typeof out.next_action === "string" && out.next_action ? (
+            <div className="space-y-1.5">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-navy">{T.ai.nextAction}</p>
+              <p className="leading-relaxed text-ink font-medium bg-surface rounded-xl p-4 border border-line">{out.next_action}</p>
+            </div>
+          ) : null}
+
+          {/* Issues */}
           {Array.isArray(out.issues) && out.issues.length ? (
-            <div>
-              <p className="font-heading text-sm font-bold">{T.ai.issues}</p>
-              <ul className="mt-1 list-disc ps-5 text-sm">
+            <div className="space-y-2">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-danger-dark">{T.ai.issues}</p>
+              <ul className="list-disc ps-5 space-y-1.5 font-medium text-ink bg-danger/5 rounded-xl p-3.5 border border-danger/10">
                 {(out.issues as string[]).map((item) => (
                   <li key={item}>{item}</li>
                 ))}
               </ul>
             </div>
           ) : null}
+
+          {/* Suggestions */}
           {Array.isArray(out.suggestions) && out.suggestions.length ? (
-            <div>
-              <p className="font-heading text-sm font-bold">{T.ai.suggestions}</p>
-              <ul className="mt-1 list-disc ps-5 text-sm">
+            <div className="space-y-2">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-success-dark">{T.ai.suggestions}</p>
+              <ul className="list-disc ps-5 space-y-1.5 font-medium text-ink bg-success/5 rounded-xl p-3.5 border border-success/10">
                 {(out.suggestions as string[]).map((item) => (
                   <li key={item}>{item}</li>
                 ))}
               </ul>
             </div>
           ) : null}
-          <AIMeta provider={analysis.provider} model={analysis.model} createdAt={analysis.created_at} />
+
+          <div className="border-t border-ai/10 pt-4">
+            <AIMeta provider={analysis.provider} model={analysis.model} createdAt={analysis.created_at} />
+          </div>
         </div>
       )}
 
-      <div className="mt-4 border-t border-ai/20 pt-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="font-heading text-sm font-semibold text-ai-dark">{T.ai.similar}</p>
-          <Button variant="ghost" onClick={() => similar.mutate()} disabled={similar.isPending} className="h-8 px-2 text-xs">
+      {/* Similar recommendations section */}
+      <div className="mt-5 border-t border-ai/15 pt-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <p className="font-heading text-[13px] font-bold text-navy">{T.ai.similar}</p>
+          <Button
+            variant="ghost"
+            onClick={() => similar.mutate()}
+            disabled={similar.isPending}
+            className="h-7 px-3 text-xs font-bold"
+          >
             {T.ai.checkSimilar}
           </Button>
         </div>
         {similar.isPending ? (
-          <p className="mt-1 text-sm text-ink-soft">{T.ai.generating}</p>
+          <p className="text-sm font-semibold text-ink-soft">{T.ai.generating}</p>
         ) : matches.length ? (
-          <div className="mt-2 space-y-2">
+          <div className="space-y-2.5">
             {matches.map((m) => (
               <AISimilarityCard key={m.matched_id} match={m} href={caseHref?.(m.matched_id)} />
             ))}
           </div>
         ) : similarAnalysis || similar.isSuccess ? (
-          <p className="mt-1 text-sm text-ink-soft">{T.ai.similarEmpty}</p>
+          <p className="text-sm font-semibold text-ink-soft">{T.ai.similarEmpty}</p>
         ) : null}
       </div>
     </AIPanel>

@@ -108,7 +108,7 @@ def similar_for(rec, user, language: str = "ar", top_k: int | None = None) -> AI
         return hit
 
     k = min(top_k or DISPLAY_LIMIT, DISPLAY_LIMIT)
-    matches = find_similar(rec, top_k=max(k * 3, 6), min_score=DISPLAY_MIN_SCORE)
+    matches = find_similar(rec, top_k=max(k * 3, 6), min_score=DISPLAY_MIN_SCORE, user=user)
     explained = [explain_match(rec, other, score, lang) for other, score in matches[:k]]
     likely = [m for m in explained if m["suggested_recurring"] == "LIKELY_RECURRING"]
     output = {

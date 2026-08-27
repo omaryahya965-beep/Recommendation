@@ -60,6 +60,12 @@
   --color-stone: #eef2f1;
   --color-paper: #ffffff;
 
+  /* New zone tokens for structural layout */
+  --color-zone-bg: var(--color-bg);
+  --color-zone-surface: var(--color-surface);
+  --color-zone-panel: var(--color-elevated);
+  --color-zone-header: var(--color-surface);
+
   --font-heading: var(--font-kufi), "Noto Kufi Arabic", sans-serif;
   --font-display: var(--font-naskh), "Noto Naskh Arabic", serif;
   --font-body: var(--font-plex), "IBM Plex Sans Arabic", sans-serif;
@@ -71,10 +77,12 @@
   --radius-dialog: 10px;
   --radius-container: 10px;
   --radius-panel: 18px;
+  --radius-section: 12px;
 
   --shadow-card: 0 1px 0 rgb(20 32 30 / 0.05);
   --shadow-float: 0 12px 28px rgb(20 32 30 / 0.12);
   --shadow-panel: 0 8px 28px rgb(20 32 30 / 0.08);
+  --shadow-section: 0 4px 14px rgb(20 32 30 / 0.04);
 }
 
 [data-theme="dark"] {
@@ -130,13 +138,21 @@
   --color-brass-tint: #3a3018;
   --color-stone: #12181c;
   --color-paper: #1c252b;
+  
+  --color-zone-bg: var(--color-bg);
+  --color-zone-surface: var(--color-surface);
+  --color-zone-panel: var(--color-elevated);
+  --color-zone-header: var(--color-surface);
+
   --shadow-card: 0 1px 0 rgb(255 255 255 / 0.03), 0 8px 20px rgb(0 0 0 / 0.28);
   --shadow-float: 0 16px 40px rgb(0 0 0 / 0.45);
   --shadow-panel: 0 10px 32px rgb(0 0 0 / 0.38);
+  --shadow-section: 0 4px 14px rgb(0 0 0 / 0.15);
 }
 
 html {
   font-size: 16px;
+  overflow-x: clip;
 }
 
 body {
@@ -144,30 +160,44 @@ body {
   color: var(--color-ink);
   font-family: var(--font-body);
   font-size: 0.9375rem;
-  line-height: 1.6;
+  line-height: 1.7;
   letter-spacing: 0;
+  overflow-x: clip;
 }
 
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  font-family: var(--font-heading);
-  color: var(--color-navy);
-  line-height: 1.35;
-  letter-spacing: 0;
+@media (max-width: 767px) {
+  body {
+    font-size: 0.9375rem;
+    line-height: 1.75;
+  }
+
+  h1 {
+    font-size: 1.375rem;
+  }
 }
 
-h1 {
-  font-size: 1.5rem;
-  font-weight: 700;
-}
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-heading);
+    color: inherit;
+    line-height: 1.35;
+    letter-spacing: 0;
+  }
 
-h2 {
-  font-size: 1.125rem;
-  font-weight: 600;
+  h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+  }
+
+  h2 {
+    font-size: 1.125rem;
+    font-weight: 600;
+  }
 }
 
 input,
@@ -203,6 +233,24 @@ select {
   scrollbar-color: var(--color-line) transparent;
 }
 
+/* Zone Structural Utilities */
+.zone-header {
+  background: var(--color-zone-header);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.zone-content {
+  background: var(--color-zone-bg);
+}
+
+.zone-panel {
+  background: var(--color-zone-panel);
+  border-radius: var(--radius-section);
+  box-shadow: var(--shadow-section);
+  border: 1px solid var(--color-line);
+}
+
+/* Animations */
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -214,6 +262,103 @@ select {
   }
 }
 
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
 .animate-fade-in {
-  animation: fade-in 180ms ease-out;
+  animation: fade-in 180ms ease-out forwards;
+}
+
+.animate-slide-up {
+  animation: slide-up 250ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-scale-in {
+  animation: scale-in 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes drawer-in {
+  from {
+    opacity: 0.4;
+    transform: translateX(-1.25rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+[dir="rtl"] .animate-drawer-in {
+  animation: drawer-in-rtl 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes drawer-in-rtl {
+  from {
+    opacity: 0.4;
+    transform: translateX(1.25rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-drawer-in {
+  animation: drawer-in 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.touch-target {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+}
+
+.safe-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.sticky-action-space {
+  padding-bottom: calc(5.75rem + env(safe-area-inset-bottom, 0px));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

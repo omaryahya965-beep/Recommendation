@@ -56,3 +56,68 @@ class InsightsAndSummaryTests(TestCase):
         self.assertIn("resolve", body.lower())
         self.assertEqual(output["stats"]["total"], 1)
         self.assertEqual(output["stats"]["reference"], f"REC-{self.rec.id}")
+
+    def test_summary_report(self):
+        res = self.client.post(
+            "/api/ai/summaries/",
+            {"scope": "report", "report_id": self.report.id, "language": "en"},
+        )
+        self.assertEqual(res.status_code, 200)
+        output = res.data["analysis"]["output"]
+        self.assertEqual(output["stats"]["total"], 1)
+
+    def test_summary_department(self):
+        res = self.client.post(
+            "/api/ai/summaries/",
+            {"scope": "department", "department_id": self.dept.id, "language": "ar"},
+        )
+        self.assertEqual(res.status_code, 200)
+        output = res.data["analysis"]["output"]
+        self.assertEqual(output["stats"]["total"], 1)
+
+    def test_summary_municipality(self):
+        res = self.client.post(
+            "/api/ai/summaries/",
+            {"scope": "municipality", "language": "en"},
+        )
+        self.assertEqual(res.status_code, 200)
+        output = res.data["analysis"]["output"]
+        self.assertEqual(output["stats"]["total"], 1)
+
+    def test_summary_recommendation_list(self):
+        res = self.client.post(
+            "/api/ai/summaries/",
+            {"scope": "recommendation_list", "status": self.rec.status, "language": "en"},
+        )
+        self.assertEqual(res.status_code, 200)
+        output = res.data["analysis"]["output"]
+        self.assertEqual(output["stats"]["total"], 1)
+
+    def test_summary_council_queue(self):
+        self.rec.status = Recommendation.Status.PENDING_COUNCIL
+        self.rec.save(update_fields=["status"])
+        res = self.client.post(
+            "/api/ai/summaries/",
+            {"scope": "council_queue", "language": "ar"},
+        )
+        self.assertEqual(res.status_code, 200)
+        output = res.data["analysis"]["output"]
+        self.assertEqual(output["stats"]["total"], 1)
+
+    def test_summary_employee_tasks(self):
+        from apps.workflow.models import ActionPlan
+        from django.utils import timezone
+        ActionPlan.objects.create(
+            recommendation=self.rec,
+            target_date=timezone.localdate(),
+            responsible_employee=self.users["emp"]
+        )
+        
+        self.client.force_authenticate(self.users["emp"])
+        res = self.client.post(
+            "/api/ai/summaries/",
+            {"scope": "employee_tasks", "language": "en"},
+        )
+        self.assertEqual(res.status_code, 200)
+        output = res.data["analysis"]["output"]
+        self.assertEqual(output["stats"]["total"], 1)

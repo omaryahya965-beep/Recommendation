@@ -45,38 +45,44 @@ export function StatusDistribution({
 
   return (
     <Section
-      className={className}
+      className={cn("bg-surface", className)}
       title={title ?? T.dashboard.statusDistribution}
       hint={hint ?? T.dashboard.statusDistributionHint}
     >
       {!rows.length ? (
-        <EmptyState compact title={T.common.noChartData} className="border-0 shadow-none" />
+        <EmptyState compact title={T.common.noChartData} className="border-0 shadow-none py-10" />
       ) : (
-        <ol className="divide-y divide-line">
+        <ol className="divide-y divide-line pt-1">
           {rows.map((row) => (
             <li key={row.id}>
               <Link
                 href={`${base}?stage=${row.id}`}
-                className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-subtle/70"
+                className="group flex flex-col gap-2 px-5 py-3.5 transition-all duration-200 hover:bg-subtle/70"
               >
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-baseline gap-2">
-                    <span className={cn("truncate text-[13px]", row.count ? "font-medium text-ink" : "text-muted")}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className={cn("text-[13px] font-bold tracking-wide", row.count ? "text-ink" : "text-muted")}>
                       {row.label}
                     </span>
-                    <span
-                      className={cn(
-                        "shrink-0 font-mono text-[13px] tabular-nums",
-                        row.count ? "font-semibold text-navy" : "text-muted"
-                      )}
-                      dir="ltr"
-                    >
-                      {row.count}
+                    <span className="text-[11px] font-medium text-muted px-1.5 py-0.5 rounded-md bg-surface border border-line">
+                      {row.actor}
                     </span>
                   </div>
-                  <p className="mt-0.5 text-xs text-muted">{row.actor}</p>
-                  <MeterBar className="mt-2" value={max ? Math.round((row.count / max) * 100) : 0} />
+                  <span
+                    className={cn(
+                      "font-mono text-[14px] font-bold tabular-nums tracking-tight",
+                      row.count ? "text-navy" : "text-muted"
+                    )}
+                    dir="ltr"
+                  >
+                    {row.count}
+                  </span>
                 </div>
+                <MeterBar 
+                  className={cn("mt-1 transition-opacity", !row.count && "opacity-30")} 
+                  value={max ? Math.round((row.count / max) * 100) : 0} 
+                  tone="primary" 
+                />
               </Link>
             </li>
           ))}

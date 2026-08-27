@@ -1,6 +1,6 @@
 "use client";
 
-import { Lock } from "lucide-react";
+import { Lock, Shield } from "lucide-react";
 import { useState } from "react";
 
 import { DirForward } from "@/components/i18n/DirIcon";
@@ -35,9 +35,10 @@ function TrailRow({ entry, isLast }: { entry: TrailEntry; isLast: boolean }) {
   const extras = Object.keys(metadata).filter((key) => !TRANSITION_KEYS.has(key));
 
   return (
-    <li className="relative flex gap-4 pb-6 last:pb-0">
-      <div className="flex w-[7.5rem] shrink-0 flex-col items-end pt-0.5 text-end">
-        <time className="font-mono text-[13px] font-medium text-navy" dateTime={entry.created_at} dir="ltr">
+    <li className="relative flex gap-5 pb-7 last:pb-0">
+      {/* Timestamp column */}
+      <div className="flex w-[8rem] shrink-0 flex-col items-end pt-1 text-end">
+        <time className="font-mono text-[12.5px] font-bold text-navy" dateTime={entry.created_at} dir="ltr">
           {formatDate(entry.created_at)}
         </time>
         <span className="font-mono text-[11px] text-muted" dir="ltr">
@@ -45,48 +46,68 @@ function TrailRow({ entry, isLast }: { entry: TrailEntry; isLast: boolean }) {
         </span>
       </div>
 
+      {/* Timeline connector */}
       <div className="flex shrink-0 flex-col items-center">
-        <span className={cn("mt-1.5 size-2.5 rounded-full", system ? "bg-line" : "bg-primary")} />
-        {!isLast ? <span aria-hidden className="mt-1 w-px flex-1 bg-line" /> : null}
+        <span className={cn(
+          "mt-1.5 flex size-3 items-center justify-center rounded-full ring-2",
+          system
+            ? "bg-subtle ring-line"
+            : "bg-primary ring-primary/20"
+        )} />
+        {!isLast ? <span aria-hidden className="mt-1 w-0.5 flex-1 bg-line/60" /> : null}
       </div>
 
-      <div className="min-w-0 flex-1">
-        <p className="text-[13px] font-semibold text-ink">
+      {/* Content */}
+      <div className="min-w-0 flex-1 pb-1">
+        {/* User */}
+        <p className="text-[13.5px] font-bold text-navy">
           {system ? T.trail.system : entry.user_full_name || entry.user}
         </p>
         {!system ? (
-          <p className="text-[12px] text-ink-soft">{ROLE_LABELS[entry.user_role] ?? entry.user_role}</p>
+          <p className="text-[11.5px] font-medium text-muted">{ROLE_LABELS[entry.user_role] ?? entry.user_role}</p>
         ) : null}
 
-        <p className="mt-2 text-sm text-navy">{TRAIL_ACTION_LABELS[entry.action] ?? entry.action}</p>
+        {/* Action */}
+        <p className="mt-2 text-[13px] font-semibold text-ink">{TRAIL_ACTION_LABELS[entry.action] ?? entry.action}</p>
 
+        {/* Transition badges */}
         {from && to ? (
-          <p className="mt-1.5 inline-flex flex-wrap items-center gap-1.5 text-[12px] text-ink-soft">
-            <span>{STATUS_LABELS[from] ?? from}</span>
-            <DirForward className="size-3" />
-            <span className="font-medium text-ink">{STATUS_LABELS[to] ?? to}</span>
+          <div className="mt-2 inline-flex flex-wrap items-center gap-1.5">
+            <span className="rounded-md bg-subtle px-2 py-0.5 text-[11.5px] font-semibold text-ink-soft border border-line">
+              {STATUS_LABELS[from] ?? from}
+            </span>
+            <DirForward className="size-3 text-muted" />
+            <span className="rounded-md bg-primary/10 px-2 py-0.5 text-[11.5px] font-bold text-primary-dark border border-primary/15">
+              {STATUS_LABELS[to] ?? to}
+            </span>
+          </div>
+        ) : null}
+
+        {/* Detail text */}
+        {detail ? (
+          <p className="mt-2 whitespace-pre-wrap text-[13px] leading-relaxed text-ink font-medium bg-subtle/50 rounded-lg p-2.5 border border-line/50">
+            {detail}
           </p>
         ) : null}
 
-        {detail ? <p className="mt-1.5 whitespace-pre-wrap text-[13px] leading-relaxed text-ink">{detail}</p> : null}
-
+        {/* Metadata expander */}
         {extras.length ? (
           <>
             <button
               type="button"
               onClick={() => setExpanded((value) => !value)}
-              className="mt-1.5 text-xs font-medium text-primary-dark hover:underline"
+              className="mt-2 text-[11.5px] font-bold text-primary-dark hover:underline"
             >
               {expanded ? T.trail.hideMetadata : T.trail.showMetadata}
             </button>
             {expanded ? (
-              <dl className="mt-1.5 grid gap-x-3 gap-y-1 border border-line bg-subtle/50 p-2.5 text-xs sm:grid-cols-[auto_1fr]">
+              <dl className="mt-2 grid gap-x-4 gap-y-1.5 rounded-lg border border-line bg-subtle/50 p-3 text-[12px] sm:grid-cols-[auto_1fr]">
                 {extras.map((key) => (
                   <div key={key} className="contents">
-                    <dt className="font-mono text-muted" dir="ltr">
+                    <dt className="font-mono font-bold text-muted" dir="ltr">
                       {key}
                     </dt>
-                    <dd className="break-words text-ink">{String(metadata[key])}</dd>
+                    <dd className="break-words text-ink font-medium">{String(metadata[key])}</dd>
                   </div>
                 ))}
               </dl>
@@ -110,10 +131,10 @@ export function AuditTrail({ entries }: { entries: TrailEntry[] }) {
 
   return (
     <section>
-      <header className="mb-5 flex flex-wrap items-baseline justify-between gap-2 border-b border-line pb-3">
-        <h2 className="font-heading text-base font-semibold text-navy">{T.trail.official}</h2>
-        <p className="inline-flex items-center gap-1.5 text-xs text-muted">
-          <Lock className="size-3.5" />
+      <header className="mb-6 flex flex-wrap items-baseline justify-between gap-2 border-b border-line pb-4">
+        <h2 className="font-heading text-[17px] font-bold text-navy">{T.trail.official}</h2>
+        <p className="inline-flex items-center gap-1.5 rounded-full bg-subtle px-3 py-1 text-[11.5px] font-semibold text-muted border border-line">
+          <Shield className="size-3" aria-hidden />
           {T.trail.intro}
         </p>
       </header>

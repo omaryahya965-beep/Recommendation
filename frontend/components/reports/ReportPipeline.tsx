@@ -6,10 +6,6 @@ import type { AuditReport } from "@/lib/types";
 
 export type ReportStatus = AuditReport["status"];
 
-/**
- * The report lifecycle exactly as the backend defines it on AuditReport.status.
- * Each stage names the party that must act, which is what makes the rail useful.
- */
 export const REPORT_STAGES: Array<{ id: ReportStatus; actorKey: keyof typeof T.workflow.reportActors }> = [
   { id: "draft", actorKey: "draft" },
   { id: "pending_response", actorKey: "pending_response" },
@@ -23,7 +19,6 @@ export function reportStageIndex(status: ReportStatus) {
   return index === -1 ? 0 : index;
 }
 
-/** Maps a report status onto the shared status colour families. */
 export const REPORT_STATUS_FAMILY: Record<ReportStatus, string> = {
   draft: "draft",
   pending_response: "pending_response",
@@ -45,42 +40,42 @@ export function ReportPipeline({
   const current = reportStageIndex(status);
 
   return (
-    <ol className={cn("flex flex-wrap items-stretch gap-1", className)}>
+    <ol className={cn("flex flex-wrap items-stretch gap-2", className)}>
       {REPORT_STAGES.map((stage, index) => {
         const done = index < current;
         const active = index === current;
         return (
-          <li key={stage.id} className={cn("min-w-0 flex-1", compact ? "min-w-[5.5rem]" : "min-w-[8.5rem]")}>
+          <li key={stage.id} className={cn("min-w-0 flex-1", compact ? "min-w-[6rem]" : "min-w-[9.5rem]")}>
             <div
               aria-current={active ? "step" : undefined}
               className={cn(
-                "h-full rounded-(--radius-field) border transition-colors",
-                compact ? "px-2 py-1.5" : "px-3 py-2",
+                "h-full rounded-xl border transition-all duration-200 shadow-sm",
+                compact ? "px-3 py-2" : "px-4 py-3",
                 active
-                  ? "border-primary bg-primary text-white"
+                  ? "border-primary bg-primary text-white ring-2 ring-primary/20"
                   : done
-                    ? "border-primary/30 bg-primary-light text-primary-dark"
-                    : "border-line bg-subtle/40 text-muted"
+                    ? "border-primary/20 bg-primary-light/50 text-primary-dark"
+                    : "border-line bg-subtle/50 text-muted"
               )}
             >
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-2">
                 <span
                   className={cn(
-                    "flex shrink-0 items-center justify-center rounded-full font-mono",
-                    compact ? "size-3.5 text-[9px]" : "size-4 text-[10px]",
-                    active ? "bg-white/25" : done ? "bg-primary text-white" : "bg-line/70 text-ink-soft"
+                    "flex shrink-0 items-center justify-center rounded-full font-mono font-bold",
+                    compact ? "size-4 text-[9.5px]" : "size-5 text-[11px]",
+                    active ? "bg-white/20 text-white" : done ? "bg-primary text-white" : "bg-line/80 text-ink-soft"
                   )}
                 >
-                  {done ? <Check className={compact ? "size-2" : "size-2.5"} strokeWidth={3.5} /> : index + 1}
+                  {done ? <Check className={compact ? "size-2.5" : "size-3"} strokeWidth={3.5} /> : index + 1}
                 </span>
-                <span className={cn("truncate font-semibold", compact ? "text-[11px]" : "text-[12.5px]")}>
+                <span className={cn("truncate font-bold tracking-wide", compact ? "text-[11.5px]" : "text-[13px]")}>
                   {REPORT_STATUS_LABELS[stage.id]}
                 </span>
               </div>
               {compact ? null : (
                 <p
                   className={cn(
-                    "mt-0.5 truncate text-[11px]",
+                    "mt-1.5 truncate text-[11px] font-medium leading-none",
                     active ? "text-white/80" : done ? "text-primary-dark/70" : "text-muted"
                   )}
                 >

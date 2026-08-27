@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { ChevronLeft, ChevronRight, Users } from "lucide-react";
 
-import { DirForward } from "@/components/i18n/DirIcon";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Section } from "@/components/ui/Section";
 import { formatDate } from "@/lib/format";
@@ -17,51 +17,79 @@ export function TeamLoad({
   items: RecommendationListItem[];
   href: string;
 }) {
-  useI18n();
+  const { locale } = useI18n();
   const workloads = buildWorkloads(items, T.team.unassigned);
+
+  const DirForward = locale === "ar" ? ChevronLeft : ChevronRight;
 
   return (
     <Section
       title={T.dashboard.teamLoad}
       hint={T.dashboard.teamLoadHint}
+      className="bg-surface h-full"
       actions={
-        <Link href={href} className="inline-flex items-center gap-1 text-sm font-medium text-primary-dark hover:underline">
+        <Link href={href} className="inline-flex items-center gap-1.5 rounded-full bg-subtle px-4 py-1.5 text-[13px] font-bold text-primary-dark ring-1 ring-line hover:bg-surface hover:text-primary transition-all">
           {T.nav.teamProgress}
-          <DirForward className="size-3.5" />
+          <DirForward className="size-4" />
         </Link>
       }
     >
       {workloads.length ? (
-        <div className="scrollbar-thin overflow-x-auto">
-          <table className="w-full min-w-[32rem] text-[13px]">
-            <thead>
-              <tr className="border-b border-line bg-subtle text-start text-xs font-semibold text-ink-soft">
-                <th className="px-4 py-2.5 text-start font-semibold">{T.common.responsible}</th>
-                <th className="px-3 py-2.5 text-start font-semibold">{T.team.load}</th>
-                <th className="px-3 py-2.5 text-start font-semibold">{T.team.overdueLoad}</th>
-                <th className="px-3 py-2.5 text-start font-semibold">{T.team.nearest}</th>
+        <>
+          <ul className="space-y-3 p-4 md:hidden">
+            {workloads.map((row) => (
+              <li key={row.name} className="rounded-xl border border-line bg-surface p-4">
+                <p className="font-heading text-[16px] font-bold text-ink">{row.name}</p>
+                <dl className="mt-3 grid grid-cols-3 gap-2 text-[13px]">
+                  <div>
+                    <dt className="font-semibold text-muted">{T.team.load}</dt>
+                    <dd className="font-mono font-bold" dir="ltr">{row.items.length}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-semibold text-muted">{T.team.overdueLoad}</dt>
+                    <dd className={row.overdue ? "font-mono font-bold text-danger-dark" : "font-mono"} dir="ltr">{row.overdue}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-semibold text-muted">{T.team.nearest}</dt>
+                    <dd className="font-mono" dir="ltr">{formatDate(row.nearest)}</dd>
+                  </div>
+                </dl>
+              </li>
+            ))}
+          </ul>
+          <div className="hidden scrollbar-thin overflow-x-auto md:block">
+          <table className="w-full min-w-[36rem] text-[13px]">
+            <thead className="bg-subtle/80">
+              <tr className="border-b border-line text-start text-[11.5px] font-bold uppercase tracking-wider text-ink-soft">
+                <th className="px-5 py-3.5 text-start">{T.common.responsible}</th>
+                <th className="px-3 py-3.5 text-start">{T.team.load}</th>
+                <th className="px-3 py-3.5 text-start">{T.team.overdueLoad}</th>
+                <th className="px-5 py-3.5 text-start">{T.team.nearest}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
               {workloads.map((row) => (
-                <tr key={row.name} className="transition-colors hover:bg-subtle/80">
-                  <td className="px-4 py-3 font-medium text-ink">{row.name}</td>
-                  <td className="px-3 py-3 font-mono tabular-nums" dir="ltr">
+                <tr key={row.name} className="group transition-colors hover:bg-subtle/60">
+                  <td className="px-5 py-4 font-bold text-ink">{row.name}</td>
+                  <td className="px-3 py-4 font-mono font-medium tabular-nums text-ink-soft" dir="ltr">
                     {row.items.length}
                   </td>
-                  <td className="px-3 py-3 font-mono tabular-nums" dir="ltr">
-                    <span className={row.overdue ? "font-semibold text-danger-dark" : "text-muted"}>{row.overdue}</span>
+                  <td className="px-3 py-4" dir="ltr">
+                    <span className={row.overdue ? "inline-flex min-w-8 justify-center rounded-full bg-danger-light/50 px-2 py-0.5 font-mono text-[12px] font-bold tabular-nums text-danger-dark ring-1 ring-danger/20" : "font-mono font-medium text-muted"}>
+                      {row.overdue}
+                    </span>
                   </td>
-                  <td className="px-3 py-3 font-mono text-ink-soft" dir="ltr">
+                  <td className="px-5 py-4 font-mono font-medium text-ink-soft" dir="ltr">
                     {formatDate(row.nearest)}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
+          </div>
+        </>
       ) : (
-        <EmptyState compact title={T.team.empty} description={T.team.emptyHint} className="border-0 shadow-none" />
+        <EmptyState compact icon={<Users className="size-6" />} title={T.team.empty} description={T.team.emptyHint} className="border-0 shadow-none py-10" />
       )}
     </Section>
   );

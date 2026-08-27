@@ -37,6 +37,22 @@ const STATE_TONE: Record<PresentState, string> = {
   delayed: "text-warning-dark",
 };
 
+const STATE_DOT: Record<PresentState, string> = {
+  done: "bg-success ring-success/20",
+  active: "bg-primary ring-primary/20",
+  pending: "bg-line ring-line",
+  blocked: "bg-muted/30 ring-line",
+  delayed: "bg-warning ring-warning/20",
+};
+
+const STATE_LINE: Record<PresentState, string> = {
+  done: "bg-success/30",
+  active: "bg-primary/20",
+  pending: "bg-line",
+  blocked: "bg-line",
+  delayed: "bg-warning/30",
+};
+
 /**
  * Implementation roadmap. Each node is a real ActionStep; delayed is a
  * presentation of `overdue` plus unfinished progress — not a backend status.
@@ -56,25 +72,25 @@ export function ActionPlanTimeline({
   const evidence = evidenceByStep(rec);
   const progress = planProgress(plan);
 
+  const statusClass =
+    plan.status === "approved"
+      ? "border-success/25 bg-success/8 text-success-dark"
+      : plan.status === "revision_required"
+        ? "border-danger/25 bg-danger/8 text-danger-dark"
+        : "border-info/25 bg-info/8 text-info-dark";
+
   return (
-    <div className="space-y-4">
-      <header className="space-y-4">
+    <div className="space-y-6">
+      {/* ─── Plan header ─────────────────────────────────────────── */}
+      <header className="rounded-2xl border border-line bg-surface p-5 shadow-sm space-y-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <h2 className="font-heading text-lg font-semibold text-navy">{T.plan.implementationTitle}</h2>
-          <span
-            className={cn(
-              "border px-2.5 py-1 text-[12px] font-medium",
-              plan.status === "approved"
-                ? "border-success/25 bg-success-light text-success-dark"
-                : plan.status === "revision_required"
-                  ? "border-danger/25 bg-danger-light text-danger-dark"
-                  : "border-info/25 bg-info-light text-info-dark"
-            )}
-          >
+          <h2 className="font-heading text-[18px] font-bold text-navy">{T.plan.implementationTitle}</h2>
+          <span className={cn("rounded-full border px-3 py-1 text-[12px] font-bold", statusClass)}>
             {PLAN_STATUS_LABELS[plan.status]}
           </span>
         </div>
 
+        {/* Meta grid */}
         <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <DataField label={T.plan.owner}>
             {plan.responsible_employee_detail?.full_name_ar || plan.responsible_employee_detail?.username}
@@ -88,38 +104,40 @@ export function ActionPlanTimeline({
           </DataField>
         </dl>
 
+        {/* Progress bar */}
         <div>
-          <div className="mb-1.5 flex items-baseline justify-between gap-2">
-            <p className="text-xs font-medium text-muted">{T.plan.title}</p>
-            <span className="font-mono text-sm font-semibold text-navy" dir="ltr">
+          <div className="mb-2 flex items-baseline justify-between gap-2">
+            <p className="text-[12px] font-bold uppercase tracking-wider text-muted">{T.plan.title}</p>
+            <span className="font-mono text-[15px] font-bold text-navy" dir="ltr">
               {progress}%
             </span>
           </div>
           <ProgressBar value={progress} label={T.plan.progress} tone={progress === 100 ? "success" : "primary"} showValue={false} />
         </div>
 
-        <ol className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px]">
+        {/* Steps mini-map */}
+        <ol className="flex flex-wrap items-center gap-x-5 gap-y-1.5">
           {steps.map((step, index) => {
             const state = presentState(step, steps, rec.overdue);
             return (
-              <li key={step.id} className={cn("inline-flex items-center gap-1.5", STATE_TONE[state])}>
-                <span className="font-mono" aria-hidden>
-                  {state === "done" ? "✓" : state === "active" || state === "delayed" ? "●" : "○"}
-                </span>
+              <li key={step.id} className={cn("inline-flex items-center gap-1.5 text-[12px] font-bold", STATE_TONE[state])}>
+                <span className={cn("size-2 rounded-full", state === "done" ? "bg-success-dark" : state === "active" || state === "delayed" ? "bg-current" : "bg-muted/40")} aria-hidden />
                 {T.plan.stageN.replace("{n}", String(index + 1))}
-                <span className="text-muted">— {stateLabel(state)}</span>
+                <span className="text-[11px] font-medium text-muted">— {stateLabel(state)}</span>
               </li>
             );
           })}
         </ol>
 
+        {/* Objective */}
         {plan.notes?.trim() ? (
           <div className="border-t border-line pt-4">
-            <p className="text-xs font-medium text-muted">{T.plan.objective}</p>
-            <p className="mt-1 whitespace-pre-wrap text-sm leading-[1.9] text-ink">{plan.notes}</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-muted mb-1.5">{T.plan.objective}</p>
+            <p className="whitespace-pre-wrap text-[13.5px] leading-relaxed text-ink font-medium">{plan.notes}</p>
           </div>
         ) : null}
 
+        {/* Review notes callout */}
         {plan.review_notes?.trim() ? (
           <Callout tone={plan.status === "approved" ? "success" : "danger"} title={T.plan.reviewNotes}>
             <p className="whitespace-pre-wrap leading-relaxed">{plan.review_notes}</p>
@@ -127,13 +145,11 @@ export function ActionPlanTimeline({
         ) : null}
       </header>
 
+      {/* ─── Step roadmap ────────────────────────────────────────── */}
       <section>
-        <h3 className="mb-1 font-heading text-base font-semibold text-navy">{T.plan.roadmap}</h3>
-        <p className="mb-3 text-[12px] text-muted">
-          {T.plan.done} ✓ · {T.plan.active} ● · {T.plan.pending} ○ · {T.plan.delayed}
-        </p>
+        <h3 className="mb-4 font-heading text-[16px] font-bold text-navy">{T.plan.roadmap}</h3>
 
-        <ol className="relative">
+        <ol className="relative space-y-0">
           {steps.map((step, index) => {
             const logical = stepState(step, steps);
             const state = presentState(step, steps, rec.overdue);
@@ -142,95 +158,86 @@ export function ActionPlanTimeline({
             const isLast = index === steps.length - 1;
             const parsed = parseStep(step.comments);
             const detail = parsed.description || parsed.unstructured;
-            const number = String(index + 1).padStart(2, "0");
 
             return (
-              <li key={step.id} className="relative flex gap-4">
-                <div className="flex w-12 shrink-0 flex-col items-center">
+              <li key={step.id} className="relative flex gap-5">
+                {/* Number + connector */}
+                <div className="flex w-10 shrink-0 flex-col items-center">
                   <span
                     className={cn(
-                      "font-heading text-xl font-bold tabular-nums leading-none",
+                      "flex size-10 items-center justify-center rounded-full ring-4 font-mono text-[13px] font-bold",
                       state === "done"
-                        ? "text-success-dark"
+                        ? "bg-success text-white ring-success/15"
                         : state === "delayed"
-                          ? "text-warning-dark"
+                          ? "bg-warning text-white ring-warning/15"
                           : state === "active"
-                            ? "text-navy"
-                            : "text-muted"
+                            ? "bg-primary text-white ring-primary/15"
+                            : "bg-subtle text-muted ring-line"
                     )}
                     dir="ltr"
                   >
-                    {number}
+                    {state === "done" ? <Check className="size-4" strokeWidth={3} /> : index + 1}
                   </span>
                   {!isLast ? (
                     <span
                       aria-hidden
-                      className={cn(
-                        "mt-3 w-px flex-1",
-                        state === "done" ? "bg-success/40" : "bg-line"
-                      )}
+                      className={cn("mt-1 w-0.5 flex-1", STATE_LINE[state])}
                     />
                   ) : null}
                 </div>
 
-                <div className={cn("min-w-0 flex-1 pb-5", !isLast && "mb-1 border-b border-line")}>
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <h4 className="font-heading text-[15px] font-semibold text-ink">{step.title}</h4>
-                    <span className={cn("text-[12px] font-medium", STATE_TONE[state])}>{stateLabel(state)}</span>
+                {/* Step content */}
+                <div className={cn("min-w-0 flex-1 pb-7", isLast && "pb-2")}>
+                  <div className="flex flex-wrap items-baseline justify-between gap-2 mb-2">
+                    <h4 className="font-heading text-[15px] font-bold text-navy">{step.title}</h4>
+                    <span className={cn("text-[12px] font-bold", STATE_TONE[state])}>{stateLabel(state)}</span>
                   </div>
 
                   {detail ? (
-                    <p className="mt-3">
-                      <span className="block text-[11px] font-medium text-muted">{T.plan.stepDescription}</span>
-                      <span className="mt-0.5 block whitespace-pre-wrap text-[13px] leading-[1.9] text-ink">
-                        {detail}
-                      </span>
-                    </p>
+                    <div className="mb-3 rounded-xl border border-line bg-subtle/40 p-3.5">
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-muted mb-1">{T.plan.stepDescription}</p>
+                      <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-ink font-medium">{detail}</p>
+                    </div>
                   ) : null}
 
                   {parsed.result ? (
-                    <p className="mt-3">
-                      <span className="block text-[11px] font-medium text-muted">{T.plan.expectedResult}</span>
-                      <span className="mt-0.5 block whitespace-pre-wrap text-[13px] leading-[1.9] text-ink">
-                        {parsed.result}
-                      </span>
-                    </p>
+                    <div className="mb-3 rounded-xl border border-success/15 bg-success/5 p-3.5">
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-success-dark mb-1">{T.plan.expectedResult}</p>
+                      <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-ink font-medium">{parsed.result}</p>
+                    </div>
                   ) : null}
 
                   {parsed.evidence ? (
-                    <p className="mt-3">
-                      <span className="block text-[11px] font-medium text-muted">{T.plan.requiredEvidence}</span>
-                      <span className="mt-0.5 block whitespace-pre-wrap text-[13px] leading-[1.9] text-ink">
-                        {parsed.evidence}
-                      </span>
-                    </p>
+                    <div className="mb-3 rounded-xl border border-primary/15 bg-primary/5 p-3.5">
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-primary-dark mb-1">{T.plan.requiredEvidence}</p>
+                      <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-ink font-medium">{parsed.evidence}</p>
+                    </div>
                   ) : null}
 
                   {!step.is_done && step.progress_percent > 0 ? (
-                    <div className="mt-3 max-w-xs">
-                      <p className="mb-1 text-[11px] font-medium text-muted">{T.plan.progress}</p>
+                    <div className="mb-3 max-w-sm">
+                      <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-muted">{T.plan.progress}</p>
                       <ProgressBar value={step.progress_percent} label={step.title} />
                     </div>
                   ) : null}
 
-                  <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted">
+                  {/* Meta chips */}
+                  <div className="flex flex-wrap items-center gap-2">
                     {parent ? (
-                      <span className="inline-flex items-center gap-1">
-                        {logical === "blocked" ? <Lock className="size-3.5" /> : <Link2 className="size-3.5" />}
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-subtle px-2.5 py-1 text-[11.5px] font-semibold text-ink-soft border border-line">
+                        {logical === "blocked" ? <Lock className="size-3" /> : <Link2 className="size-3" />}
                         {logical === "blocked" ? T.plan.blockedBy : T.plan.dependsOn}: {parent.title}
                       </span>
                     ) : null}
                     {files.length ? (
-                      <span className="inline-flex items-center gap-1">
-                        <Paperclip className="size-3.5" />
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-subtle px-2.5 py-1 text-[11.5px] font-semibold text-ink-soft border border-line">
+                        <Paperclip className="size-3" />
                         {files.length} {T.evidence.title}
                       </span>
                     ) : null}
-                    {step.is_required_for_closure ? <span>{T.plan.requiredForClosure}</span> : null}
-                    {state === "done" ? (
-                      <span className="inline-flex items-center gap-1 text-success-dark">
-                        <Check className="size-3.5" strokeWidth={3} />
-                        {T.plan.done}
+                    {step.is_required_for_closure ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-warning/10 px-2.5 py-1 text-[11.5px] font-bold text-warning-dark border border-warning/20">
+                        {T.plan.requiredForClosure}
                       </span>
                     ) : null}
                   </div>

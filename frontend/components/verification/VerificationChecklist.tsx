@@ -46,10 +46,10 @@ export function composeChecklistNotes(state: ChecklistState, notes: string): str
   return notes.trim() ? `${block}\n\n${notes.trim()}` : block;
 }
 
-const OPTIONS: Array<{ value: ChecklistAnswer; icon: typeof Check; active: string }> = [
-  { value: "yes", icon: Check, active: "border-success bg-success-light text-success-dark" },
-  { value: "no", icon: X, active: "border-danger bg-danger-light text-danger-dark" },
-  { value: "na", icon: Minus, active: "border-line bg-subtle text-ink-soft" },
+const OPTIONS: Array<{ value: ChecklistAnswer; icon: typeof Check; active: string; label: string }> = [
+  { value: "yes", icon: Check, active: "border-success bg-success/15 text-success-dark shadow-sm", label: "yes" },
+  { value: "no", icon: X, active: "border-danger bg-danger/15 text-danger-dark shadow-sm", label: "no" },
+  { value: "na", icon: Minus, active: "border-muted/40 bg-subtle text-ink-soft", label: "na" },
 ];
 
 export function VerificationChecklist({
@@ -61,23 +61,23 @@ export function VerificationChecklist({
 }) {
   useI18n();
   return (
-    <fieldset className="rounded-(--radius-field) border border-line bg-subtle/40 p-4">
-      <legend className="px-1 text-sm font-medium text-ink">{T.checklist.title}</legend>
-      <p className="mb-3 text-[11.5px] leading-relaxed text-muted">{T.checklist.hint}</p>
+    <fieldset className="rounded-2xl border border-line bg-subtle/30 p-5">
+      <legend className="px-1.5 text-[13px] font-bold text-navy">{T.checklist.title}</legend>
+      <p className="mb-4 text-[11.5px] font-medium leading-relaxed text-muted">{T.checklist.hint}</p>
 
-      <ul className="divide-y divide-line/70">
+      <ul className="divide-y divide-line/60">
         {checklistItems().map((item) => (
-          <li key={item.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+          <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
             <span
               className={cn(
-                "text-[13px] leading-snug",
-                state[item.id] === "na" ? "text-ink-soft" : "font-medium text-ink"
+                "text-[13px] font-medium leading-snug",
+                state[item.id] === "na" ? "text-ink-soft" : "font-semibold text-navy"
               )}
             >
               {item.label}
             </span>
 
-            <div className="flex shrink-0 gap-1" role="group" aria-label={item.label}>
+            <div className="flex shrink-0 gap-1.5" role="group" aria-label={item.label}>
               {OPTIONS.map((option) => {
                 const Icon = option.icon;
                 const selected = state[item.id] === option.value;
@@ -89,8 +89,8 @@ export function VerificationChecklist({
                     title={answerLabel(option.value)}
                     onClick={() => onChange({ ...state, [item.id]: option.value })}
                     className={cn(
-                      "flex size-7 items-center justify-center rounded-md border transition-colors",
-                      selected ? option.active : "border-line bg-surface text-muted hover:border-primary/40"
+                      "flex size-8 items-center justify-center rounded-lg border transition-all",
+                      selected ? option.active : "border-line bg-surface text-muted hover:border-primary/40 hover:text-ink"
                     )}
                   >
                     <Icon className="size-3.5" />

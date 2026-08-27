@@ -35,9 +35,19 @@ class OpenAILLMProvider(LLMProvider):
     name = "openai"
 
     def __init__(self):
-        self.model = settings.AI_MODEL or "gpt-4o-mini"
+        model_setting = (settings.AI_MODEL or "").strip()
+        if not model_setting or model_setting == "heuristic-v1":
+            self.model = "gpt-4o-mini"
+        else:
+            self.model = model_setting
+
         self._api_key = settings.AI_API_KEY
         self._base = settings.AI_BASE_URL
+
+        if not self._api_key:
+            raise ValueError("AI_API_KEY is not configured for OpenAI provider.")
+        if self.model == "heuristic-v1":
+            raise ValueError("heuristic-v1 is not a valid model for OpenAI provider.")
 
     def generate(self, prompt, context=None, **kwargs):
         if not self._api_key:

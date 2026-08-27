@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Municipal Internal Control emblem (same mark as MunicipalLogo). Opaque navy fill for Home Screen icons. -->
+  <rect width="64" height="64" fill="#183B4E"/>
+  <rect x="4" y="4" width="56" height="56" rx="11" stroke="#176B63" stroke-width="1.5"/>
+  <path d="M32 14c.4 6.5 1.2 12 8.5 16.5C33.2 32 32.4 38.5 32 50c-.4-11.5-1.2-18-8.5-19.5C30.8 26 31.6 20.5 32 14Z" fill="#E7F3F0"/>
+  <path d="M32 18c.3 5 1 9.2 6.6 12.8C33 32.2 32.3 37.4 32 46.5c-.3-9.1-1-14.3-6.6-15.7C31 27.2 31.7 23 32 18Z" fill="#176B63"/>
+  <path d="M22.5 28.5c4.2-1.2 7.3-4.2 8.6-8.2" stroke="#718355" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M41.5 28.5c-4.2-1.2-7.3-4.2-8.6-8.2" stroke="#718355" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M24.5 42.5 30 48l10-12" stroke="#C9A24A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

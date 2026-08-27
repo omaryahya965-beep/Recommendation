@@ -9,6 +9,7 @@ import { formatDate } from "@/lib/format";
 import type { WorkflowAction } from "@/lib/hooks";
 import { DECISION_LABELS, T, useI18n } from "@/lib/i18n";
 import type { RecommendationDetail } from "@/lib/types";
+import { cn } from "@/lib/cn";
 
 /**
  * Every accept/reject step in the backend uses the same `{ accept, notes }`
@@ -43,11 +44,6 @@ export function DecisionPanel({
   const [localError, setLocalError] = useState<string | null>(null);
   const [pending, setPending] = useState<boolean | null>(null);
 
-  /**
-     Both outcomes are recorded in the audit trail under the reviewer's name and
-     move the case, so both go through confirmation rather than firing on the
-     first click.
-   */
   const ask = (accept: boolean) => {
     if (!accept && requireNotesOnReject && !notes.trim()) {
       setLocalError(notesHint ?? T.common.required);
@@ -64,23 +60,23 @@ export function DecisionPanel({
   };
 
   return (
-    <Card title={title}>
-      {intro ? <p className="mb-4 text-sm leading-relaxed text-ink-soft">{intro}</p> : null}
+    <Card title={title} className="overflow-hidden border-t-4 border-t-primary">
+      {intro ? <p className="mb-4 text-[13.5px] leading-relaxed text-ink-soft">{intro}</p> : null}
       {children}
 
-      <div className="mt-4 space-y-4 border-t-2 border-navy pt-5">
-        <p className="font-heading text-sm font-semibold text-navy">{T.case.officialDecision}</p>
+      <div className="mt-5 space-y-4 border-t border-line pt-5">
+        <p className="font-heading text-sm font-bold text-navy uppercase tracking-wider">{T.case.officialDecision}</p>
         <Field label={notesLabel ?? T.common.notes}>
           <TextArea rows={4} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder={notesHint} />
         </Field>
 
         <ErrorBanner message={localError ?? action.error} />
 
-        <div className="flex flex-wrap gap-2 bg-inverse p-4">
-          <Button className="bg-elevated text-navy hover:bg-subtle" onClick={() => ask(true)} disabled={action.mutation.isPending}>
+        <div className="flex flex-wrap gap-3 bg-navy/5 rounded-xl p-4 border border-line">
+          <Button className="bg-primary text-white hover:bg-primary-dark font-bold shadow-md" onClick={() => ask(true)} disabled={action.mutation.isPending}>
             {acceptLabel}
           </Button>
-          <Button variant="danger" onClick={() => ask(false)} disabled={action.mutation.isPending}>
+          <Button variant="danger" className="font-bold shadow-md" onClick={() => ask(false)} disabled={action.mutation.isPending}>
             {rejectLabel}
           </Button>
         </div>
@@ -90,10 +86,10 @@ export function DecisionPanel({
         open={pending !== null}
         title={pending ? acceptLabel : rejectLabel}
         body={
-          <>
-            <p>{title}</p>
-            <p className="mt-2">{T.confirm.irreversible}</p>
-          </>
+          <div className="space-y-2">
+            <p className="font-bold text-navy text-[15px]">{title}</p>
+            <p className="text-[13px] text-ink-soft">{T.confirm.irreversible}</p>
+          </div>
         }
         confirmLabel={pending ? acceptLabel : rejectLabel}
         tone={pending ? "primary" : "danger"}
@@ -120,25 +116,25 @@ export function ResponseComparison({ rec }: { rec: RecommendationDetail }) {
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
-      <section className="border-s-2 border-line ps-4">
-        <p className="text-xs font-semibold text-muted">{T.auditReview.compareFinding}</p>
-        <p className="mt-2 whitespace-pre-wrap text-sm leading-[1.9] text-ink">{statement}</p>
+      <section className="border-s-4 border-line/60 bg-subtle/25 rounded-e-xl p-4 shadow-sm">
+        <p className="text-xs font-bold uppercase tracking-wider text-muted">{T.auditReview.compareFinding}</p>
+        <p className="mt-3 whitespace-pre-wrap text-[13.5px] leading-[1.8] text-ink font-medium">{statement}</p>
         {rec.root_cause?.trim() ? (
-          <p className="mt-3 border-t border-line pt-3 text-xs leading-relaxed text-ink-soft">
-            <span className="font-semibold">{T.case.rootCause}: </span>
-            {rec.root_cause}
-          </p>
+          <div className="mt-3 border-t border-line/50 pt-3 text-[12px] leading-relaxed text-ink-soft">
+            <span className="font-bold uppercase tracking-wide text-[10px] text-muted block mb-1">{T.case.rootCause}</span>
+            <p className="font-medium">{rec.root_cause}</p>
+          </div>
         ) : null}
       </section>
 
-      <section className="border-s-2 border-primary ps-4">
-        <p className="text-xs font-semibold text-primary-dark">{T.auditReview.compareResponse}</p>
+      <section className="border-s-4 border-primary bg-primary-light/10 rounded-e-xl p-4 shadow-sm">
+        <p className="text-xs font-bold uppercase tracking-wider text-primary-dark">{T.auditReview.compareResponse}</p>
         {response ? (
-          <>
-            <p className="mt-2 text-sm font-semibold text-ink">
+          <div className="space-y-3 mt-3">
+            <span className="inline-flex rounded-full bg-primary/20 px-2.5 py-0.5 text-[11px] font-bold text-primary-dark uppercase tracking-wider border border-primary/25">
               {T.response.managementDecision}: {DECISION_LABELS[response.decision]}
-            </p>
-            <p className="mt-2 whitespace-pre-wrap text-sm leading-[1.9] text-ink">
+            </span>
+            <p className="whitespace-pre-wrap text-[13.5px] leading-[1.8] text-ink font-medium">
               {response.justification || T.common.none}
             </p>
             {response.attachment ? (
@@ -146,30 +142,30 @@ export function ResponseComparison({ rec }: { rec: RecommendationDetail }) {
                 href={response.attachment}
                 target="_blank"
                 rel="noreferrer"
-                className="mt-3 inline-block text-sm font-medium text-primary-dark hover:underline"
+                className="inline-flex items-center gap-1.5 rounded bg-surface border border-line px-3 py-1.5 text-xs font-bold text-primary-dark hover:border-primary/45 transition-colors shadow-sm"
               >
                 {T.evidenceRegister.supporting}
               </a>
             ) : null}
-            <dl className="mt-4 grid gap-3 text-xs sm:grid-cols-2">
+            <dl className="grid gap-3 text-xs sm:grid-cols-2 bg-surface/50 border border-line rounded-lg p-2.5">
               {proposed ? (
                 <div>
-                  <dt className="text-muted">{T.response.proposedDate}</dt>
-                  <dd className="mt-0.5 font-medium text-ink" dir="ltr">
+                  <dt className="text-muted font-bold uppercase tracking-wider text-[9px] mb-0.5">{T.response.proposedDate}</dt>
+                  <dd className="font-mono font-bold text-navy" dir="ltr">
                     {formatDate(proposed)}
                   </dd>
                 </div>
               ) : null}
               {responsible ? (
                 <div>
-                  <dt className="text-muted">{T.response.responsibleParty}</dt>
-                  <dd className="mt-0.5 font-medium text-ink">{responsible}</dd>
+                  <dt className="text-muted font-bold uppercase tracking-wider text-[9px] mb-0.5">{T.response.responsibleParty}</dt>
+                  <dd className="font-bold text-navy truncate">{responsible}</dd>
                 </div>
               ) : null}
             </dl>
-          </>
+          </div>
         ) : (
-          <p className="mt-2 text-sm text-muted">{T.case.noResponseYet}</p>
+          <p className="mt-3 text-sm font-medium text-muted">{T.case.noResponseYet}</p>
         )}
       </section>
     </div>
@@ -192,7 +188,7 @@ export function AuditReviewPanel({ rec, action }: { rec: RecommendationDetail; a
     >
       <ResponseComparison rec={rec} />
       {rec.response?.decision === "disagree" ? (
-        <Callout tone="warning" className="mt-3">
+        <Callout tone="warning" className="mt-4 border-s-4 shadow-sm">
           {T.case.disagreementCouncilNote}
         </Callout>
       ) : null}

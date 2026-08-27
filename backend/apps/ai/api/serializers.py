@@ -3,7 +3,10 @@ from rest_framework import serializers
 
 class SummaryRequestSerializer(serializers.Serializer):
     scope = serializers.ChoiceField(
-        choices=("recommendation", "department", "report", "municipality", "followup_period")
+        choices=(
+            "recommendation", "department", "report", "municipality", "followup_period",
+            "recommendation_list", "council_queue", "employee_tasks"
+        )
     )
     language = serializers.CharField(required=False, default="ar")
     recommendation_id = serializers.IntegerField(required=False)
@@ -18,6 +21,11 @@ class AssistantRequestSerializer(serializers.Serializer):
     message = serializers.CharField(max_length=4000)
     language = serializers.CharField(required=False, default="ar")
     conversation_id = serializers.IntegerField(required=False)
+    recommendation_id = serializers.IntegerField(required=False, allow_null=True)
+    report_id = serializers.IntegerField(required=False, allow_null=True)
+    department_id = serializers.IntegerField(required=False, allow_null=True)
+    role = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    route = serializers.CharField(required=False, allow_null=True, allow_blank=True)
 
 
 class LanguageSerializer(serializers.Serializer):

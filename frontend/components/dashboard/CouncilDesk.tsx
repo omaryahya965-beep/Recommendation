@@ -1,6 +1,6 @@
 "use client";
 
-import { Check } from "lucide-react";
+import { Check, ClipboardList } from "lucide-react";
 import Link from "next/link";
 
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -19,34 +19,34 @@ export function ReportStageBoard({ reports }: { reports: AuditReport[] }) {
   const total = reports.length;
 
   return (
-    <Section title={T.dashboard.reportsPipeline} hint={T.dashboard.reportsPipelineHint}>
+    <Section title={T.dashboard.reportsPipeline} hint={T.dashboard.reportsPipelineHint} className="bg-surface overflow-hidden">
       {total ? (
-        <ol className="grid grid-cols-2 gap-px bg-line sm:grid-cols-5">
+        <ol className="flex snap-x snap-mandatory overflow-x-auto scrollbar-thin sm:grid sm:grid-cols-5 sm:overflow-visible -mb-px -me-px">
           {counts.map((stage, index) => {
             const active = stage.count > 0;
             return (
-              <li key={stage.id} className="flex min-h-[6.5rem] flex-col justify-center bg-surface px-4 py-3.5">
-                <p className="flex items-center gap-1.5 text-xs font-medium text-muted">
+              <li key={stage.id} className="flex min-h-[7rem] min-w-[9.5rem] snap-start flex-col justify-center border-b border-e border-line px-5 py-4 sm:min-w-0">
+                <p className="mb-2 flex items-center gap-2 text-[13px] font-bold text-muted">
                   <span
                     className={cn(
-                      "flex size-4 items-center justify-center rounded-full font-mono text-[10px]",
-                      active ? "bg-primary text-white" : "bg-subtle text-ink-soft"
+                      "flex size-5 items-center justify-center rounded-full font-mono text-[10px] ring-1",
+                      active ? "bg-primary text-white ring-primary" : "bg-surface text-ink-soft ring-line"
                     )}
                   >
-                    {active && stage.id === "ratified" ? <Check className="size-2.5" strokeWidth={3} /> : index + 1}
+                    {active && stage.id === "ratified" ? <Check className="size-3" strokeWidth={3} /> : index + 1}
                   </span>
                   {REPORT_STATUS_LABELS[stage.id]}
                 </p>
-                <p className="mt-2 font-heading text-[1.35rem] font-bold tabular-nums leading-none text-navy" dir="ltr">
+                <p className={cn("font-heading text-[1.75rem] font-bold tabular-nums leading-none tracking-tight", active ? "text-navy" : "text-muted")} dir="ltr">
                   {stage.count}
                 </p>
-                <p className="mt-1 text-xs text-muted">{T.workflow.reportActors[stage.actorKey]}</p>
+                <p className="mt-2 text-[11px] font-medium text-ink-soft">{T.workflow.reportActors[stage.actorKey]}</p>
               </li>
             );
           })}
         </ol>
       ) : (
-        <EmptyState compact title={T.reports.empty} className="border-0 shadow-none" />
+        <EmptyState compact icon={<ClipboardList className="size-6" />} title={T.reports.empty} className="border-0 shadow-none py-10" />
       )}
     </Section>
   );
@@ -85,43 +85,73 @@ export function DecisionTable({
   const rows = [...reportRows, ...closures];
 
   return (
-    <Section title={T.dashboard.pendingDecisions}>
+    <Section title={T.dashboard.pendingDecisions} className="bg-surface h-full">
       {rows.length ? (
-        <div className="scrollbar-thin overflow-x-auto">
-          <table className="w-full min-w-[44rem] text-[13px]">
-            <thead>
-              <tr className="bg-subtle/80 text-start text-[11.5px] font-medium text-ink-soft">
-                <th className="px-4 py-2 text-start font-medium">{T.common.details}</th>
-                <th className="px-3 py-2 text-start font-medium">{T.common.department}</th>
-                <th className="px-3 py-2 text-start font-medium">{T.common.risk}</th>
-                <th className="px-3 py-2 text-start font-medium">{T.case.currentStage}</th>
-                <th className="px-3 py-2 text-start font-medium">{T.dashboard.requiredDecision}</th>
-                <th className="px-3 py-2 text-start font-medium">{T.common.status}</th>
+        <>
+          <ul className="space-y-3 p-4 md:hidden">
+            {rows.map((row) => (
+              <li key={row.id}>
+                <Link href={row.href} className="block min-w-0 rounded-xl border border-line bg-surface p-4">
+                  <p className="font-mono text-[12px] text-muted" dir="ltr">{row.id}</p>
+                  <h3 className="mt-1 font-heading text-[16px] font-semibold text-navy">{row.title}</h3>
+                  <dl className="mt-3 grid gap-2 text-[14px]">
+                    <div>
+                      <dt className="font-semibold text-muted">{T.common.department}</dt>
+                      <dd>{row.department}</dd>
+                    </div>
+                    <div>
+                      <dt className="font-semibold text-muted">{T.dashboard.requiredDecision}</dt>
+                      <dd className="font-bold text-primary-dark">{row.decision}</dd>
+                    </div>
+                    <div>
+                      <dt className="font-semibold text-muted">{T.common.status}</dt>
+                      <dd>{row.status}</dd>
+                    </div>
+                  </dl>
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <div className="hidden scrollbar-thin overflow-x-auto md:block">
+          <table className="w-full min-w-[50rem] text-[13px]">
+            <thead className="bg-subtle/80">
+              <tr className="border-b border-line text-start text-[11.5px] font-bold uppercase tracking-wider text-ink-soft">
+                <th className="px-5 py-3.5 text-start">{T.common.details}</th>
+                <th className="px-3 py-3.5 text-start">{T.common.department}</th>
+                <th className="px-3 py-3.5 text-start">{T.common.risk}</th>
+                <th className="px-3 py-3.5 text-start">{T.case.currentStage}</th>
+                <th className="px-3 py-3.5 text-start">{T.dashboard.requiredDecision}</th>
+                <th className="px-5 py-3.5 text-start">{T.common.status}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
               {rows.map((row) => (
-                <tr key={row.id} className="hover:bg-subtle/60">
-                  <td className="px-4 py-2.5">
-                    <Link href={row.href} className="font-medium text-ink hover:text-primary-dark">
+                <tr key={row.id} className="group transition-colors hover:bg-subtle/60">
+                  <td className="px-5 py-4">
+                    <Link href={row.href} className="font-bold text-ink hover:text-primary-dark transition-colors">
                       {row.title}
                     </Link>
-                    <p className="mt-0.5 font-mono text-[11px] text-muted" dir="ltr">
+                    <p className="mt-1 font-mono text-[11px] font-medium text-muted" dir="ltr">
                       {row.id}
                     </p>
                   </td>
-                  <td className="px-3 py-2.5">{row.department}</td>
-                  <td className="px-3 py-2.5">{row.risk}</td>
-                  <td className="px-3 py-2.5">{row.stage}</td>
-                  <td className="px-3 py-2.5 font-medium text-primary-dark">{row.decision}</td>
-                  <td className="px-3 py-2.5">{row.status}</td>
+                  <td className="px-3 py-4 font-medium text-ink-soft">{row.department}</td>
+                  <td className="px-3 py-4 text-ink-soft">{row.risk}</td>
+                  <td className="px-3 py-4 font-medium text-ink-soft">{row.stage}</td>
+                  <td className="px-3 py-4 font-bold text-primary-dark">{row.decision}</td>
+                  <td className="px-5 py-4">
+                    <span className="inline-flex rounded-md bg-subtle px-2 py-0.5 text-[11.5px] font-bold text-ink-soft border border-line">
+                      {row.status}
+                    </span>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
+          </div>
+        </>
       ) : (
-        <EmptyState compact title={T.dashboard.nothingPending} className="border-0 shadow-none" />
+        <EmptyState compact title={T.dashboard.nothingPending} className="border-0 shadow-none py-10" />
       )}
     </Section>
   );

@@ -199,12 +199,12 @@ export function ActionPlanBuilder({
   };
 
   return (
-    <form onSubmit={submit} className="space-y-4">
+    <form onSubmit={submit} className="space-y-5">
       {reviewNotes ? (
         <Callout tone="danger" title={T.plan.reviewNotes}>
           <p className="whitespace-pre-wrap leading-relaxed">{reviewNotes}</p>
           {existingPlan && existingPlan.revision_count > 0 ? (
-            <p className="mt-1 text-xs">
+            <p className="mt-1 text-xs font-bold">
               {T.plan.revisionCount}: <span dir="ltr">{existingPlan.revision_count}</span>
             </p>
           ) : null}
@@ -213,9 +213,10 @@ export function ActionPlanBuilder({
 
       {aiSlot}
 
+      {/* Plan meta card */}
       <Card title={T.plan.title}>
-        <p className="mb-4 text-sm leading-relaxed text-ink-soft">{T.plan.intro}</p>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <p className="mb-5 text-sm font-medium leading-relaxed text-ink-soft">{T.plan.intro}</p>
+        <div className="grid gap-5 sm:grid-cols-2">
           <Field label={T.plan.owner}>
             <Select
               value={draft.responsible_employee ?? ""}
@@ -245,7 +246,7 @@ export function ActionPlanBuilder({
           </Field>
         </div>
 
-        <div className="mt-4">
+        <div className="mt-5">
           <Field label={T.plan.notes}>
             <TextArea
               rows={4}
@@ -257,25 +258,31 @@ export function ActionPlanBuilder({
         </div>
       </Card>
 
+      {/* Steps card */}
       <Card
         title={T.plan.steps}
         actions={
-          <span className="font-mono text-xs text-ink-soft" dir="ltr">
+          <span className="rounded-full bg-primary/10 px-2.5 py-0.5 font-mono text-xs font-bold text-primary-dark" dir="ltr">
             {draft.steps.length}
           </span>
         }
       >
-        <p className="mb-4 text-sm leading-relaxed text-ink-soft">{T.plan.stepsHint}</p>
+        <p className="mb-5 text-sm font-medium leading-relaxed text-ink-soft">{T.plan.stepsHint}</p>
 
-        <ol className="space-y-3">
+        <ol className="space-y-4">
           {draft.steps.map((step, index) => (
-            <li key={step.key} className="relative flex gap-4 border-b border-line pb-6 last:border-b-0 last:pb-0">
-              <span className="w-10 shrink-0 font-heading text-xl font-bold tabular-nums text-navy" dir="ltr">
-                {String(index + 1).padStart(2, "0")}
-              </span>
-
-              <div className="min-w-0 flex-1">
-                <div className="mb-3 flex items-start justify-between gap-2">
+            <li
+              key={step.key}
+              className="relative rounded-xl border border-line bg-subtle/30 p-4 last:mb-0"
+            >
+              {/* Step header */}
+              <div className="mb-3 flex items-start gap-3">
+                <span
+                  className="flex size-8 shrink-0 items-center justify-center rounded-full bg-navy/10 font-mono text-[13px] font-bold text-navy"
+                  dir="ltr"
+                >
+                  {String(index + 1).padStart(2, "0")}
+                </span>
                 <div className="min-w-0 flex-1">
                   <TextInput
                     value={step.title}
@@ -284,36 +291,38 @@ export function ActionPlanBuilder({
                     aria-label={`${T.plan.stepTitle} ${index + 1}`}
                   />
                 </div>
-                <div className="flex shrink-0 gap-1">
+                {/* Step controls */}
+                <div className="flex shrink-0 items-center gap-1">
                   <button
                     type="button"
                     onClick={() => move(index, -1)}
                     disabled={index === 0}
                     aria-label={T.plan.moveUp}
-                    className="rounded-md border border-line bg-surface p-1.5 text-ink-soft transition-colors hover:text-ink disabled:opacity-40"
+                    className="flex size-7 items-center justify-center rounded-lg border border-line bg-surface text-ink-soft transition-colors hover:text-ink disabled:opacity-30"
                   >
-                    <ArrowUp className="size-4" />
+                    <ArrowUp className="size-3.5" />
                   </button>
                   <button
                     type="button"
                     onClick={() => move(index, 1)}
                     disabled={index === draft.steps.length - 1}
                     aria-label={T.plan.moveDown}
-                    className="rounded-md border border-line bg-surface p-1.5 text-ink-soft transition-colors hover:text-ink disabled:opacity-40"
+                    className="flex size-7 items-center justify-center rounded-lg border border-line bg-surface text-ink-soft transition-colors hover:text-ink disabled:opacity-30"
                   >
-                    <ArrowDown className="size-4" />
+                    <ArrowDown className="size-3.5" />
                   </button>
                   <button
                     type="button"
                     onClick={() => removeStep(index)}
                     aria-label={T.plan.removeStep}
-                    className="rounded-md border border-line bg-surface p-1.5 text-danger-dark transition-colors hover:bg-danger-light"
+                    className="flex size-7 items-center justify-center rounded-lg border border-danger/20 bg-surface text-danger-dark transition-colors hover:bg-danger/10"
                   >
-                    <Trash2 className="size-4" />
+                    <Trash2 className="size-3.5" />
                   </button>
                 </div>
               </div>
 
+              {/* Description */}
               <TextArea
                 rows={2}
                 value={step.description}
@@ -322,6 +331,7 @@ export function ActionPlanBuilder({
                 aria-label={`${T.plan.stepDescription} ${index + 1}`}
               />
 
+              {/* Result + Evidence */}
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <Field label={T.plan.expectedResult}>
                   <TextArea
@@ -341,8 +351,9 @@ export function ActionPlanBuilder({
                 </Field>
               </div>
 
+              {/* Dependency selector */}
               {index > 0 ? (
-                <label className="mt-3 flex flex-wrap items-center gap-2 text-xs text-ink-soft">
+                <label className="mt-3 flex flex-wrap items-center gap-2 text-[12px] font-semibold text-ink-soft">
                   <span className="inline-flex items-center gap-1.5">
                     <Link2 className="size-3.5" />
                     {T.plan.dependsOn}
@@ -365,12 +376,11 @@ export function ActionPlanBuilder({
                   </Select>
                 </label>
               ) : null}
-              </div>
             </li>
           ))}
         </ol>
 
-        <Button type="button" variant="secondary" className="mt-3" onClick={addStep}>
+        <Button type="button" variant="secondary" className="mt-4 gap-2 font-bold" onClick={addStep}>
           <Plus className="size-4" />
           {T.plan.addStep}
         </Button>
@@ -385,7 +395,7 @@ export function ActionPlanBuilder({
       <ErrorBanner message={localError ?? error ?? null} />
 
       {onSubmit ? (
-        <Button type="submit" disabled={busy}>
+        <Button type="submit" disabled={busy} className="gap-2 font-bold shadow-sm">
           <Send className="size-4" />
           {submitLabel ?? T.plan.submit}
         </Button>

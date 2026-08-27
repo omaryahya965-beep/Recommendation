@@ -45,17 +45,17 @@ function PendingReportCard({ report }: { report: AuditReport }) {
   });
 
   return (
-    <li className="border-b border-line px-4 py-3 last:border-b-0">
-      <div className="flex flex-wrap items-start justify-between gap-2">
+    <li className="border-b border-line px-4 py-4 last:border-b-0">
+      <div className="flex min-w-0 flex-col gap-3">
         <div className="min-w-0">
-          <h3 className="font-heading text-[14px] font-semibold text-ink">{report.title}</h3>
-          <p className="mt-1 text-[12px] text-ink-soft">
+          <h3 className="font-heading text-[16px] font-semibold text-ink">{report.title}</h3>
+          <p className="mt-1 text-[13px] text-ink-soft">
             {report.department_name} · {ENGAGEMENT_LABELS[report.engagement_type]} ·{" "}
             <span dir="ltr">{report.recommendations_count}</span> {T.reports.recommendations}
           </p>
         </div>
-        <Button variant="ghost" className="px-2 py-1 text-xs" onClick={() => setExpanded((value) => !value)}>
-          {expanded ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+        <Button variant="ghost" className="min-h-12 w-full justify-center sm:w-auto" onClick={() => setExpanded((value) => !value)}>
+          {expanded ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
           {expanded ? T.common.details : T.dashboard.ratifyDecision}
         </Button>
       </div>
@@ -72,7 +72,7 @@ function PendingReportCard({ report }: { report: AuditReport }) {
             <TextArea value={notes} onChange={(event) => setNotes(event.target.value)} rows={2} />
           </Field>
           <ErrorBanner message={error} />
-          <Button onClick={() => ratify.mutate()} disabled={ratify.isPending}>
+          <Button onClick={() => ratify.mutate()} disabled={ratify.isPending} className="min-h-12 w-full sm:w-auto">
             <Stamp className="size-4" />
             {T.council.ratifyReport}
           </Button>

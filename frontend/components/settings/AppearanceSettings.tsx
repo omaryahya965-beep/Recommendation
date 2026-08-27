@@ -1,6 +1,6 @@
 "use client";
 
-import { Monitor, Moon, Sun } from "lucide-react";
+import { Check, Monitor, Moon, Sun } from "lucide-react";
 
 import { Section } from "@/components/ui/Section";
 import { cn } from "@/lib/cn";
@@ -24,9 +24,10 @@ export function AppearanceSettings() {
   const { preference, setTheme } = useTheme();
 
   return (
-    <div className="grid items-start gap-4 lg:grid-cols-2">
-      <Section title={T.nav.theme} hint={T.nav.themeHint} padded>
-        <div className="grid gap-2" role="radiogroup" aria-label={T.nav.theme}>
+    <div className="grid items-start gap-6 lg:grid-cols-2">
+      {/* Theme preference */}
+      <Section title={T.nav.theme} hint={T.nav.themeHint} padded className="rounded-2xl border border-line bg-surface shadow-sm">
+        <div className="grid gap-3" role="radiogroup" aria-label={T.nav.theme}>
           {THEMES.map((option) => {
             const Icon = option.icon;
             const active = preference === option.id;
@@ -38,22 +39,31 @@ export function AppearanceSettings() {
                 aria-checked={active}
                 onClick={() => setTheme(option.id)}
                 className={cn(
-                  "flex items-center gap-3 rounded-(--radius-field) border px-3 py-2.5 text-start transition-colors",
+                  "flex min-h-12 items-center justify-between rounded-xl border p-4 text-start shadow-sm",
                   active
-                    ? "border-primary bg-primary-light text-primary-dark"
-                    : "border-line bg-surface text-ink hover:bg-subtle"
+                    ? "border-primary bg-primary/8 text-primary-dark font-bold ring-1 ring-primary/20"
+                    : "border-line bg-surface text-ink hover:bg-subtle/50"
                 )}
               >
-                <Icon className="size-4 shrink-0" />
-                <span className="text-sm font-medium">{themeLabel(option.id)}</span>
+                <div className="flex items-center gap-3">
+                  <Icon className="size-5 shrink-0" />
+                  <span className="text-[14px] font-bold">{themeLabel(option.id)}</span>
+                </div>
+                {active && (
+                  <span className="flex size-5 items-center justify-center rounded-full bg-primary-dark text-white">
+                    <Check className="size-3" strokeWidth={3} />
+                  </span>
+                )}
               </button>
             );
           })}
         </div>
       </Section>
 
-      <Section title={T.nav.language} hint={T.nav.languageHint} padded>
-        <div className="grid gap-2" role="radiogroup" aria-label={T.nav.language}>
+      {/* Language preference */}
+      <Section title={T.nav.language} hint={T.nav.languageHint} padded className="rounded-2xl border border-line bg-surface shadow-sm">
+        <div className="grid gap-3" role="radiogroup" aria-label={T.nav.language}>
+          {/* Arabic option */}
           <button
             type="button"
             role="radio"
@@ -61,15 +71,24 @@ export function AppearanceSettings() {
             aria-checked={locale === "ar"}
             onClick={() => setLocale("ar")}
             className={cn(
-              "rounded-(--radius-field) border px-3 py-2.5 text-start transition-colors",
+              "flex min-h-12 items-center justify-between rounded-xl border p-4 text-start shadow-sm",
               locale === "ar"
-                ? "border-primary bg-primary-light text-primary-dark"
-                : "border-line bg-surface text-ink hover:bg-subtle"
+                ? "border-primary bg-primary/8 text-primary-dark font-bold ring-1 ring-primary/20"
+                : "border-line bg-surface text-ink hover:bg-subtle/50"
             )}
           >
-            <span className="block text-sm font-medium">العربية</span>
-            <span className="mt-0.5 block text-[12px] font-normal text-muted">Arabic</span>
+            <div>
+              <span className="block text-[14px] font-bold">العربية</span>
+              <span className="mt-0.5 block text-[11.5px] font-medium text-muted">Arabic</span>
+            </div>
+            {locale === "ar" && (
+              <span className="flex size-5 items-center justify-center rounded-full bg-primary-dark text-white">
+                <Check className="size-3" strokeWidth={3} />
+              </span>
+            )}
           </button>
+
+          {/* English option */}
           <button
             type="button"
             role="radio"
@@ -77,14 +96,21 @@ export function AppearanceSettings() {
             aria-checked={locale === "en"}
             onClick={() => setLocale("en")}
             className={cn(
-              "rounded-(--radius-field) border px-3 py-2.5 text-start transition-colors",
+              "flex min-h-12 items-center justify-between rounded-xl border p-4 text-start shadow-sm",
               locale === "en"
-                ? "border-primary bg-primary-light text-primary-dark"
-                : "border-line bg-surface text-ink hover:bg-subtle"
+                ? "border-primary bg-primary/8 text-primary-dark font-bold ring-1 ring-primary/20"
+                : "border-line bg-surface text-ink hover:bg-subtle/50"
             )}
           >
-            <span className="block text-sm font-medium">English</span>
-            <span className="mt-0.5 block text-[12px] font-normal text-muted">الإنجليزية</span>
+            <div>
+              <span className="block text-[14px] font-bold">English</span>
+              <span className="mt-0.5 block text-[11.5px] font-medium text-muted">الإنجليزية</span>
+            </div>
+            {locale === "en" && (
+              <span className="flex size-5 items-center justify-center rounded-full bg-primary-dark text-white">
+                <Check className="size-3" strokeWidth={3} />
+              </span>
+            )}
           </button>
         </div>
       </Section>

@@ -59,7 +59,7 @@ export default function ReportDetailPage() {
       <header className="border-b border-line pb-5">
         <Link
           href="/audit/reports"
-          className="inline-flex items-center gap-1.5 text-[13px] text-ink-soft hover:text-navy"
+          className="inline-flex min-h-11 items-center gap-1.5 text-[14px] text-ink-soft"
         >
           <DirBack className="size-4" />
           {T.reports.title}
@@ -80,7 +80,7 @@ export default function ReportDetailPage() {
 
       <section>
         <h2 className="mb-3 font-heading text-sm font-semibold text-navy">{T.reports.identity}</h2>
-        <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <DataField label={T.reports.objective}>{ENGAGEMENT_LABELS[report.engagement_type]}</DataField>
           <DataField label={T.reports.scope}>{report.department_name}</DataField>
           <DataField label={T.common.department}>{report.department_name}</DataField>
@@ -111,17 +111,17 @@ export default function ReportDetailPage() {
 
       {isDraft || report.status === "under_review" ? (
         <section className="border border-inverse bg-inverse p-4 text-on-inverse">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-col gap-2 md:flex-row md:flex-wrap md:items-center">
             {isDraft ? (
               <>
-                <Link href={`/audit/recommendations/new?report=${report.id}`}>
-                  <Button variant="secondary" className="border-on-inverse/30 bg-elevated text-navy hover:bg-subtle">
+                <Link href={`/audit/recommendations/new?report=${report.id}`} className="w-full md:w-auto">
+                  <Button variant="secondary" className="w-full border-on-inverse/30 bg-elevated text-navy hover:bg-subtle md:w-auto">
                     <Plus className="size-4" />
                     {T.reports.addRecommendation}
                   </Button>
                 </Link>
                 <Button
-                  className="bg-elevated text-navy hover:bg-subtle"
+                  className="w-full bg-elevated text-navy hover:bg-subtle md:w-auto"
                   onClick={() => reportAction.mutate("submit-to-department/")}
                   disabled={reportAction.isPending || !canSendToDepartment}
                 >
@@ -131,7 +131,7 @@ export default function ReportDetailPage() {
               </>
             ) : (
               <Button
-                className="bg-elevated text-navy hover:bg-subtle"
+                className="w-full bg-elevated text-navy hover:bg-subtle md:w-auto"
                 onClick={() => reportAction.mutate("submit-to-council/")}
                 disabled={reportAction.isPending}
               >
@@ -165,11 +165,11 @@ export default function ReportDetailPage() {
         </div>
 
         {recommendations.length ? (
-          <ol className="divide-y divide-line border-y border-line">
+          <ol className="space-y-3 md:space-y-0 md:divide-y md:border-y md:border-line md:divide-line">
             {recommendations.map((item, index) => {
               const stage = stageForStatus(item.status);
               return (
-                <li key={item.id} className="py-4">
+                <li key={item.id} className="rounded-xl border border-line bg-surface p-4 md:rounded-none md:border-0 md:bg-transparent md:py-4">
                   <Link href={`/audit/recommendations/${item.id}`} className="group block">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">

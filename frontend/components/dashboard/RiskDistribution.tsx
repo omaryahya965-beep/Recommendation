@@ -44,18 +44,18 @@ export function RiskDistribution({
 
   return (
     <Section
-      className={className}
+      className={cn("bg-surface", className)}
       title={title ?? T.dashboard.riskDistribution}
       hint={hint ?? T.dashboard.riskDistributionHint}
       padded
     >
       {!total ? (
-        <EmptyState compact title={T.dashboard.noRiskData} className="border-0 shadow-none" />
+        <EmptyState compact title={T.dashboard.noRiskData} className="border-0 shadow-none py-8" />
       ) : (
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-6">
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:gap-8 p-2">
           <Donut
-            size={108}
-            thickness={12}
+            size={120}
+            thickness={14}
             segments={rows.map((row) => ({
               value: row.count,
               color: TONE[row.level].color,
@@ -63,33 +63,35 @@ export function RiskDistribution({
             }))}
             center={
               <div>
-                <p className="font-heading text-lg font-bold leading-none text-navy" dir="ltr">
+                <p className="font-heading text-2xl font-bold leading-none text-navy drop-shadow-sm" dir="ltr">
                   {total}
                 </p>
-                <p className="mt-1 text-[11px] text-muted">{T.stats.open}</p>
+                <p className="mt-1 text-[11px] font-bold uppercase tracking-wider text-muted">{T.stats.open}</p>
               </div>
             }
           />
-          <ol className="min-w-0 flex-1 space-y-3">
+          <ol className="min-w-0 flex-1 space-y-4">
             {rows.map((row) => {
               const share = total ? Math.round((row.count / total) * 100) : 0;
               return (
                 <li key={row.level}>
                   <Link
                     href={`${base}?risk_level=${row.level}`}
-                    className="block rounded-(--radius-field) px-1 py-0.5 transition-colors hover:bg-subtle/70"
+                    className="group block rounded-xl p-2.5 transition-all duration-200 hover:bg-subtle/70 hover:shadow-sm ring-1 ring-transparent hover:ring-line/50"
                   >
-                    <div className="mb-1.5 flex items-baseline gap-2">
-                      <span className={cn("inline-flex min-w-0 items-center gap-1.5 text-[13px] font-medium", TONE[row.level].text)}>
-                        <span className={cn("size-2 shrink-0 rounded-full", TONE[row.level].bar)} aria-hidden />
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className={cn("inline-flex items-center gap-2 text-[14px] font-bold tracking-wide", TONE[row.level].text)}>
+                        <span className={cn("size-2.5 shrink-0 rounded-full shadow-sm", TONE[row.level].bar)} aria-hidden />
                         {row.label}
                       </span>
-                      <span className="font-mono text-[13px] font-semibold tabular-nums text-ink" dir="ltr">
-                        {row.count}
-                      </span>
-                      <span className="font-mono text-[11px] tabular-nums text-muted" dir="ltr">
-                        {share}%
-                      </span>
+                      <div className="flex items-baseline gap-3">
+                        <span className="font-mono text-[14px] font-bold tabular-nums text-navy" dir="ltr">
+                          {row.count}
+                        </span>
+                        <span className="font-mono text-[12px] font-semibold tabular-nums text-muted" dir="ltr">
+                          {share}%
+                        </span>
+                      </div>
                     </div>
                     <MeterBar value={share} tone={row.level === "high" ? "danger" : row.level === "medium" ? "warning" : "success"} />
                   </Link>

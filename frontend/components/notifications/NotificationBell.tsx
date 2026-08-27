@@ -1,9 +1,10 @@
 "use client";
 
-import { Bell } from "lucide-react";
+import { Bell, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { useFocusTrap } from "@/components/mobile/useFocusTrap";
 import { cn } from "@/lib/cn";
 import { formatDateTime, recordCode, relativeTimeAr } from "@/lib/format";
 import { T, useI18n } from "@/lib/i18n";
@@ -34,10 +35,13 @@ export function NotificationBell({ role }: { role: Role }) {
   useI18n();
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
   const { data: count } = useUnreadCount();
   const { data: list, isLoading, isError, refetch } = useNotifications(open);
   const markAll = useMarkAllNotificationsRead();
   const markRead = useMarkNotificationRead();
+
+  useFocusTrap(open, panelRef, () => setOpen(false), closeRef);
 
   useEffect(() => {
     if (!open) return;
@@ -57,43 +61,59 @@ export function NotificationBell({ role }: { role: Role }) {
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="relative rounded-(--radius-btn) p-2 text-ink-soft transition-colors hover:bg-subtle hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        className="relative flex size-12 items-center justify-center rounded-xl text-ink-soft transition-colors hover:bg-subtle hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary md:size-9"
         aria-label={T.nav.notifications}
         aria-expanded={open}
       >
         <Bell className="size-5" />
         {badge ? (
-          <span className="absolute -top-0.5 -end-0.5 z-10 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[9px] font-bold leading-none text-white ring-2 ring-surface">
+          <span className="absolute -top-0.5 -end-0.5 z-10 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger px-1 text-[9px] font-bold leading-none text-white ring-2 ring-surface">
             {badge}
           </span>
         ) : null}
       </button>
 
       {open ? (
-        <div className="absolute end-0 z-50 mt-2 w-[24rem] max-w-[92vw] border border-line bg-surface shadow-(--shadow-float)">
-          <header className="flex items-center justify-between border-b border-line px-3 py-2.5">
-            <div>
-              <p className="text-sm font-semibold text-navy">{T.notify.previewTitle}</p>
-              <p className="text-[11px] text-muted">{T.notify.subtitle}</p>
+        <div
+          className="fixed inset-0 z-50 flex flex-col bg-surface md:absolute md:inset-auto md:end-0 md:mt-2 md:max-h-[min(28rem,80vh)] md:w-[26rem] md:max-w-[92vw] md:overflow-hidden md:rounded-2xl md:border md:border-line md:shadow-xl"
+          role="dialog"
+          aria-modal="true"
+          aria-label={T.nav.notifications}
+        >
+          <header className="flex items-center justify-between gap-2 border-b border-line px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 md:pt-3">
+            <div className="min-w-0">
+              <p className="text-[15px] font-bold text-navy md:text-[13.5px]">{T.notify.previewTitle}</p>
+              <p className="text-[13px] font-medium text-muted md:text-[11px]">{T.notify.subtitle}</p>
             </div>
-            {unread > 0 ? (
+            <div className="flex shrink-0 items-center gap-1">
+              {unread > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => markAll.mutate()}
+                  className="min-h-11 rounded-lg px-3 text-[13px] font-bold text-primary-dark"
+                >
+                  {T.notify.markAllRead}
+                </button>
+              ) : null}
               <button
+                ref={closeRef}
                 type="button"
-                onClick={() => markAll.mutate()}
-                className="text-xs font-medium text-primary-dark hover:underline"
+                onClick={() => setOpen(false)}
+                className="flex size-11 items-center justify-center rounded-lg text-ink-soft hover:bg-subtle md:size-9"
+                aria-label={T.nav.close}
               >
-                {T.notify.markAllRead}
+                <X className="size-5" />
               </button>
-            ) : null}
+            </div>
           </header>
 
-          <div className="max-h-[28rem] overflow-y-auto">
+          <div className="min-h-0 flex-1 overflow-y-auto">
             {isLoading ? (
-              <p className="px-3 py-10 text-center text-sm text-ink-soft">{T.common.loading}</p>
+              <p className="px-4 py-10 text-center text-[15px] font-semibold text-ink-soft">{T.common.loading}</p>
             ) : isError ? (
-              <div className="px-3 py-8 text-center">
-                <p className="text-sm text-ink-soft">{T.common.error}</p>
-                <button type="button" onClick={() => refetch()} className="mt-2 text-sm font-medium text-primary-dark hover:underline">
+              <div className="px-4 py-8 text-center">
+                <p className="text-[15px] font-semibold text-ink-soft">{T.common.error}</p>
+                <button type="button" onClick={() => refetch()} className="mt-2 min-h-11 text-[15px] font-bold text-primary-dark">
                   {T.common.retry}
                 </button>
               </div>
@@ -104,33 +124,37 @@ export function NotificationBell({ role }: { role: Role }) {
                   const action = requiredAction(item, role);
                   const mustAct = userMustAct(item, role);
                   return (
-                    <li key={item.id} className={cn("border-b border-line last:border-0", !item.is_read && "bg-subtle/40")}>
+                    <li key={item.id} className={cn("border-b border-line last:border-0", !item.is_read && "bg-subtle/50")}>
                       <Link
                         href={notificationHref(item, role)}
                         onClick={() => {
                           if (!item.is_read) markRead.mutate(item.id);
                           setOpen(false);
                         }}
-                        className="block px-3 py-3 hover:bg-subtle/70"
+                        className="block min-h-14 px-4 py-4"
                       >
-                        <p className={cn("text-[12px] font-semibold", TONE[meta.tone])}>
-                          {meta.marker} {meta.label}
+                        <p className={cn("inline-flex items-center gap-1.5 text-[13px] font-bold", TONE[meta.tone])}>
+                          <span aria-hidden>{meta.marker}</span>
+                          {meta.label}
+                          {!item.is_read ? (
+                            <span className="size-2 rounded-full bg-primary" aria-label={T.notify.unread} />
+                          ) : null}
                         </p>
-                        <p className={cn("mt-1 text-[13px] leading-snug text-ink", !item.is_read && "font-semibold")}>
+                        <p className={cn("mt-1 text-[15px] leading-snug text-ink", !item.is_read && "font-semibold")}>
                           {item.message}
                         </p>
                         {item.recommendation ? (
-                          <p className="mt-0.5 font-mono text-[11px] text-muted" dir="ltr">
+                          <p className="mt-0.5 font-mono text-[12px] font-medium text-muted" dir="ltr">
                             {recordCode(item.recommendation)}
                           </p>
                         ) : null}
                         {mustAct && action ? (
-                          <p className="mt-1.5 text-[12px] text-navy">
+                          <p className="mt-1.5 text-[13px] font-semibold text-navy">
                             {T.notify.requiredAction}: {action}
                           </p>
                         ) : null}
                         <time
-                          className="mt-1 block font-mono text-[10px] text-muted"
+                          className="mt-1 block font-mono text-[12px] text-muted"
                           dateTime={item.sent_at}
                           title={formatDateTime(item.sent_at)}
                         >
@@ -142,15 +166,15 @@ export function NotificationBell({ role }: { role: Role }) {
                 })}
               </ul>
             ) : (
-              <p className="px-3 py-10 text-center text-sm text-ink-soft">{T.notify.emptyHint}</p>
+              <p className="px-4 py-10 text-center text-[15px] font-semibold text-ink-soft">{T.notify.emptyHint}</p>
             )}
           </div>
 
-          <footer className="border-t border-line px-3 py-2.5">
+          <footer className="border-t border-line bg-subtle/30 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
             <Link
               href={centerHref(role)}
               onClick={() => setOpen(false)}
-              className="block text-center text-sm font-medium text-primary-dark hover:underline"
+              className="flex min-h-12 items-center justify-center text-center text-[15px] font-bold text-primary-dark"
             >
               {T.notify.viewAll}
             </Link>

@@ -1,12 +1,11 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, FilePlus2, FileText } from "lucide-react";
+import { Check, FilePlus2, FileText, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { DirBack } from "@/components/i18n/DirIcon";
 import { Button, Callout, Card, ErrorBanner, Field, Select, TextInput } from "@/components/ui/Base";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { api, errorMessage } from "@/lib/api";
@@ -14,7 +13,7 @@ import { ENGAGEMENT_LABELS, T, useI18n } from "@/lib/i18n";
 import type { AuditReport, Department, Paginated } from "@/lib/types";
 
 export default function NewReportPage() {
-  useI18n();
+  const { locale } = useI18n();
   const router = useRouter();
   const queryClient = useQueryClient();
   const [title, setTitle] = useState("");
@@ -48,21 +47,23 @@ export default function NewReportPage() {
     onError: (err) => setError(errorMessage(err)),
   });
 
+  const DirBack = locale === "ar" ? ChevronRight : ChevronLeft;
+
   if (created) {
     return (
-      <div className="mx-auto max-w-xl animate-fade-in space-y-5">
+      <div className="mx-auto max-w-xl animate-fade-in space-y-6">
         <PageHeader title={T.reports.createdTitle} description={created.title} />
-        <Card>
-          <Callout tone="success" icon={<Check className="size-4" />} title={T.reports.createdTitle}>
+        <Card className="border-s-4 border-s-success p-6">
+          <Callout tone="success" icon={<Check className="size-4.5" />} title={T.reports.createdTitle}>
             {T.reports.createdHint}
           </Callout>
-          <div className="mt-5 flex flex-col gap-2 sm:flex-row">
-            <Button onClick={() => router.push(`/audit/recommendations/new?report=${created.id}`)}>
-              <FilePlus2 className="size-4" />
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <Button onClick={() => router.push(`/audit/recommendations/new?report=${created.id}`)} className="font-bold shadow-md gap-2">
+              <FilePlus2 className="size-4.5" />
               {T.reports.addNow}
             </Button>
-            <Button variant="secondary" onClick={() => router.push(`/audit/reports/${created.id}`)}>
-              <FileText className="size-4" />
+            <Button variant="secondary" onClick={() => router.push(`/audit/reports/${created.id}`)} className="font-bold shadow-sm ring-1 ring-line">
+              <FileText className="size-4.5" />
               {T.reports.addLater}
             </Button>
           </div>
@@ -72,16 +73,16 @@ export default function NewReportPage() {
   }
 
   return (
-    <div className="mx-auto max-w-xl animate-fade-in space-y-5">
+    <div className="mx-auto max-w-xl animate-fade-in space-y-6">
       <PageHeader title={T.reports.create} description={T.reports.createHint} />
 
-      <Card>
+      <Card className="p-6">
         <form
           onSubmit={(event) => {
             event.preventDefault();
             createReport.mutate();
           }}
-          className="grid gap-4"
+          className="grid gap-5"
         >
           <Field label={T.reports.reportTitle}>
             <TextInput value={title} onChange={(event) => setTitle(event.target.value)} required autoFocus />
@@ -108,13 +109,13 @@ export default function NewReportPage() {
 
           <ErrorBanner message={error} />
 
-          <div className="flex flex-wrap items-center gap-2 pt-1">
-            <Button type="submit" disabled={createReport.isPending || !title.trim() || !department}>
+          <div className="flex flex-wrap items-center gap-4 pt-2 border-t border-line/60">
+            <Button type="submit" disabled={createReport.isPending || !title.trim() || !department} className="font-bold shadow-md">
               {T.common.save}
             </Button>
             <Link
               href="/audit/reports"
-              className="inline-flex items-center gap-1.5 text-sm text-ink-soft hover:text-navy"
+              className="inline-flex items-center gap-1.5 text-[13.5px] font-bold text-ink-soft hover:text-navy transition-colors"
             >
               <DirBack className="size-4" />
               {T.common.cancel}

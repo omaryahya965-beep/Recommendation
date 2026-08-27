@@ -160,6 +160,30 @@ def latest_analysis(analysis_type: str, target_type: str, target_id: int):
 
 def run_job(*, user, job_type: str, target_type: str, target_id: int | None, fn: Callable[[], AIAnalysis | None]):
     require_ai_enabled()
+    from datetime import timedelta
+
+    # 1. Concurrency deduplication: look for a running/pending job
+    existing_job = AIJob.objects.filter(
+        created_by=user,
+        job_type=job_type,
+        target_type=target_type or "",
+        target_id=target_id,
+        status__in=[AIJob.Status.PENDING, AIJob.Status.RUNNING],
+        created_at__gte=timezone.now() - timedelta(seconds=30)
+    ).first()
+
+    if existing_job:
+        for _ in range(30):
+            time.sleep(1)
+            try:
+                existing_job.refresh_from_db()
+            except Exception:
+                break
+            if existing_job.status == AIJob.Status.COMPLETED:
+                return existing_job
+            if existing_job.status == AIJob.Status.FAILED:
+                break
+
     job = AIJob.objects.create(
         status=AIJob.Status.PENDING,
         job_type=job_type,

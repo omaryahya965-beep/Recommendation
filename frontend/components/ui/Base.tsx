@@ -1,7 +1,8 @@
 "use client";
 
+import { ChevronDown } from "lucide-react";
 import type { ReactNode } from "react";
-import { useId } from "react";
+import { useId, useState } from "react";
 
 import { cn } from "@/lib/cn";
 import { T, useI18n } from "@/lib/i18n";
@@ -12,30 +13,35 @@ export function Card({
   actions,
   className = "",
   padded = true,
+  accent = false,
 }: {
   title?: ReactNode;
   children: ReactNode;
   actions?: ReactNode;
   className?: string;
   padded?: boolean;
+  accent?: boolean;
 }) {
   useI18n();
   return (
     <section
       className={cn(
-        "rounded-(--radius-card) border border-line bg-surface shadow-(--shadow-card)",
-        padded && "p-4 md:p-5",
+        "zone-panel relative overflow-hidden transition-shadow duration-200",
+        padded && "p-5 md:p-6",
         className
       )}
     >
+      {accent && (
+        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary to-primary-dark" aria-hidden />
+      )}
       {(title || actions) && (
-        <header className={cn("mb-3 flex items-center justify-between gap-2", !padded && "px-4 pt-4 md:px-5 md:pt-5")}>
+        <header className={cn("mb-4 flex items-center justify-between gap-3 border-b border-line pb-4", !padded && "px-5 pt-5 md:px-6 md:pt-6")}>
           {title ? (
-            <h2 className="font-body text-base font-semibold text-ink">{title}</h2>
+            <h2 className="font-heading text-base font-bold text-navy">{title}</h2>
           ) : (
             <span />
           )}
-          {actions}
+          {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
         </header>
       )}
       {children}
@@ -44,11 +50,11 @@ export function Card({
 }
 
 const BUTTON_VARIANTS = {
-  primary: "bg-primary text-white hover:opacity-90",
-  secondary: "border border-primary/40 bg-surface text-primary-dark hover:bg-primary-light",
-  danger: "bg-danger-dark text-white hover:bg-danger",
-  warn: "bg-warning-dark text-white hover:opacity-90",
-  ghost: "border border-line bg-transparent text-ink hover:bg-subtle",
+  primary: "bg-primary text-white shadow-sm hover:bg-primary-dark hover:shadow-md",
+  secondary: "bg-primary-light text-primary-dark hover:bg-primary/20",
+  danger: "bg-danger-dark text-white shadow-sm hover:bg-danger hover:shadow-md",
+  warn: "bg-warning-dark text-white shadow-sm hover:bg-warning hover:shadow-md",
+  ghost: "bg-transparent text-ink-soft hover:bg-subtle hover:text-ink",
   ai: "border border-ai/30 bg-ai-light text-ai-dark hover:bg-ai/15",
 } as const;
 
@@ -66,10 +72,11 @@ export function Button({
     <button
       ref={ref}
       className={cn(
-        "inline-flex items-center justify-center gap-1.5 rounded-(--radius-btn) px-4 py-2",
-        "text-[0.9rem] font-medium transition-colors",
+        "inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-4 py-2.5",
+        "text-[14px] font-semibold transition-all duration-200 active:scale-[0.98]",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
-        "disabled:cursor-not-allowed disabled:opacity-50",
+        "disabled:pointer-events-none disabled:opacity-50",
+        variant === "primary" && "min-h-12",
         BUTTON_VARIANTS[variant],
         className
       )}
@@ -91,17 +98,17 @@ export function Field({
 }) {
   useI18n();
   return (
-    <label className={cn("block", className)}>
-      <span className="mb-1 block text-[0.8125rem] font-medium text-ink">{label}</span>
+    <label className={cn("block group", className)}>
+      <span className="mb-1.5 block text-[13px] font-semibold text-ink group-focus-within:text-primary-dark transition-colors">{label}</span>
       {children}
-      {error ? <span className="mt-1 block text-xs text-danger-dark">{error}</span> : null}
+      {error ? <span className="mt-1.5 block text-xs font-medium text-danger-dark animate-fade-in">{error}</span> : null}
     </label>
   );
 }
 
 const FIELD_CLASS =
-  "w-full rounded-(--radius-field) border border-line bg-surface px-3 py-2 text-sm " +
-  "text-ink outline-none transition-colors focus:border-primary focus:bg-elevated focus:ring-2 focus:ring-primary/20";
+  "w-full min-h-11 rounded-md border border-line bg-surface px-3.5 py-2.5 text-base md:text-[14px] " +
+  "text-ink outline-none transition-all duration-200 hover:border-muted/40 focus:border-primary focus:bg-surface focus:ring-4 focus:ring-primary/10";
 
 export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   useI18n();
@@ -110,7 +117,7 @@ export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
 
 export function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   useI18n();
-  return <textarea rows={3} {...props} className={cn(FIELD_CLASS, props.className)} />;
+  return <textarea rows={3} {...props} className={cn(FIELD_CLASS, "resize-y", props.className)} />;
 }
 
 export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
@@ -130,11 +137,11 @@ export function ErrorBanner({
   return (
     <div
       role="alert"
-      className="flex flex-wrap items-center justify-between gap-2 rounded-(--radius-field) border border-danger/30 bg-danger-light px-3 py-2 text-sm text-danger-dark"
+      className="flex flex-wrap items-center justify-between gap-3 rounded-md border-s-4 border-danger bg-danger-light px-4 py-3 text-[13.5px] font-medium text-danger-dark animate-fade-in shadow-sm"
     >
       <span>{message}</span>
       {onRetry ? (
-        <Button variant="ghost" className="border-danger/30 text-danger-dark" onClick={onRetry}>
+        <Button variant="ghost" className="h-8 border border-danger/20 text-danger-dark hover:bg-danger/10 px-3 py-1" onClick={onRetry}>
           {T.common.retry}
         </Button>
       ) : null}
@@ -148,7 +155,7 @@ export function SuccessBanner({ message }: { message: string | null }) {
   return (
     <div
       role="status"
-      className="rounded-(--radius-field) border border-success/30 bg-success-light px-3 py-2 text-sm text-success-dark"
+      className="rounded-md border-s-4 border-success bg-success-light px-4 py-3 text-[13.5px] font-medium text-success-dark animate-fade-in shadow-sm"
     >
       {message}
     </div>
@@ -158,20 +165,23 @@ export function SuccessBanner({ message }: { message: string | null }) {
 export function Spinner({ label }: { label?: string }) {
   useI18n();
   return (
-    <p className="py-8 text-center text-sm text-ink-soft" role="status">
-      {label ?? T.common.loading}
-    </p>
+    <div className="flex flex-col items-center justify-center py-12 gap-3" role="status">
+      <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      <p className="text-sm font-medium text-ink-soft animate-pulse">
+        {label ?? T.common.loading}
+      </p>
+    </div>
   );
 }
 
 const CALLOUT_TONES = {
-  info: "border-info/25 bg-info-light text-info-dark",
-  primary: "border-primary/25 bg-primary-light text-primary-dark",
-  warning: "border-warning/30 bg-warning-light text-warning-dark",
-  danger: "border-danger/25 bg-danger-light text-danger-dark",
-  success: "border-success/25 bg-success-light text-success-dark",
-  ai: "border-ai/25 bg-ai-light text-ai-dark",
-  neutral: "border-line bg-subtle text-ink-soft",
+  info: "border-info bg-info-light text-info-dark",
+  primary: "border-primary bg-primary-light text-primary-dark",
+  warning: "border-warning bg-warning-light text-warning-dark",
+  danger: "border-danger bg-danger-light text-danger-dark",
+  success: "border-success bg-success-light text-success-dark",
+  ai: "border-ai bg-ai-light text-ai-dark",
+  neutral: "border-muted/40 bg-subtle text-ink-soft",
 } as const;
 
 /** Short contextual note. Never used as the only carrier of meaning. */
@@ -190,9 +200,9 @@ export function Callout({
 }) {
   useI18n();
   return (
-    <div className={cn("rounded-(--radius-field) border px-3 py-2.5 text-sm", CALLOUT_TONES[tone], className)}>
-      <div className="flex items-start gap-2">
-        {icon ? <span className="mt-0.5 shrink-0">{icon}</span> : null}
+    <div className={cn("rounded-md border-s-4 px-4 py-3 text-[13.5px] shadow-sm", CALLOUT_TONES[tone], className)}>
+      <div className="flex items-start gap-3">
+        {icon ? <span className="mt-0.5 shrink-0 opacity-80">{icon}</span> : null}
         <div className="min-w-0 flex-1">
           {title ? <p className="font-semibold leading-snug">{title}</p> : null}
           {children ? <div className={cn("leading-relaxed", title && "mt-1")}>{children}</div> : null}
@@ -216,10 +226,10 @@ export function DataField({
 }) {
   useI18n();
   return (
-    <div className={cn("min-w-0", className)}>
-      <dt className="text-xs font-medium text-muted">{label}</dt>
-      <dd className="mt-1 text-sm leading-relaxed text-ink">{children}</dd>
-      {hint ? <p className="mt-0.5 text-xs text-muted">{hint}</p> : null}
+    <div className={cn("min-w-0 group", className)}>
+      <dt className="mb-1 text-[13px] font-bold text-muted">{label}</dt>
+      <dd className="text-[14px] font-medium leading-relaxed text-ink group-hover:text-navy transition-colors">{children}</dd>
+      {hint ? <p className="mt-1 text-[12px] text-muted">{hint}</p> : null}
     </div>
   );
 }
@@ -229,17 +239,20 @@ export function ProseBlock({
   label,
   children,
   hint,
+  className,
 }: {
   label: ReactNode;
   children: ReactNode;
   hint?: ReactNode;
+  className?: string;
 }) {
   useI18n();
   return (
-    <div className="border-s-2 border-line ps-3">
-      <p className="text-xs font-semibold text-muted">{label}</p>
-      <div className="mt-1.5 whitespace-pre-wrap text-sm leading-[1.9] text-ink">{children}</div>
-      {hint ? <p className="mt-1 text-xs text-muted">{hint}</p> : null}
+    <div className={cn("rounded-md border border-line bg-surface p-4 shadow-sm relative overflow-hidden", className)}>
+      <div className="absolute start-0 top-0 bottom-0 w-1 bg-line" aria-hidden />
+      <p className="mb-2 text-[13px] font-bold text-muted">{label}</p>
+      <div className="whitespace-pre-wrap text-[14px] leading-relaxed text-ink">{children}</div>
+      {hint ? <p className="mt-3 border-t border-line pt-2 text-[12px] text-muted">{hint}</p> : null}
     </div>
   );
 }
@@ -257,21 +270,21 @@ export function MeterBar({
 }) {
   const pct = Math.max(0, Math.min(100, Math.round(value)));
   const fill = {
-    primary: "bg-primary",
-    success: "bg-success",
-    warning: "bg-warning",
-    danger: "bg-danger",
+    primary: "bg-primary shadow-[0_0_8px_rgba(23,107,99,0.5)]",
+    success: "bg-success shadow-[0_0_8px_rgba(33,132,90,0.5)]",
+    warning: "bg-warning shadow-[0_0_8px_rgba(201,138,26,0.5)]",
+    danger: "bg-danger shadow-[0_0_8px_rgba(201,75,75,0.5)]",
   }[tone];
   return (
     <div
-      className={cn("flex h-2 overflow-hidden rounded-full bg-subtle", className)}
+      className={cn("flex h-2.5 overflow-hidden rounded-full bg-subtle ring-1 ring-inset ring-line shadow-inner", className)}
       role="progressbar"
       aria-valuenow={pct}
       aria-valuemin={0}
       aria-valuemax={100}
       aria-label={label}
     >
-      <div className={cn("h-full rounded-full transition-[width] duration-500", fill)} style={{ width: `${pct}%` }} />
+      <div className={cn("h-full rounded-full transition-all duration-700 ease-out", fill)} style={{ width: `${pct}%` }} />
     </div>
   );
 }
@@ -292,10 +305,10 @@ export function ProgressBar({
   useI18n();
   const pct = Math.max(0, Math.min(100, Math.round(value)));
   return (
-    <div className={cn("flex items-center gap-2", className)}>
+    <div className={cn("flex items-center gap-3", className)}>
       <MeterBar value={pct} tone={tone} className="min-w-0 flex-1" label={label} />
       {showValue ? (
-        <span className="w-8 shrink-0 text-end font-mono text-xs tabular-nums text-ink-soft" dir="ltr">
+        <span className="w-9 shrink-0 text-end font-mono text-[13px] font-medium tabular-nums text-ink-soft" dir="ltr">
           {pct}%
         </span>
       ) : null}
@@ -312,7 +325,19 @@ export interface TabItem {
   active?: boolean;
 }
 
-/** Horizontal scrollable tab bar. Roving arrow-key navigation, RTL-aware. */
+function TabLabel({ item, selected }: { item: TabItem; selected: boolean }) {
+  return (
+    <span className="flex min-w-0 items-center justify-center gap-2">
+      <span className="min-w-0 truncate">{item.label}</span>
+      {typeof item.count === "number" && item.count > 0 ? (
+        <span className={cn("rounded-full px-2 py-0.5 font-mono text-[11px] font-bold", selected ? "bg-primary-light text-primary-dark" : "bg-line/50 text-ink-soft")}>{item.count}</span>
+      ) : null}
+      {item.active ? <span aria-hidden className="size-2 shrink-0 rounded-full bg-warning" /> : null}
+    </span>
+  );
+}
+
+/** Horizontal scrollable tab bar on desktop; expandable section list on mobile. */
 export function Tabs({
   items,
   value,
@@ -324,58 +349,91 @@ export function Tabs({
   onChange: (id: string) => void;
   className?: string;
 }) {
-  useI18n();
+  const { dir } = useI18n();
+  const [open, setOpen] = useState(false);
   const enabled = items.filter((item) => !item.disabled);
+  const current = items.find((item) => item.id === value) ?? items[0];
 
   const onKeyDown = (event: React.KeyboardEvent) => {
     if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
     event.preventDefault();
     const index = enabled.findIndex((item) => item.id === value);
     if (index < 0) return;
-    // RTL: ArrowLeft advances forward visually.
-    const delta = event.key === "ArrowLeft" ? 1 : -1;
+    const forward = dir === "rtl" ? "ArrowLeft" : "ArrowRight";
+    const delta = event.key === forward ? 1 : -1;
     const next = enabled[(index + delta + enabled.length) % enabled.length];
     onChange(next.id);
   };
 
   return (
-    <div
-      role="tablist"
-      onKeyDown={onKeyDown}
-      className={cn("scrollbar-thin flex gap-1 overflow-x-auto border-b border-line", className)}
-    >
-      {items.map((item) => {
-        const selected = item.id === value;
-        return (
-          <button
-            key={item.id}
-            role="tab"
-            type="button"
-            aria-selected={selected}
-            disabled={item.disabled}
-            tabIndex={selected ? 0 : -1}
-            onClick={() => onChange(item.id)}
-            className={cn(
-              "relative shrink-0 whitespace-nowrap px-3.5 py-2.5 text-sm font-medium transition-colors",
-              "disabled:cursor-not-allowed disabled:text-muted/60",
-              selected ? "text-primary-dark" : "text-ink-soft hover:text-ink",
-              !item.disabled && !selected && "hover:bg-subtle"
-            )}
-          >
-            <span className="flex items-center gap-1.5">
-              {item.label}
-              {typeof item.count === "number" && item.count > 0 ? (
-                <span className="rounded-full bg-subtle px-1.5 font-mono text-[11px] text-ink-soft">{item.count}</span>
-              ) : null}
-              {item.active ? <span aria-hidden className="size-1.5 rounded-full bg-warning" /> : null}
-            </span>
-            {selected ? (
-              <span aria-hidden className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-primary" />
-            ) : null}
-          </button>
-        );
-      })}
-    </div>
+    <>
+      <div className={cn("md:hidden", className)}>
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-haspopup="listbox"
+          onClick={() => setOpen((value) => !value)}
+          className="flex min-h-12 w-full items-center justify-between gap-3 rounded-lg border border-line bg-surface px-4 text-start text-[14px] font-semibold text-navy"
+        >
+          {current ? <TabLabel item={current} selected /> : null}
+          <ChevronDown className={cn("size-5 shrink-0", open && "rotate-180")} aria-hidden />
+        </button>
+        {open ? (
+          <div role="listbox" className="mt-2 overflow-hidden rounded-lg border border-line bg-surface">
+            {items.map((item) => {
+              const selected = item.id === value;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="option"
+                  aria-selected={selected}
+                  disabled={item.disabled}
+                  onClick={() => {
+                    onChange(item.id);
+                    setOpen(false);
+                  }}
+                  className={cn(
+                    "flex min-h-12 w-full items-center px-4 text-start text-[14px] font-semibold",
+                    "disabled:cursor-not-allowed disabled:opacity-40",
+                    selected ? "bg-primary-light text-primary-dark" : "text-ink hover:bg-subtle",
+                  )}
+                >
+                  <TabLabel item={item} selected={selected} />
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
+      </div>
+      <div
+        role="tablist"
+        onKeyDown={onKeyDown}
+        className={cn("scrollbar-thin hidden gap-1.5 overflow-x-auto rounded-lg bg-subtle p-1.5 ring-1 ring-inset ring-line md:flex", className)}
+      >
+        {items.map((item) => {
+          const selected = item.id === value;
+          return (
+            <button
+              key={item.id}
+              role="tab"
+              type="button"
+              aria-selected={selected}
+              disabled={item.disabled}
+              tabIndex={selected ? 0 : -1}
+              onClick={() => onChange(item.id)}
+              className={cn(
+                "relative min-h-11 min-w-[100px] flex-1 shrink-0 whitespace-nowrap rounded-md px-4 py-2 text-[13px] font-semibold transition-all duration-200",
+                "disabled:cursor-not-allowed disabled:opacity-40",
+                selected ? "bg-surface text-primary-dark shadow-sm ring-1 ring-line/50" : "text-ink-soft hover:text-ink hover:bg-surface/50"
+              )}
+            >
+              <TabLabel item={item} selected={selected} />
+            </button>
+          );
+        })}
+      </div>
+    </>
   );
 }
 
@@ -393,31 +451,31 @@ export function ChoiceCards<T extends string>({
 }) {
   useI18n();
   return (
-    <div role="radiogroup" className="grid gap-2 sm:grid-cols-2">
+    <div role="radiogroup" className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       {options.map((option) => {
         const selected = option.value === value;
         return (
           <label
             key={option.value}
             className={cn(
-              "cursor-pointer rounded-(--radius-field) border p-3 transition-colors",
-              selected ? "border-primary bg-primary-light" : "border-line bg-surface hover:border-primary/40"
+              "min-h-12 cursor-pointer rounded-lg border-2 p-4 transition-all duration-200",
+              selected ? "border-primary bg-primary-light/40 shadow-sm" : "border-line bg-surface hover:border-primary/30 hover:bg-subtle/50"
             )}
           >
-            <span className="flex items-start gap-2.5">
+            <span className="flex items-start gap-3">
               <input
                 type="radio"
                 name={name}
                 checked={selected}
                 onChange={() => onChange(option.value)}
-                className="mt-1 size-4 shrink-0 accent-primary"
+                className="mt-0.5 size-4.5 shrink-0 accent-primary"
               />
               <span className="min-w-0">
-                <span className={cn("block text-sm font-semibold", selected ? "text-primary-dark" : "text-ink")}>
+                <span className={cn("block text-[14px] font-bold", selected ? "text-primary-dark" : "text-ink")}>
                   {option.label}
                 </span>
                 {option.hint ? (
-                  <span className="mt-0.5 block text-xs leading-relaxed text-ink-soft">{option.hint}</span>
+                  <span className={cn("mt-1 block text-[12.5px] leading-relaxed", selected ? "text-primary-dark/80" : "text-ink-soft")}>{option.hint}</span>
                 ) : null}
               </span>
             </span>
@@ -449,7 +507,7 @@ export function ToggleSwitch({
     if (!disabled) onCheckedChange(!checked);
   };
   return (
-    <div className={cn("flex items-start gap-3", disabled && "opacity-60")}>
+    <div className={cn("flex min-h-11 items-center gap-3", disabled && "opacity-60")}>
       <button
         type="button"
         role="switch"
@@ -460,24 +518,24 @@ export function ToggleSwitch({
         disabled={disabled}
         onClick={toggle}
         className={cn(
-          "relative mt-0.5 h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors",
+          "relative h-7 w-12 shrink-0 cursor-pointer rounded-full transition-all duration-300",
           "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
           "disabled:cursor-not-allowed",
-          checked ? "bg-primary-dark" : "bg-ink/20"
+          checked ? "bg-primary shadow-inner" : "bg-line"
         )}
       >
         <span
           aria-hidden
           className={cn(
-            "absolute top-0.5 size-5 rounded-full bg-white transition-[inset-inline-start]",
-            checked ? "start-[22px]" : "start-0.5"
+            "absolute top-1.5 size-4 rounded-full bg-white shadow-sm transition-[inset-inline-start] duration-300",
+            checked ? "start-[1.75rem]" : "start-1.5"
           )}
         />
       </button>
       {hideLabel ? null : (
         <span id={labelId} onClick={toggle} className={cn("text-start", !disabled && "cursor-pointer")}>
-          <span className="block text-sm font-medium text-ink">{label}</span>
-          {description ? <span className="mt-0.5 block text-xs text-ink-soft">{description}</span> : null}
+          <span className="block text-[13px] font-semibold text-ink">{label}</span>
+          {description ? <span className="mt-0.5 block text-[12px] text-ink-soft">{description}</span> : null}
         </span>
       )}
     </div>

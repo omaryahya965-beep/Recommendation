@@ -32,20 +32,24 @@ export function SettingsHub({ role }: { role: Role }) {
     : "appearance";
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <PageHeader title={T.nav.settings} description={T.nav.settingsHint} />
 
-      <Tabs
-        items={tabs}
-        value={current}
-        onChange={(id) => {
-          router.replace(id === "appearance" ? pathname : `${pathname}?tab=${id}`);
-        }}
-      />
+      <div className="border-b border-line pb-1">
+        <Tabs
+          items={tabs}
+          value={current}
+          onChange={(id) => {
+            router.replace(id === "appearance" ? pathname : `${pathname}?tab=${id}`);
+          }}
+        />
+      </div>
 
-      {current === "appearance" ? <AppearanceSettings /> : null}
-      {current === "notifications" ? <NotificationCenter role={role} embedded /> : null}
-      {current === "reminders" ? <ReminderSettings role={role} /> : null}
+      <div className="mt-6">
+        {current === "appearance" ? <AppearanceSettings /> : null}
+        {current === "notifications" ? <NotificationCenter role={role} embedded /> : null}
+        {current === "reminders" ? <ReminderSettings role={role} /> : null}
+      </div>
     </div>
   );
 }
