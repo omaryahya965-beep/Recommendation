@@ -23,12 +23,12 @@ function StatLink({
   return (
     <Link
       href={href}
-      className="flex min-h-[5.25rem] min-w-[7.5rem] flex-col justify-center border-b border-e border-line px-4 py-3.5 transition-colors hover:bg-subtle/70"
+      className="group flex min-h-[6.5rem] min-w-[8.5rem] flex-col justify-center border-b border-e border-line px-5 py-4 transition-all duration-200 hover:bg-subtle/50 hover:shadow-inner hover:z-10 relative"
     >
-      <p className="text-xs font-medium text-muted">{label}</p>
+      <p className="text-[12px] font-bold uppercase tracking-wider text-muted mb-2">{label}</p>
       <p
         className={cn(
-          "mt-1 font-heading text-[1.35rem] font-bold tabular-nums leading-none",
+          "font-heading text-[1.75rem] font-bold tabular-nums leading-none tracking-tight",
           tone === "danger" && value ? "text-danger-dark" : tone === "warning" && value ? "text-warning-dark" : "text-navy"
         )}
         dir="ltr"
@@ -60,29 +60,29 @@ export function SystemHealth({
   const rate = Math.round(stats.completion_rate);
 
   if (!stats.total) {
-    return <EmptyState compact title={T.empty.insufficient} description={T.empty.recommendationsHint} />;
+    return <EmptyState compact title={T.empty.insufficient} description={T.empty.recommendationsHint} className="border-0 shadow-none" />;
   }
 
   return (
-    <Section title={title ?? T.dashboard.systemHealth} hint={hint ?? T.dashboard.systemHealthHint}>
-      <div className="grid grid-cols-2 overflow-hidden sm:grid-cols-3 xl:grid-cols-[minmax(14rem,auto)_repeat(6,minmax(0,1fr))]">
-        <div className="col-span-2 flex items-center gap-3 border-b border-e border-line px-4 py-4 sm:col-span-3 xl:col-span-1 xl:border-b-0">
+    <Section title={title ?? T.dashboard.systemHealth} hint={hint ?? T.dashboard.systemHealthHint} className="overflow-hidden bg-surface">
+      <div className="grid grid-cols-2 overflow-hidden sm:grid-cols-3 xl:grid-cols-[minmax(16rem,auto)_repeat(6,minmax(0,1fr))] -mb-px -me-px">
+        <div className="col-span-2 flex items-center gap-5 border-b border-e border-line px-6 py-5 sm:col-span-3 xl:col-span-1 xl:border-b-0 bg-subtle/20">
           <Donut
-            size={76}
-            thickness={9}
+            size={86}
+            thickness={10}
             segments={[
               { value: rate, color: "var(--color-success)", label: T.stats.completionRate },
               { value: Math.max(0, 100 - rate), color: "var(--color-line)", label: T.analytics.ofAll },
             ]}
             center={
-              <span className="font-heading text-sm font-bold text-success-dark" dir="ltr">
+              <span className="font-heading text-[15px] font-bold text-success-dark drop-shadow-sm" dir="ltr">
                 {rate}%
               </span>
             }
           />
           <div className="min-w-0">
-            <p className="text-xs font-medium text-muted">{T.stats.completionRate}</p>
-            <p className="mt-0.5 text-[13px] text-ink-soft">{T.analytics.ofAll}</p>
+            <p className="text-[13px] font-bold uppercase tracking-wider text-navy">{T.stats.completionRate}</p>
+            <p className="mt-1 text-[13px] font-medium text-ink-soft">{T.analytics.ofAll}</p>
           </div>
         </div>
 

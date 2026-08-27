@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -74,7 +74,7 @@ export function ConfirmDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-4 backdrop-blur-[2px]"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-overlay/80 p-4 backdrop-blur-sm transition-all"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onCancel();
       }}
@@ -84,31 +84,40 @@ export function ConfirmDialog({
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="confirm-title"
-        className="w-full max-w-md animate-fade-in overflow-hidden rounded-(--radius-card) border border-line bg-surface shadow-lg"
+        className="relative w-full max-w-md animate-scale-in overflow-hidden rounded-[20px] bg-surface shadow-2xl ring-1 ring-line"
       >
-        <div className="flex items-start gap-3 p-5">
-          <span
+        <button
+          onClick={onCancel}
+          className="absolute end-4 top-4 rounded-full p-1.5 text-muted hover:bg-subtle hover:text-ink transition-colors z-10"
+          aria-label={T.confirm.cancel}
+        >
+          <X className="size-5" />
+        </button>
+        
+        <div className="flex flex-col items-center gap-4 p-8 text-center">
+          <div
             className={cn(
-              "flex size-9 shrink-0 items-center justify-center rounded-full",
+              "flex size-14 shrink-0 items-center justify-center rounded-full shadow-inner ring-8",
               tone === "danger"
-                ? "bg-danger-light text-danger-dark"
+                ? "bg-danger-light text-danger-dark ring-danger/10"
                 : tone === "warn"
-                  ? "bg-warning-light text-warning-dark"
-                  : "bg-primary-light text-primary-dark"
+                  ? "bg-warning-light text-warning-dark ring-warning/10"
+                  : "bg-primary-light text-primary-dark ring-primary/10"
             )}
           >
-            <AlertTriangle className="size-4.5" />
-          </span>
+            <AlertTriangle className="size-7" strokeWidth={2.5} />
+          </div>
+          
           <div className="min-w-0">
-            <h2 id="confirm-title" className="font-heading text-base font-semibold text-navy">
+            <h2 id="confirm-title" className="font-heading text-xl font-bold text-navy">
               {title}
             </h2>
-            {body ? <div className="mt-1.5 text-sm leading-relaxed text-ink-soft">{body}</div> : null}
+            {body ? <div className="mt-3 text-[14px] leading-relaxed text-ink-soft">{body}</div> : null}
           </div>
         </div>
 
-        <div className="flex flex-wrap justify-end gap-2 border-t border-line bg-subtle/50 px-5 py-3">
-          <Button variant="ghost" onClick={onCancel} disabled={busy}>
+        <div className="flex flex-wrap justify-end gap-3 border-t border-line bg-subtle/50 px-8 py-5">
+          <Button variant="ghost" onClick={onCancel} disabled={busy} className="min-w-[100px]">
             {cancelLabel}
           </Button>
           <Button
@@ -116,6 +125,7 @@ export function ConfirmDialog({
             variant={tone === "danger" ? "danger" : tone === "warn" ? "warn" : "primary"}
             onClick={onConfirm}
             disabled={busy}
+            className="min-w-[100px]"
           >
             {confirmLabel}
           </Button>

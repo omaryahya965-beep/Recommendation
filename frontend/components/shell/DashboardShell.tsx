@@ -17,6 +17,7 @@ import {
   Sparkles,
   Users,
   X,
+  ChevronRight
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -293,7 +294,7 @@ function GlobalSearch({ role }: { role: Role }) {
   const base = searchBase(role);
 
   return (
-    <div className="relative min-w-0 flex-1 max-w-2xl" ref={boxRef}>
+    <div className="relative min-w-0 flex-1 max-w-xl" ref={boxRef}>
       <Search className="pointer-events-none absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-muted" />
       <input
         ref={inputRef}
@@ -304,17 +305,17 @@ function GlobalSearch({ role }: { role: Role }) {
         }}
         onFocus={() => setOpen(true)}
         placeholder={T.nav.searchPlaceholder}
-        className="h-10 w-full rounded-(--radius-field) border border-line bg-subtle py-2 ps-10 pe-[4.5rem] text-sm outline-none transition-colors placeholder:text-muted focus:border-primary focus:bg-elevated focus:ring-2 focus:ring-primary/20"
+        className="h-10 w-full rounded-(--radius-field) border border-line bg-surface py-2 ps-10 pe-[4.5rem] text-[13px] outline-none transition-all placeholder:text-muted focus:border-primary focus:ring-2 focus:ring-primary/20 hover:border-muted/30"
         aria-label={T.nav.search}
       />
-      <kbd className="pointer-events-none absolute end-2 top-1/2 hidden -translate-y-1/2 rounded border border-line bg-surface px-1.5 py-0.5 font-mono text-[10px] text-muted sm:inline">
+      <kbd className="pointer-events-none absolute end-2 top-1/2 hidden -translate-y-1/2 rounded border border-line bg-subtle px-1.5 py-0.5 font-mono text-[10px] text-muted sm:inline">
         {T.nav.searchShortcut}
       </kbd>
       {open && debounced.length >= 2 ? (
-        <div className="absolute z-50 mt-1.5 w-full overflow-hidden rounded-(--radius-dialog) border border-line bg-elevated shadow-(--shadow-float)">
-          <p className="bg-subtle px-3 py-1.5 text-[11px] font-medium text-ink-soft">{T.nav.recommendations}</p>
+        <div className="absolute z-50 mt-2 w-full overflow-hidden rounded-(--radius-panel) border border-line bg-elevated shadow-(--shadow-panel)">
+          <p className="bg-subtle px-4 py-2 text-[11px] font-semibold text-ink-soft uppercase tracking-wider">{T.nav.recommendations}</p>
           {results.length ? (
-            <ul>
+            <ul className="py-1">
               {results.map((item) => (
                 <li key={item.id}>
                   <Link
@@ -323,7 +324,7 @@ function GlobalSearch({ role }: { role: Role }) {
                       setOpen(false);
                       setQ("");
                     }}
-                    className="block px-3 py-2.5 transition-colors hover:bg-primary-light"
+                    className="block px-4 py-3 transition-colors hover:bg-primary-light/50"
                   >
                     <span className="flex items-center gap-2">
                       <span className="font-mono text-[11px] font-medium text-primary-dark" dir="ltr">
@@ -331,8 +332,8 @@ function GlobalSearch({ role }: { role: Role }) {
                       </span>
                       <StatusBadge status={item.status} />
                     </span>
-                    <span className="mt-1 line-clamp-1 block text-sm text-ink">{caseTitle(item.text, 80)}</span>
-                    <span className="mt-0.5 block text-[11px] text-muted">
+                    <span className="mt-1.5 line-clamp-1 block text-[13px] font-medium text-ink">{caseTitle(item.text, 80)}</span>
+                    <span className="mt-1 block text-[11px] text-muted">
                       {role === "department_head"
                         ? item.responsible_employee || item.report_title
                         : `${item.department_name}${item.responsible_employee ? ` · ${item.responsible_employee}` : ""}`}
@@ -342,7 +343,7 @@ function GlobalSearch({ role }: { role: Role }) {
               ))}
             </ul>
           ) : (
-            <p className="px-3 py-4 text-center text-sm text-ink-soft">{T.empty.search}</p>
+            <p className="px-4 py-6 text-center text-[13px] text-ink-soft">{T.empty.search}</p>
           )}
         </div>
       ) : null}
@@ -363,79 +364,53 @@ function SidebarNav({
 }) {
   useI18n();
   const searchParams = useSearchParams();
-  const settings = settingsFor(role);
   const groups = navFor(role);
 
   const itemCls = (active: boolean) =>
     cn(
-      "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
-      collapsed && "justify-center px-2",
+      "group relative flex items-center gap-3 rounded-md px-3 py-2.5 text-[13.5px] transition-all duration-200",
+      collapsed && "justify-center px-2 py-3",
       active
-        ? "bg-primary/25 font-medium text-sidebar-text"
-        : "text-sidebar-muted hover:bg-sidebar-hover hover:text-sidebar-text"
+        ? "bg-sidebar-hover text-sidebar-text font-semibold"
+        : "text-sidebar-muted hover:bg-sidebar-hover/50 hover:text-sidebar-text"
     );
 
   return (
-    <>
-      <nav className="scrollbar-thin flex-1 overflow-y-auto px-2 py-3">
-        {groups.map((group, groupIndex) => (
-          <div key={group.id} className={cn(groupIndex > 0 && "mt-4")}>
-            {group.label && !collapsed ? (
-              <p className="mb-1 px-3 text-[11px] font-semibold text-sidebar-muted">
-                {group.label}
-              </p>
-            ) : null}
-            {group.label && collapsed ? (
-              <span aria-hidden className="mx-auto mb-2 block h-px w-6 bg-sidebar-muted/30" />
-            ) : null}
-            <div className="space-y-0.5">
-              {group.items.map((item) => {
-                const active = navItemActive(pathname, searchParams, item.href);
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    title={collapsed ? item.label : undefined}
-                    onClick={onNavigate}
-                    className={itemCls(active)}
-                  >
-                    {active ? (
-                      <span className="absolute inset-y-2 start-0 w-[3px] rounded-e bg-primary" aria-hidden />
-                    ) : null}
-                    <Icon className="size-[18px] shrink-0" />
-                    {collapsed ? <span className="sr-only">{item.label}</span> : item.label}
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </nav>
-      <div className="space-y-0.5 border-t border-white/10 px-2 py-3">
-        <Link
-          href={settings.href}
-          title={collapsed ? settings.label : undefined}
-          onClick={onNavigate}
-          className={itemCls(pathname === settings.href || pathname.startsWith(`${settings.href}/`))}
-        >
-          {pathname === settings.href || pathname.startsWith(`${settings.href}/`) ? (
-            <span className="absolute inset-y-2 start-0 w-[3px] rounded-e bg-primary" aria-hidden />
+    <nav className="scrollbar-thin flex-1 overflow-y-auto px-3 py-4">
+      {groups.map((group, groupIndex) => (
+        <div key={group.id} className={cn(groupIndex > 0 && "mt-6")}>
+          {group.label && !collapsed ? (
+            <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-wider text-sidebar-muted/70">
+              {group.label}
+            </p>
           ) : null}
-          <settings.icon className="size-[18px] shrink-0" />
-          {collapsed ? <span className="sr-only">{settings.label}</span> : settings.label}
-        </Link>
-        <button
-          type="button"
-          onClick={logout}
-          title={collapsed ? T.nav.logout : undefined}
-          className={cn(itemCls(false), "w-full")}
-        >
-          <LogOut className="size-[18px] shrink-0" />
-          {collapsed ? <span className="sr-only">{T.nav.logout}</span> : T.nav.logout}
-        </button>
-      </div>
-    </>
+          {group.label && collapsed ? (
+            <span aria-hidden className="mx-auto mb-3 block h-[2px] w-4 rounded-full bg-sidebar-muted/20" />
+          ) : null}
+          <div className="space-y-1">
+            {group.items.map((item) => {
+              const active = navItemActive(pathname, searchParams, item.href);
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  title={collapsed ? item.label : undefined}
+                  onClick={onNavigate}
+                  className={itemCls(active)}
+                >
+                  {active ? (
+                    <span className="absolute inset-y-1.5 start-0 w-[4px] rounded-r-md bg-primary-dark shadow-[0_0_8px_rgba(15,79,73,0.6)]" aria-hidden />
+                  ) : null}
+                  <Icon className={cn("size-5 shrink-0 transition-colors", active ? "text-primary-dark" : "text-sidebar-muted group-hover:text-sidebar-text")} />
+                  {collapsed ? <span className="sr-only">{item.label}</span> : item.label}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </nav>
   );
 }
 
@@ -456,8 +431,6 @@ function ShellInner({ role, children }: { role: Role; children: ReactNode }) {
       router.replace(ROLE_HOME[auth.user.role] ?? "/login");
       return;
     }
-    // localStorage is only readable client-side; syncing it into state after
-    // mount is the standard auth-gate pattern and cannot cascade (runs once).
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setUser(auth.user);
     setChecked(true);
@@ -483,13 +456,15 @@ function ShellFrame({
   pathname: string;
   children: ReactNode;
 }) {
-  useI18n();
+  const { dir } = useI18n();
   usePrefetchAIInsights(role);
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem("audit_sidebar_collapsed") === "1";
   });
   const [mobileOpen, setMobileOpen] = useState(false);
+  const searchParams = useSearchParams();
+  const settings = settingsFor(role);
 
   const toggleCollapsed = () => {
     setCollapsed((v) => {
@@ -499,45 +474,92 @@ function ShellFrame({
     });
   };
 
+  const initials = (user.full_name_ar || user.username).slice(0, 1);
+  const settingsActive = navItemActive(pathname, searchParams, settings.href);
+
   const sidebar = (
     <>
-      <div className={cn("border-b border-white/10 px-4 py-4", collapsed && "px-2")}>
-        <div className={cn("flex items-center gap-3", collapsed && "justify-center")}>
-          <MunicipalLogo size="sm" inverted />
+      <div className={cn("flex shrink-0 items-center border-b border-sidebar-muted/10 bg-sidebar/95 py-6", collapsed ? "justify-center px-2" : "px-6")}>
+        <div className="flex items-center gap-3">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary-dark to-primary shadow-lg ring-1 ring-white/10">
+            <MunicipalLogo size="sm" inverted className="text-white" />
+          </div>
           {collapsed ? null : (
             <div className="min-w-0">
-              <p className="font-heading text-sm font-bold leading-snug text-sidebar-text">{T.appName}</p>
-              <p className="truncate text-[11px] text-sidebar-muted">
+              <p className="font-heading text-[15px] font-bold leading-tight text-white">{T.appName}</p>
+              <p className="truncate text-[11px] font-medium text-primary-dark/80 tracking-wide">
                 {ROLE_LABELS[user.role]}
-                {user.municipality_name ? ` · ${user.municipality_name}` : ""}
               </p>
             </div>
           )}
         </div>
       </div>
+      
       <SidebarNav role={role} pathname={pathname} collapsed={collapsed} onNavigate={() => setMobileOpen(false)} />
+      
+      {/* Footer Zone */}
+      <div className="shrink-0 border-t border-sidebar-muted/10 bg-sidebar/95 p-3">
+        <Link
+          href={settings.href}
+          title={collapsed ? settings.label : undefined}
+          onClick={() => setMobileOpen(false)}
+          className={cn(
+            "group relative flex items-center gap-3 rounded-md px-3 py-2.5 text-[13px] transition-colors",
+            collapsed && "justify-center px-2",
+            settingsActive ? "bg-sidebar-hover text-sidebar-text font-medium" : "text-sidebar-muted hover:bg-sidebar-hover/50 hover:text-sidebar-text"
+          )}
+        >
+          {settingsActive ? (
+            <span className="absolute inset-y-1.5 start-0 w-[4px] rounded-r-md bg-primary-dark" aria-hidden />
+          ) : null}
+          <Settings className={cn("size-[18px] shrink-0 transition-colors", settingsActive ? "text-primary-dark" : "text-sidebar-muted group-hover:text-sidebar-text")} />
+          {collapsed ? <span className="sr-only">{settings.label}</span> : settings.label}
+        </Link>
+        
+        <div className={cn("mt-2 flex items-center gap-3 rounded-lg bg-sidebar-hover/30 p-2", collapsed && "justify-center p-1.5")}>
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-sidebar-hover font-heading text-[12px] font-bold text-white shadow-sm ring-1 ring-white/5">
+            {initials}
+          </div>
+          {collapsed ? null : (
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-heading text-[12px] font-semibold text-white">{user.full_name_ar || user.username}</p>
+              <p className="truncate text-[10px] text-sidebar-muted">{user.municipality_name || ROLE_LABELS[user.role]}</p>
+            </div>
+          )}
+          {collapsed ? null : (
+            <button
+              type="button"
+              onClick={logout}
+              title={T.nav.logout}
+              className="rounded-md p-1.5 text-sidebar-muted hover:bg-danger-dark/20 hover:text-danger-dark transition-colors"
+            >
+              <LogOut className="size-[15px]" />
+            </button>
+          )}
+        </div>
+      </div>
     </>
   );
 
-  const initials = (user.full_name_ar || user.username).slice(0, 1);
-
   return (
     <div className="flex min-h-screen bg-bg">
+      {/* Desktop Sidebar */}
       <aside
         className={cn(
-          "sticky top-0 hidden h-screen shrink-0 flex-col border-e border-line bg-sidebar text-sidebar-text md:flex",
-          collapsed ? "w-[72px]" : "w-60"
+          "sticky top-0 hidden h-screen shrink-0 flex-col border-e border-sidebar-muted/10 bg-sidebar text-sidebar-text shadow-xl transition-all duration-300 md:flex z-50",
+          collapsed ? "w-[72px]" : "w-64"
         )}
       >
         {sidebar}
       </aside>
 
+      {/* Mobile Drawer */}
       {mobileOpen ? (
         <div className="fixed inset-0 z-50 md:hidden">
-          <button className="absolute inset-0 bg-overlay" aria-label={T.nav.close} onClick={() => setMobileOpen(false)} />
-          <aside className="absolute inset-y-0 start-0 flex w-64 flex-col bg-sidebar text-sidebar-text shadow-(--shadow-float)">
+          <div className="absolute inset-0 bg-overlay backdrop-blur-sm transition-opacity" aria-label={T.nav.close} onClick={() => setMobileOpen(false)} />
+          <aside className="absolute inset-y-0 start-0 flex w-[280px] flex-col bg-sidebar text-sidebar-text shadow-2xl">
             <button
-              className="absolute end-3 top-3 rounded p-1 text-sidebar-muted hover:bg-sidebar-hover"
+              className="absolute end-4 top-6 rounded-full bg-sidebar-hover p-1.5 text-sidebar-muted hover:text-white transition-colors"
               onClick={() => setMobileOpen(false)}
               aria-label={T.nav.close}
             >
@@ -549,44 +571,54 @@ function ShellFrame({
       ) : null}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-40 flex h-14 items-center gap-2 border-b border-line bg-surface px-3 md:gap-3 md:px-5">
-          <button
-            className="rounded-(--radius-btn) p-2 text-ink-soft hover:bg-subtle md:hidden"
-            onClick={() => setMobileOpen(true)}
-            aria-label={T.nav.menu}
-          >
-            <Menu className="size-5" />
-          </button>
-          <button
-            className="hidden rounded-(--radius-btn) p-2 text-ink-soft hover:bg-subtle md:inline-flex"
-            onClick={toggleCollapsed}
-            aria-label={collapsed ? T.nav.expand : T.nav.collapse}
-          >
-            <DirCollapse collapsed={collapsed} className="size-5" />
-          </button>
-          <div className="hidden min-w-0 lg:block">
-            <p className="truncate font-heading text-sm font-semibold text-navy">{T.appName}</p>
-            <p className="truncate text-[11px] text-muted">{pageTitle(pathname)}</p>
-          </div>
-          <GlobalSearch role={role} />
-          <div className="ms-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
-            <NotificationBell role={role} />
-            <div className="hidden min-w-0 items-center gap-2.5 sm:flex">
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-light font-heading text-[13px] font-semibold text-primary-dark ring-2 ring-primary/15">
-                {initials}
-              </span>
-              <div className="hidden min-w-0 xl:block">
-                <p className="truncate font-heading text-[13.5px] font-semibold leading-snug text-navy">
-                  {user.full_name_ar || user.username}
-                </p>
-                <p className="mt-0.5 inline-block max-w-full truncate rounded-full bg-subtle px-2 py-0.5 text-[11px] font-medium text-ink-soft">
-                  {ROLE_LABELS[user.role]}
-                </p>
+        {/* Topbar: Desktop 2-row layout / Mobile 1-row */}
+        <header className="sticky top-0 z-40 bg-surface/95 backdrop-blur-md shadow-sm border-b border-line">
+          {/* Top Row: Breadcrumbs & Actions */}
+          <div className="flex h-14 items-center justify-between px-4 md:px-6">
+            <div className="flex items-center gap-3 min-w-0">
+              <button
+                className="rounded-md p-1.5 text-ink-soft hover:bg-subtle md:hidden transition-colors"
+                onClick={() => setMobileOpen(true)}
+                aria-label={T.nav.menu}
+              >
+                <Menu className="size-5" />
+              </button>
+              <button
+                className="hidden rounded-md p-1.5 text-ink-soft hover:bg-subtle md:inline-flex transition-colors"
+                onClick={toggleCollapsed}
+                aria-label={collapsed ? T.nav.expand : T.nav.collapse}
+              >
+                <DirCollapse collapsed={collapsed} className="size-5" />
+              </button>
+              
+              <div className="hidden items-center gap-2 text-[13px] text-muted lg:flex min-w-0">
+                <span>{T.appName}</span>
+                <ChevronRight className="size-3.5 shrink-0 rtl:rotate-180" />
+                <span className="font-semibold text-navy truncate">{pageTitle(pathname)}</span>
               </div>
             </div>
+
+            <div className="flex items-center gap-4 shrink-0">
+              <div className="hidden md:block w-72 lg:w-96">
+                 <GlobalSearch role={role} />
+              </div>
+              <div className="h-5 w-px bg-line hidden md:block" />
+              <NotificationBell role={role} />
+            </div>
+          </div>
+          
+          {/* Mobile Search Row */}
+          <div className="flex items-center px-4 pb-3 md:hidden">
+            <GlobalSearch role={role} />
           </div>
         </header>
-        <main className="mx-auto w-full max-w-[86rem] flex-1 px-4 py-4 md:px-5">{children}</main>
+
+        {/* Content Area */}
+        <main className="mx-auto w-full max-w-[90rem] flex-1 px-4 py-6 sm:px-6 lg:px-8 xl:py-8">
+          <div className="animate-fade-in">
+            {children}
+          </div>
+        </main>
       </div>
     </div>
   );

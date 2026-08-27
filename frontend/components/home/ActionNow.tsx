@@ -1,11 +1,10 @@
 "use client";
 
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
 import { queueLabel, rank, type ActionSource } from "@/components/dashboard/AttentionBoard";
-import { DirForward } from "@/components/i18n/DirIcon";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { RecordId } from "@/components/ui/Ledger";
 import { OverdueBadge } from "@/components/ui/OverdueBadge";
@@ -34,7 +33,7 @@ export function ActionNow({
   limit?: number;
   showDepartment?: boolean;
 }) {
-  useI18n();
+  const { locale } = useI18n();
   const [queue, setQueue] = useState<string | null>(null);
   const ranked = rank(sources);
   const filtered = queue ? ranked.filter((entry) => entry.queue === queue) : ranked;
@@ -42,27 +41,30 @@ export function ActionNow({
   const live = sources.filter((source) => source.block.count > 0);
   const total = sources.reduce((sum, source) => sum + source.block.count, 0);
 
+  const DirForward = locale === "ar" ? ChevronLeft : ChevronRight;
+
   return (
     <Section
       title={title ?? T.dashboard.actionCenter}
       hint={hint ?? T.dashboard.actionCenterHint}
       actions={
         total ? (
-          <span className="font-mono text-sm font-semibold text-navy" dir="ltr">
-            {total}
+          <span className="flex items-center gap-2 rounded-full bg-primary-light px-3 py-1 text-sm font-bold text-primary-dark ring-1 ring-primary/20">
+            <span className="font-mono">{total}</span>
+            <span className="text-[11px] uppercase tracking-wider">{T.dashboard.open}</span>
           </span>
         ) : null
       }
     >
       {live.length ? (
-        <div className="flex flex-wrap gap-1.5 border-b border-line px-4 py-3">
+        <div className="flex flex-wrap gap-2 border-b border-line bg-subtle/50 px-5 py-3">
           <button
             type="button"
             onClick={() => setQueue(null)}
             aria-pressed={queue === null}
             className={cn(
-              "rounded-full px-3 py-1 text-[12.5px] font-medium transition-colors",
-              queue === null ? "bg-navy text-white" : "bg-subtle text-ink-soft hover:text-ink"
+              "rounded-full px-4 py-1.5 text-[13px] font-bold transition-all duration-200",
+              queue === null ? "bg-navy text-white shadow-sm" : "bg-surface text-ink-soft hover:bg-surface hover:text-ink ring-1 ring-line"
             )}
           >
             {T.reports.filterAll}
@@ -74,12 +76,12 @@ export function ActionNow({
               onClick={() => setQueue((prev) => (prev === source.key ? null : source.key))}
               aria-pressed={queue === source.key}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12.5px] font-medium transition-colors",
-                queue === source.key ? "bg-navy text-white" : "bg-subtle text-ink-soft hover:text-ink"
+                "inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[13px] font-bold transition-all duration-200",
+                queue === source.key ? "bg-navy text-white shadow-sm" : "bg-surface text-ink-soft hover:bg-surface hover:text-ink ring-1 ring-line"
               )}
             >
               {queueLabel(source.key)}
-              <span className="font-mono" dir="ltr">
+              <span className={cn("flex size-5 items-center justify-center rounded-full text-[10px] font-mono", queue === source.key ? "bg-white/20 text-white" : "bg-subtle text-ink-soft")} dir="ltr">
                 {source.block.count}
               </span>
             </button>
@@ -94,36 +96,40 @@ export function ActionNow({
               const next = STATUS_NEXT_ACTION[item.status];
               const stage = stageForStatus(item.status);
               return (
-                <li key={item.id} className="px-4 py-4 transition-colors hover:bg-subtle/60">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
+                <li key={item.id} className="group relative overflow-hidden bg-surface px-5 py-5 transition-all duration-200 hover:bg-subtle/40">
+                  <div className="absolute start-0 top-0 bottom-0 w-1 bg-primary scale-y-0 opacity-0 group-hover:scale-y-100 group-hover:opacity-100 transition-all duration-300" aria-hidden />
+                  <div className="flex flex-wrap items-start justify-between gap-4">
                     <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-3">
                         <RecordId id={item.id} />
-                        <span className="rounded-md bg-subtle px-1.5 py-0.5 text-[11px] text-ink-soft">{reason}</span>
+                        <span className="rounded bg-navy/5 px-2 py-0.5 text-[11px] font-bold text-navy/70 tracking-wide uppercase">{reason}</span>
                         <OverdueBadge targetDate={item.target_date} overdue={item.overdue} />
                       </div>
-                      <p className="mt-2 text-[13px] font-semibold text-primary-dark">{next?.action ?? T.dashboard.open}</p>
+                      <p className="mt-3 text-[13px] font-bold text-primary-dark tracking-wide uppercase">{next?.action ?? T.dashboard.open}</p>
                       <Link
                         href={`${detailBase}/${item.id}`}
-                        className="mt-1 block text-[15px] font-medium leading-snug text-ink hover:text-primary-dark"
+                        className="mt-1 block font-heading text-[16px] font-semibold leading-snug text-navy hover:text-primary transition-colors"
                       >
                         {caseTitle(item.text, 110)}
                       </Link>
-                      <p className="mt-2 text-[12.5px] text-ink-soft">
-                        {showDepartment ? item.department_name : item.responsible_employee ?? T.team.unassigned}
-                        {showDepartment && item.responsible_employee ? ` · ${item.responsible_employee}` : ""}
-                        {` · ${stage.label} · `}
-                        <span dir="ltr">{formatDate(item.target_date)}</span>
-                      </p>
+                      <div className="mt-3 flex items-center gap-2 text-[12.5px] text-ink-soft">
+                        <span className="font-medium">{showDepartment ? item.department_name : item.responsible_employee ?? T.team.unassigned}</span>
+                        {showDepartment && item.responsible_employee ? <span className="text-muted/50">•</span> : null}
+                        {showDepartment && item.responsible_employee ? <span>{item.responsible_employee}</span> : null}
+                        <span className="text-muted/50">•</span>
+                        <span>{stage.label}</span>
+                        <span className="text-muted/50">•</span>
+                        <span className="font-mono text-muted" dir="ltr">{formatDate(item.target_date)}</span>
+                      </div>
                     </div>
-                    <div className="flex shrink-0 flex-col items-end gap-2">
+                    <div className="flex shrink-0 flex-col items-end justify-between gap-4 self-stretch">
                       <RiskBadge level={item.risk_level} />
                       <Link
                         href={`${detailBase}/${item.id}`}
-                        className="inline-flex items-center gap-1 rounded-(--radius-btn) bg-primary px-3 py-1.5 text-xs font-medium text-white hover:opacity-90"
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-surface px-4 py-2 text-[13px] font-bold text-navy ring-1 ring-line hover:bg-navy hover:text-white hover:ring-navy transition-all shadow-sm"
                       >
                         {T.dashboard.open}
-                        <DirForward className="size-3.5" />
+                        <DirForward className="size-4" />
                       </Link>
                     </div>
                   </div>
@@ -131,23 +137,23 @@ export function ActionNow({
               );
             })}
           </ul>
-          <footer className="border-t border-line bg-subtle px-4 py-2.5 text-center">
+          <footer className="border-t border-line bg-subtle/50 px-5 py-4 text-center">
             <Link
               href={viewAllHref}
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-dark hover:underline"
+              className="inline-flex items-center gap-2 text-[14px] font-bold text-primary-dark hover:text-primary transition-colors"
             >
               {T.dashboard.viewAll}
-              <DirForward className="size-4" />
+              <DirForward className="size-4.5" />
             </Link>
           </footer>
         </>
       ) : (
         <EmptyState
           compact
-          icon={<CheckCircle2 className="size-5" />}
+          icon={<CheckCircle2 className="size-6" />}
           title={T.dashboard.nothingPending}
           description={T.dashboard.nothingPendingHint}
-          className="border-0 shadow-none"
+          className="border-0 shadow-none py-10"
         />
       )}
     </Section>

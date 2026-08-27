@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, ClipboardList, Repeat2, Send, Stamp } from "lucide-react";
+import { CheckCircle2, ClipboardList, Repeat2, Send, Stamp, Clock, Building, BarChart4, AlertTriangle } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
@@ -93,43 +93,58 @@ function OverviewTab({ rec }: { rec: RecommendationDetail }) {
   const statement = parsed.sections.find((section) => section.id === "statement")?.body;
 
   return (
-    <div className="space-y-4">
-      <dl className="grid gap-x-8 gap-y-4 border-b border-line pb-5 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 bg-subtle/40 rounded-xl p-4 border border-line">
         <DataField label={T.case.lastActivity}>
           {activity ? (
-            <>
-              <span className="block">{TRAIL_ACTION_LABELS[activity.action] ?? activity.action}</span>
-              <span className="mt-0.5 block font-mono text-xs text-muted" dir="ltr">
+            <span className="flex flex-col">
+              <span className="font-bold text-ink">{TRAIL_ACTION_LABELS[activity.action] ?? activity.action}</span>
+              <span className="font-mono text-[11px] text-muted mt-0.5" dir="ltr">
                 {formatDateTime(activity.created_at)}
               </span>
-            </>
+            </span>
           ) : (
-            T.trail.empty
+            <span className="text-muted">{T.trail.empty}</span>
           )}
         </DataField>
-        <DataField label={T.case.report}>{rec.report_title}</DataField>
-        <DataField label={T.common.department}>{rec.department_name}</DataField>
-        <DataField label={T.create.priorityScore}>
-          <span dir="ltr">{rec.priority_score}</span>
+        <DataField label={T.case.report}>
+          <span className="font-medium text-ink">{rec.report_title}</span>
         </DataField>
-      </dl>
+        <DataField label={T.common.department}>
+          <span className="font-medium text-ink">{rec.department_name}</span>
+        </DataField>
+        <DataField label={T.create.priorityScore}>
+          <span className="font-mono font-bold text-navy" dir="ltr">{rec.priority_score}</span>
+        </DataField>
+      </div>
 
       {(condition || statement || parsed.preamble) && (
-        <section>
-          <h3 className="mb-3 font-heading text-sm font-semibold text-navy">{T.case.whyExists}</h3>
-          <div className="space-y-3">
-            {condition ? <ProseBlock label={T.create.condition}>{condition}</ProseBlock> : null}
-            {statement ? <ProseBlock label={T.create.statement}>{statement}</ProseBlock> : null}
+        <section className="bg-surface border border-line rounded-xl p-5 shadow-sm space-y-4">
+          <h3 className="font-heading text-[15px] font-bold text-navy flex items-center gap-2">
+            <span className="h-3.5 w-1 rounded-full bg-primary" aria-hidden />
+            {T.case.whyExists}
+          </h3>
+          <div className="space-y-4">
+            {condition ? (
+              <ProseBlock label={T.create.condition} className="bg-subtle/30 rounded-xl p-4 border border-line/45">
+                {condition}
+              </ProseBlock>
+            ) : null}
+            {statement ? (
+              <ProseBlock label={T.create.statement} className="bg-subtle/30 rounded-xl p-4 border border-line/45">
+                {statement}
+              </ProseBlock>
+            ) : null}
             {!condition && !statement && parsed.preamble ? (
-              <p className="line-clamp-6 whitespace-pre-wrap text-sm leading-[1.9] text-ink">{parsed.preamble}</p>
+              <p className="line-clamp-6 whitespace-pre-wrap text-sm leading-[1.8] text-ink font-medium bg-subtle/30 rounded-xl p-4 border border-line/45">{parsed.preamble}</p>
             ) : null}
           </div>
         </section>
       )}
 
       {rec.action_plan ? (
-        <section>
-          <p className="mb-1.5 text-xs font-medium text-muted">{T.case.progress}</p>
+        <section className="bg-surface border border-line rounded-xl p-5 shadow-sm">
+          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-muted">{T.case.progress}</p>
           <ProgressBar value={progress} label={T.case.progress} />
         </section>
       ) : null}
@@ -157,8 +172,8 @@ function StepControls({
   if (state === "blocked") return null;
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <label className="flex items-center gap-2 text-xs text-ink-soft">
+    <div className="flex flex-wrap items-center gap-4 bg-subtle/50 rounded-lg p-2.5 border border-line/50">
+      <label className="flex items-center gap-3 text-xs font-bold text-navy uppercase tracking-wider">
         {T.plan.progress}
         <input
           type="range"
@@ -169,14 +184,14 @@ function StepControls({
           disabled={step.is_done || action.mutation.isPending}
           onMouseUp={(event) => post({ progress_percent: Number(event.currentTarget.value) })}
           onTouchEnd={(event) => post({ progress_percent: Number(event.currentTarget.value) })}
-          className="h-1.5 w-32 accent-primary"
+          className="h-2 w-36 accent-primary bg-line rounded-lg appearance-none cursor-pointer"
           aria-label={`${T.plan.progress}: ${step.title}`}
         />
       </label>
       <Button
         type="button"
         variant={step.is_done ? "ghost" : "secondary"}
-        className="px-2.5 py-1 text-xs"
+        className="px-3.5 py-1.5 text-xs font-bold shadow-sm"
         disabled={action.mutation.isPending}
         onClick={() => post({ is_done: !step.is_done, progress_percent: step.is_done ? 0 : 100 })}
       >
@@ -247,15 +262,16 @@ function PlanTab({
   if (!rec.action_plan) {
     return (
       <EmptyState
-        icon={<ClipboardList className="size-6" />}
+        icon={<ClipboardList className="size-8" />}
         title={T.case.noPlanYet}
         description={T.case.notAvailableYet}
+        className="bg-surface py-12"
       />
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <ActionPlanTimeline
         rec={rec}
         renderStepActions={
@@ -266,14 +282,15 @@ function PlanTab({
       />
 
       {canMarkImplemented ? (
-        <Card title={T.plan.markImplemented}>
-          <p className="mb-3 text-sm leading-relaxed text-ink-soft">{T.plan.markImplementedHint}</p>
+        <Card title={T.plan.markImplemented} className="border-s-4 border-s-success">
+          <p className="mb-4 text-[13.5px] leading-relaxed text-ink-soft">{T.plan.markImplementedHint}</p>
           <ErrorBanner message={action.error} />
           <Button
             onClick={() => action.mutation.mutate({ path: "mark-implemented/" })}
             disabled={action.mutation.isPending}
+            className="font-bold gap-2 shadow-md"
           >
-            <CheckCircle2 className="size-4" />
+            <CheckCircle2 className="size-4.5" />
             {T.plan.markImplemented}
           </Button>
         </Card>
@@ -314,27 +331,27 @@ function ApprovalsTab({ rec }: { rec: RecommendationDetail }) {
   useI18n();
   const approvals = rec.approvals ?? [];
   if (!approvals.length) {
-    return <EmptyState icon={<Stamp className="size-6" />} title={T.case.noApprovalsYet} />;
+    return <EmptyState icon={<Stamp className="size-8" />} title={T.case.noApprovalsYet} className="bg-surface py-12" />;
   }
 
   return (
-    <Card title={T.case.approvals}>
-      <ul className="space-y-3">
+    <Card title={T.case.approvals} className="border-s-4 border-s-primary">
+      <ul className="space-y-4">
         {approvals.map((approval) => (
-          <li key={approval.id} className="rounded-(--radius-field) border border-line bg-subtle/40 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="font-medium text-ink">
+          <li key={approval.id} className="rounded-xl border border-line bg-subtle/30 p-5 hover:bg-subtle/50 transition-colors">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="font-bold text-navy text-[15px]">
                 {APPROVAL_TYPE_LABELS[approval.approval_type] ?? approval.approval_type}
               </p>
-              <span className="font-mono text-xs text-muted" dir="ltr">
+              <span className="font-mono text-[11px] font-semibold text-muted bg-surface px-2.5 py-0.5 rounded-full border border-line" dir="ltr">
                 {formatDateTime(approval.created_at)}
               </span>
             </div>
-            <p className="mt-1 text-xs text-ink-soft">
+            <p className="mt-1 text-[13px] font-medium text-ink-soft">
               {approval.approved_by_detail?.full_name_ar || approval.approved_by_detail?.username}
             </p>
             {approval.notes?.trim() ? (
-              <p className="mt-2 whitespace-pre-wrap text-[13px] leading-relaxed text-ink">{approval.notes}</p>
+              <p className="mt-3 whitespace-pre-wrap text-[13.5px] leading-relaxed text-ink bg-surface border border-line/60 rounded-lg p-3">{approval.notes}</p>
             ) : null}
           </li>
         ))}
@@ -351,15 +368,16 @@ function RecurrencePanel({ rec, action }: { rec: RecommendationDetail; action: W
   useI18n();
   if (!rec.is_recurring || rec.recurrence_confirmed) return null;
   return (
-    <Card title={T.case.recurrence}>
-      <Callout tone="warning" icon={<Repeat2 className="size-4" />} className="mb-3">
+    <Card title={T.case.recurrence} className="border-s-4 border-s-warning shadow-md">
+      <Callout tone="warning" icon={<Repeat2 className="size-4.5" />} className="mb-4">
         {T.ai.recurringLikely}
       </Callout>
       <ErrorBanner message={action.error} />
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-3">
         <Button
           onClick={() => action.mutation.mutate({ path: "confirm-recurrence/", body: { confirmed: true } })}
           disabled={action.mutation.isPending}
+          className="font-bold shadow-sm"
         >
           {T.case.confirmRecurrence}
         </Button>
@@ -367,6 +385,7 @@ function RecurrencePanel({ rec, action }: { rec: RecommendationDetail; action: W
           variant="ghost"
           onClick={() => action.mutation.mutate({ path: "confirm-recurrence/", body: { confirmed: false } })}
           disabled={action.mutation.isPending}
+          className="font-bold shadow-sm ring-1 ring-line"
         >
           {T.case.denyRecurrence}
         </Button>
@@ -389,13 +408,13 @@ function ClosurePanel({
 
   if (can("submit_for_closure", rec.status, role)) {
     return (
-      <Card title={T.verify.submitForClosure}>
+      <Card title={T.verify.submitForClosure} className="border-s-4 border-s-primary">
         <Field label={T.verify.closureNotes}>
           <TextArea rows={3} value={notes} onChange={(event) => setNotes(event.target.value)} />
         </Field>
         <ErrorBanner message={action.error} />
         <Button
-          className="mt-3"
+          className="mt-4 font-bold gap-2 shadow-md"
           onClick={() => action.mutation.mutate({ path: "submit-for-closure/", body: { notes } })}
           disabled={action.mutation.isPending}
         >
@@ -438,7 +457,6 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
   const [planDraft, setPlanDraft] = useState<PlanDraft>(() => emptyPlanDraft());
   const pickedTab = picked?.recId === id ? picked.tab : null;
 
-  /** The tab holding the action this role owes, marked so it is findable. */
   const awaitingTab: TabId | null = useMemo(() => {
     if (!rec) return null;
     if (can("respond", rec.status, role) || can("review_response", rec.status, role)) return "response";
@@ -492,7 +510,7 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
   const resolvedTab: TabId = pickedTab ?? urlTab ?? awaitingTab ?? "overview";
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <CaseHeader rec={rec} backHref={back.href} backLabel={back.label} />
       <CurrentActionBand
         rec={rec}
@@ -505,31 +523,31 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
       <SuccessBanner message={action.success} />
       {can("confirm_recurrence", rec.status, role) ? <RecurrencePanel rec={rec} action={action} /> : null}
 
-      <div className="overflow-hidden rounded-(--radius-card) border border-line bg-surface">
+      <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
         <Tabs
           items={tabs}
           value={resolvedTab}
           onChange={(nextTab) => setPicked({ recId: id, tab: nextTab as TabId })}
-          className="px-2"
+          className="px-4 bg-subtle/30 border-b border-line pt-2"
         />
 
-        <div className="p-4">
+        <div className="p-6">
           {resolvedTab === "overview" ? (
-            <>
+            <div className="space-y-6">
               <OverviewTab rec={rec} />
               <CaseStageAI rec={rec} role={role} tab="overview" />
-            </>
+            </div>
           ) : null}
 
           {resolvedTab === "finding" ? (
-            <>
+            <div className="space-y-6">
               <FindingSection rec={rec} />
               <CaseStageAI rec={rec} role={role} tab="finding" />
-            </>
+            </div>
           ) : null}
 
           {resolvedTab === "response" ? (
-            <>
+            <div className="space-y-6">
               {can("respond", rec.status, role) ? (
                 <RespondForm
                   rec={rec}
@@ -563,14 +581,14 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
                 <ResponseRecord rec={rec} />
               )}
               <CaseStageAI rec={rec} role={role} tab="response" />
-            </>
+            </div>
           ) : null}
 
           {resolvedTab === "plan" ? (
-            <>
+            <div className="space-y-6">
               <PlanTab rec={rec} role={role} action={action} />
               <CaseStageAI rec={rec} role={role} tab="plan" />
-            </>
+            </div>
           ) : null}
 
           {resolvedTab === "evidence" ? (
@@ -584,7 +602,7 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
           ) : null}
 
           {resolvedTab === "verification" ? (
-            <div className="space-y-4">
+            <div className="space-y-6">
               <VerificationPanel rec={rec} action={action} canVerify={can("verify", rec.status, role)} />
               <ClosurePanel rec={rec} role={role} action={action} />
               <CaseStageAI rec={rec} role={role} tab="verification" />

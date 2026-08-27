@@ -63,14 +63,14 @@ export function AIActionPlanSuggestion({
     <AIPanel
       title={T.ai.suggestedPlan}
       actions={
-        <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={() => mutation.mutate()} disabled={mutation.isPending}>
+        <div className="flex flex-wrap gap-2.5">
+          <Button variant="secondary" onClick={() => mutation.mutate()} disabled={mutation.isPending} className="font-bold text-xs ring-1 ring-line">
             {out ? T.ai.regenerate : T.ai.generatePlan}
           </Button>
           {out ? (
             <>
-              <Button onClick={() => onAccept(out)}>{T.ai.acceptPlan}</Button>
-              <Button variant="ghost" onClick={() => mutation.reset()}>
+              <Button onClick={() => onAccept(out)} className="font-bold text-xs shadow-sm">{T.ai.acceptPlan}</Button>
+              <Button variant="ghost" onClick={() => mutation.reset()} className="font-bold text-xs">
                 {T.ai.discardPlan}
               </Button>
             </>
@@ -78,45 +78,49 @@ export function AIActionPlanSuggestion({
         </div>
       }
     >
-      <p className="mb-2 text-xs text-ai-dark">{T.ai.draftOnly}</p>
+      <p className="mb-3 text-xs font-bold text-ai-dark uppercase tracking-wide">{T.ai.draftOnly}</p>
       <ErrorBanner message={error} />
       <AIJobStatus job={mutation.data} busy={mutation.isPending} />
       {out ? (
-        <div className="space-y-3 text-sm">
-          <p className="leading-relaxed text-ink">{out.objective}</p>
-          <ol className="space-y-2">
+        <div className="space-y-4 text-[13.5px]">
+          <p className="leading-relaxed text-ink font-medium bg-surface rounded-xl p-4 border border-line">{out.objective}</p>
+          <ol className="space-y-3">
             {(out.steps ?? []).map((step, index) => (
               <li
                 key={`${step.title}-${index}`}
-                className="rounded-(--radius-field) border border-ai/20 bg-surface p-3"
+                className="rounded-xl border border-ai/15 bg-surface/50 p-4.5 shadow-sm"
               >
-                <div className="flex items-baseline gap-2">
-                  <span className="font-mono text-[11px] text-muted" dir="ltr">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex size-5 items-center justify-center rounded-full bg-subtle font-mono text-[10px] font-bold text-ink-soft" dir="ltr">
                     {index + 1}
                   </span>
-                  <span className="font-heading text-[14px] font-semibold text-ink">{step.title}</span>
+                  <span className="font-heading text-[14.5px] font-bold text-navy">{step.title}</span>
                 </div>
-                <p className="mt-1 leading-relaxed text-ink-soft">{step.description}</p>
-                <p className="mt-1.5 font-mono text-[11px] text-muted" dir="ltr">
-                  {step.suggested_responsible_role} · {step.suggested_duration_days}d
-                </p>
+                <p className="mt-2 leading-relaxed text-ink-soft font-medium">{step.description}</p>
+                <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] font-bold text-muted uppercase tracking-wider bg-subtle/55 p-2 rounded-lg border border-line/45">
+                  <span>{step.suggested_responsible_role}</span>
+                  <span className="text-muted/50">•</span>
+                  <span className="font-mono" dir="ltr">{step.suggested_duration_days}d</span>
+                </div>
                 {step.required_evidence ? (
-                  <p className="mt-1 text-xs text-ink-soft">
-                    <span className="text-muted">{T.ai.requiredEvidencePrefix} </span>
+                  <div className="mt-3 border-t border-line/50 pt-2.5 text-[12px] font-medium text-ink-soft">
+                    <span className="text-muted font-bold uppercase tracking-wider text-[10px] block mb-0.5">{T.ai.requiredEvidencePrefix}</span>
                     {step.required_evidence}
-                  </p>
+                  </div>
                 ) : null}
               </li>
             ))}
           </ol>
-          <AIConfidenceBadge value={typeof out.confidence === "number" ? out.confidence : null} />
-          {mutation.data?.analysis ? (
-            <AIMeta
-              provider={mutation.data.analysis.provider}
-              model={mutation.data.analysis.model}
-              createdAt={mutation.data.analysis.created_at}
-            />
-          ) : null}
+          <div className="flex items-center justify-between border-t border-ai/10 pt-4">
+            <AIConfidenceBadge value={typeof out.confidence === "number" ? out.confidence : null} />
+            {mutation.data?.analysis ? (
+              <AIMeta
+                provider={mutation.data.analysis.provider}
+                model={mutation.data.analysis.model}
+                createdAt={mutation.data.analysis.created_at}
+              />
+            ) : null}
+          </div>
         </div>
       ) : null}
     </AIPanel>

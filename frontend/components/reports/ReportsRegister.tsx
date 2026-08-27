@@ -1,11 +1,10 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { CalendarClock, FileText, LayoutList, Plus, Rows3, Search, X } from "lucide-react";
+import { CalendarClock, FileText, LayoutList, Plus, Rows3, Search, X, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
-import { DirForward } from "@/components/i18n/DirIcon";
 import { ReportPipeline, REPORT_STATUS_FAMILY, type ReportStatus } from "@/components/reports/ReportPipeline";
 import { Button, ErrorBanner, Select, TextInput } from "@/components/ui/Base";
 import { EmptyState, TableSkeleton } from "@/components/ui/EmptyState";
@@ -63,64 +62,66 @@ function deadlineOverdue(report: AuditReport) {
 }
 
 function ReportCard({ report }: { report: AuditReport }) {
-  useI18n();
+  const { locale } = useI18n();
   const late = deadlineOverdue(report);
+  const DirForward = locale === "ar" ? ChevronLeft : ChevronRight;
+
   return (
     <Link
       href={`/audit/reports/${report.id}`}
       className={cn(
-        "group block rounded-(--radius-card) border bg-surface p-4 transition-colors hover:border-primary/40 hover:shadow-(--shadow-card)",
-        late ? "border-danger/30" : "border-line"
+        "group block rounded-xl border bg-surface p-5 transition-all duration-200 hover:border-primary/40 hover:shadow-md",
+        late ? "border-danger/30 border-s-4 border-s-danger" : "border-line border-s-4 border-s-primary"
       )}
     >
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <RecordId id={report.id} prefix="RPT" />
-            <span className="rounded-md bg-subtle px-1.5 py-0.5 text-[11px] text-ink-soft">
+            <span className="rounded-full bg-subtle px-2.5 py-0.5 text-[11px] font-bold text-ink-soft border border-line">
               {ENGAGEMENT_LABELS[report.engagement_type]}
             </span>
             {late ? (
-              <span className="rounded-md bg-danger-light px-1.5 py-0.5 text-[11px] font-medium text-danger-dark">
+              <span className="rounded-full bg-danger-light px-2.5 py-0.5 text-[11px] font-bold text-danger-dark ring-1 ring-danger/20">
                 {T.reports.overdueDeadline}
               </span>
             ) : null}
           </div>
-          <h3 className="mt-1.5 font-heading text-[15px] font-semibold leading-relaxed text-ink group-hover:text-primary-dark">
+          <h3 className="mt-3 font-heading text-[16px] font-semibold leading-relaxed text-navy group-hover:text-primary transition-colors">
             {report.title}
           </h3>
-          <p className="mt-1 text-[13px] font-medium text-primary-dark">{nextAction(report)}</p>
+          <p className="mt-1 text-[13px] font-bold text-primary-dark uppercase tracking-wide">{nextAction(report)}</p>
         </div>
 
-        <div className="flex shrink-0 items-center gap-3">
+        <div className="flex shrink-0 items-center gap-4">
           <div className="text-end">
             <StatusBadge
               status={REPORT_STATUS_FAMILY[report.status]}
               label={REPORT_STATUS_LABELS[report.status]}
             />
-            <p className="mt-1.5 font-mono text-[11px] text-muted" dir="ltr">
+            <p className="mt-1.5 font-mono text-[11px] font-bold text-muted" dir="ltr">
               {report.recommendations_count} {T.reports.recCount}
             </p>
           </div>
-          <DirForward className="size-4 text-muted" />
+          <DirForward className="size-5 text-muted group-hover:text-primary transition-colors" />
         </div>
       </div>
 
-      <dl className="mt-3 grid gap-x-4 gap-y-1 border-t border-line pt-3 text-xs text-ink-soft sm:grid-cols-3">
+      <dl className="mt-4 grid gap-x-4 gap-y-2 border-t border-line pt-4 text-[13px] bg-subtle/30 rounded-lg p-3 sm:grid-cols-3">
         <div>
-          <dt className="text-muted">{T.common.department}</dt>
-          <dd className="mt-0.5 text-ink">{report.department_name}</dd>
+          <dt className="text-muted font-semibold text-[11px] uppercase tracking-wider mb-0.5">{T.common.department}</dt>
+          <dd className="font-medium text-ink">{report.department_name}</dd>
         </div>
         <div>
-          <dt className="text-muted">{T.create.auditor}</dt>
-          <dd className="mt-0.5 text-ink">
+          <dt className="text-muted font-semibold text-[11px] uppercase tracking-wider mb-0.5">{T.create.auditor}</dt>
+          <dd className="font-medium text-ink">
             {report.created_by_detail?.full_name_ar || report.created_by_detail?.username || "—"}
           </dd>
         </div>
         <div>
-          <dt className="text-muted">{T.create.deadline}</dt>
-          <dd className="mt-0.5 inline-flex items-center gap-1.5 text-ink">
-            <CalendarClock className="size-3.5 text-muted" />
+          <dt className="text-muted font-semibold text-[11px] uppercase tracking-wider mb-0.5">{T.create.deadline}</dt>
+          <dd className="inline-flex items-center gap-1.5 font-medium text-ink">
+            <CalendarClock className="size-4 text-muted" />
             <time className="font-mono" dir="ltr">
               {formatDate(report.response_deadline)}
             </time>
@@ -128,13 +129,13 @@ function ReportCard({ report }: { report: AuditReport }) {
         </div>
       </dl>
 
-      <ReportPipeline status={report.status} compact className="mt-3" />
+      <ReportPipeline status={report.status} compact className="mt-4" />
     </Link>
   );
 }
 
 export function ReportsRegister() {
-  useI18n();
+  const { locale } = useI18n();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<ReportStatus | "all">("all");
   const [department, setDepartment] = useState("");
@@ -193,15 +194,15 @@ export function ReportsRegister() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2 rounded-(--radius-card) border border-line bg-surface p-3">
-        <div className="relative min-w-[220px] flex-1">
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-surface p-4 shadow-sm">
+        <div className="relative min-w-[240px] flex-1">
           <Search className="pointer-events-none absolute inset-y-0 start-3 my-auto size-4 text-muted" />
           <TextInput
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder={T.reports.searchPlaceholder}
-            className="ps-9"
+            className="ps-9 bg-subtle/50 focus:bg-surface transition-all"
             aria-label={T.common.search}
           />
         </div>
@@ -209,7 +210,7 @@ export function ReportsRegister() {
         <Select
           value={department}
           onChange={(event) => setDepartment(event.target.value)}
-          className="w-auto min-w-[10rem]"
+          className="w-auto min-w-[11rem] font-medium"
           aria-label={T.common.department}
         >
           <option value="">{T.common.department}: {T.common.all}</option>
@@ -223,7 +224,7 @@ export function ReportsRegister() {
         <Select
           value={engagement}
           onChange={(event) => setEngagement(event.target.value)}
-          className="w-auto min-w-[9rem]"
+          className="w-auto min-w-[10rem] font-medium"
           aria-label={T.create.engagement}
         >
           <option value="">{T.create.engagement}: {T.common.all}</option>
@@ -234,7 +235,7 @@ export function ReportsRegister() {
         <Select
           value={sort}
           onChange={(event) => setSort(event.target.value as SortId)}
-          className="w-auto"
+          className="w-auto font-medium"
           aria-label={T.register.sortBy}
         >
           <option value="newest">{T.reports.sortNewest}</option>
@@ -243,29 +244,29 @@ export function ReportsRegister() {
           <option value="title">{T.reports.sortTitle}</option>
         </Select>
 
-        <div className="flex overflow-hidden rounded-(--radius-btn) border border-line">
+        <div className="flex overflow-hidden rounded-lg border border-line shadow-sm">
           <button
             type="button"
             onClick={() => setView("list")}
             aria-pressed={view === "list"}
             aria-label={T.register.viewList}
-            className={cn("p-2 transition-colors", view === "list" ? "bg-primary text-white" : "text-ink-soft")}
+            className={cn("p-2.5 transition-colors", view === "list" ? "bg-primary text-white" : "text-ink-soft hover:bg-subtle")}
           >
-            <LayoutList className="size-4" />
+            <LayoutList className="size-4.5" />
           </button>
           <button
             type="button"
             onClick={() => setView("compact")}
             aria-pressed={view === "compact"}
             aria-label={T.register.viewCompact}
-            className={cn("p-2 transition-colors", view === "compact" ? "bg-primary text-white" : "text-ink-soft")}
+            className={cn("p-2.5 transition-colors", view === "compact" ? "bg-primary text-white" : "text-ink-soft hover:bg-subtle")}
           >
-            <Rows3 className="size-4" />
+            <Rows3 className="size-4.5" />
           </button>
         </div>
       </div>
 
-      <div className="scrollbar-thin flex gap-1.5 overflow-x-auto pb-1">
+      <div className="scrollbar-thin flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
         {STATUS_FILTERS.map((item) => (
           <button
             key={item}
@@ -273,14 +274,14 @@ export function ReportsRegister() {
             onClick={() => setStatus(item)}
             aria-pressed={status === item}
             className={cn(
-              "whitespace-nowrap rounded-full border px-3 py-1.5 text-[12.5px] font-medium transition-colors",
+              "whitespace-nowrap rounded-full border px-4 py-2 text-[13px] font-bold transition-all duration-200",
               status === item
-                ? "border-primary bg-primary text-white"
-                : "border-line bg-surface text-ink-soft hover:border-primary/40 hover:text-primary-dark"
+                ? "border-primary bg-primary text-white shadow-sm"
+                : "border-line bg-surface text-ink-soft hover:border-primary/45 hover:text-primary-dark"
             )}
           >
             {item === "all" ? T.reports.filterAll : REPORT_STATUS_LABELS[item]}
-            <span className="ms-1.5 font-mono text-[11px] opacity-70" dir="ltr">
+            <span className={cn("ms-2 font-mono text-[11px] font-bold px-1.5 py-0.5 rounded-full", status === item ? "bg-white/20 text-white" : "bg-subtle text-ink-soft")} dir="ltr">
               {counts[item] ?? 0}
             </span>
           </button>
@@ -288,8 +289,8 @@ export function ReportsRegister() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm text-ink-soft">
-          <span className="font-mono font-semibold text-ink" dir="ltr">
+        <span className="text-sm font-medium text-ink-soft">
+          <span className="font-mono font-bold text-navy bg-subtle px-2 py-0.5 rounded border border-line" dir="ltr">
             {visible.length}
           </span>{" "}
           {T.reports.resultCount}
@@ -304,17 +305,17 @@ export function ReportsRegister() {
               if (chip.key === "engagement") setEngagement("");
               if (chip.key === "search") setSearch("");
             }}
-            className="inline-flex items-center gap-1 rounded-md border border-primary/25 bg-primary-light px-2 py-0.5 text-xs font-medium text-primary-dark hover:bg-primary/15"
+            className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary-light/50 px-3 py-1 text-xs font-bold text-primary-dark transition-all hover:bg-primary/20 hover:border-primary/40"
           >
             {chip.label}
-            <X className="size-3" />
+            <X className="size-3.5" />
           </button>
         ))}
         {chips.length ? (
           <button
             type="button"
             onClick={clearFilters}
-            className="text-xs font-medium text-ink-soft hover:text-ink hover:underline"
+            className="text-xs font-bold text-primary-dark hover:text-primary hover:underline ml-2"
           >
             {T.register.clearFilters}
           </button>
@@ -327,12 +328,13 @@ export function ReportsRegister() {
         <ErrorBanner message={T.common.error} onRetry={() => refetch()} />
       ) : visible.length === 0 ? (
         <EmptyState
-          icon={<FileText className="size-6" />}
+          icon={<FileText className="size-8" />}
           title={all.length ? T.empty.search : T.reports.empty}
           description={all.length ? T.register.clearFilters : T.reports.emptyHint}
+          className="bg-surface py-16"
         />
       ) : view === "list" ? (
-        <div className="space-y-2.5">
+        <div className="space-y-3.5">
           {visible.map((report) => (
             <ReportCard key={report.id} report={report} />
           ))}
@@ -352,17 +354,17 @@ export function ReportsRegister() {
           {visible.map((report) => {
             const late = deadlineOverdue(report);
             return (
-              <tr key={report.id} className="transition-colors hover:bg-subtle">
+              <tr key={report.id} className="group transition-colors hover:bg-subtle/60">
                 <LedgerCell mono>
-                  <Link href={`/audit/reports/${report.id}`} className="text-primary-dark hover:underline">
+                  <Link href={`/audit/reports/${report.id}`} className="font-bold text-primary hover:text-primary-dark hover:underline">
                     <RecordId id={report.id} prefix="RPT" />
                   </Link>
                 </LedgerCell>
                 <LedgerCell>
-                  <Link href={`/audit/reports/${report.id}`} className="hover:text-primary-dark hover:underline">
+                  <Link href={`/audit/reports/${report.id}`} className="font-semibold text-ink group-hover:text-primary transition-colors">
                     {report.title}
                   </Link>
-                  <p className="mt-0.5 text-[11px] text-muted">{ENGAGEMENT_LABELS[report.engagement_type]}</p>
+                  <p className="mt-0.5 text-[11px] font-semibold text-muted/80">{ENGAGEMENT_LABELS[report.engagement_type]}</p>
                 </LedgerCell>
                 <LedgerCell>{report.department_name}</LedgerCell>
                 <LedgerCell>
@@ -372,15 +374,15 @@ export function ReportsRegister() {
                   />
                 </LedgerCell>
                 <LedgerCell mono>
-                  <span dir="ltr">{report.recommendations_count}</span>
+                  <span className="font-mono font-bold text-navy" dir="ltr">{report.recommendations_count}</span>
                 </LedgerCell>
                 <LedgerCell mono>
-                  <span className={late ? "font-semibold text-danger-dark" : undefined} dir="ltr">
+                  <span className={cn("font-mono font-medium", late ? "font-bold text-danger-dark" : "text-muted")} dir="ltr">
                     {formatDate(report.response_deadline)}
                   </span>
                 </LedgerCell>
                 <LedgerCell>
-                  <span className="text-ink">{nextAction(report)}</span>
+                  <span className="text-[13px] font-medium text-ink-soft">{nextAction(report)}</span>
                 </LedgerCell>
               </tr>
             );
@@ -389,10 +391,10 @@ export function ReportsRegister() {
       )}
 
       {!all.length && !isLoading && !isError ? (
-        <div className="text-center">
+        <div className="text-center pt-4">
           <Link href="/audit/reports/new">
-            <Button>
-              <Plus className="size-4" />
+            <Button className="font-bold shadow-md">
+              <Plus className="size-4.5" />
               {T.reports.addReport}
             </Button>
           </Link>

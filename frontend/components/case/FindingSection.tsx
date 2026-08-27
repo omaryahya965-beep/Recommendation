@@ -24,53 +24,56 @@ export function FindingSection({
 
   return (
     <article className="space-y-6">
-      <header className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="font-heading text-base font-semibold text-navy">{T.case.whyExists}</h2>
+      <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-line pb-3">
+        <h2 className="font-heading text-[16px] font-bold text-navy">{T.case.whyExists}</h2>
         {actions}
       </header>
 
       {parsed.structured ? (
         <div className="space-y-5">
           {parsed.preamble ? (
-            <p className="whitespace-pre-wrap text-sm leading-[1.9] text-ink">{parsed.preamble}</p>
+            <p className="whitespace-pre-wrap text-sm leading-[1.8] text-ink font-medium bg-subtle/30 rounded-xl p-4 border border-line">{parsed.preamble}</p>
           ) : null}
-          {parsed.sections.map((section) => (
-            <ProseBlock key={section.id} label={section.heading}>
-              {section.body}
-            </ProseBlock>
-          ))}
+          <div className="grid gap-4">
+            {parsed.sections.map((section) => (
+              <ProseBlock key={section.id} label={section.heading} className="bg-surface rounded-xl p-4 border border-line/60 shadow-sm">
+                {section.body}
+              </ProseBlock>
+            ))}
+          </div>
         </div>
       ) : parsed.preamble ? (
-        <p className="whitespace-pre-wrap text-sm leading-[1.9] text-ink">{parsed.preamble}</p>
+        <p className="whitespace-pre-wrap text-sm leading-[1.8] text-ink font-medium bg-subtle/30 rounded-xl p-4 border border-line">{parsed.preamble}</p>
       ) : (
-        <EmptyState icon={<ScrollText className="size-6" />} title={T.empty.generic} className="border-dashed shadow-none" />
+        <EmptyState icon={<ScrollText className="size-8" />} title={T.empty.generic} className="border-dashed shadow-none py-10" />
       )}
 
       {rec.root_cause?.trim() ? (
         <section className="border-t border-line pt-5">
-          <h3 className="mb-2 text-xs font-semibold text-muted">{T.case.rootCause}</h3>
-          <p className="whitespace-pre-wrap text-sm leading-[1.9] text-ink">{rec.root_cause}</p>
+          <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-muted">{T.case.rootCause}</h3>
+          <p className="whitespace-pre-wrap text-sm leading-[1.8] text-ink font-medium bg-subtle/30 rounded-xl p-4 border border-line">{rec.root_cause}</p>
         </section>
       ) : null}
 
       {rec.is_recurring ? (
         <Callout
           tone={rec.recurrence_confirmed ? "danger" : "warning"}
-          icon={<Repeat2 className="size-4" />}
+          icon={<Repeat2 className="size-4.5" />}
           title={rec.recurrence_confirmed ? T.case.recurrenceConfirmed : T.common.recurringBadge}
+          className="shadow-sm border-s-4"
         >
           {rec.similar_recommendation_text ? (
-            <p className="leading-relaxed">
+            <p className="leading-relaxed text-[13px] font-medium">
               {T.case.recurrenceOf}{" "}
-              <span className="font-mono" dir="ltr">
+              <span className="font-mono font-bold" dir="ltr">
                 REC-{String(rec.similar_recommendation).padStart(4, "0")}
               </span>
               : {rec.similar_recommendation_text}
             </p>
           ) : null}
           {typeof rec.similarity_score === "number" ? (
-            <p className="mt-1 text-xs">
-              {T.case.similarity}: <span dir="ltr">{Math.round(rec.similarity_score * 100)}%</span>
+            <p className="mt-1.5 text-xs font-bold">
+              {T.case.similarity}: <span className="font-mono" dir="ltr">{Math.round(rec.similarity_score * 100)}%</span>
             </p>
           ) : null}
         </Callout>

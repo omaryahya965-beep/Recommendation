@@ -60,6 +60,12 @@
   --color-stone: #eef2f1;
   --color-paper: #ffffff;
 
+  /* New zone tokens for structural layout */
+  --color-zone-bg: var(--color-bg);
+  --color-zone-surface: var(--color-surface);
+  --color-zone-panel: var(--color-elevated);
+  --color-zone-header: var(--color-surface);
+
   --font-heading: var(--font-kufi), "Noto Kufi Arabic", sans-serif;
   --font-display: var(--font-naskh), "Noto Naskh Arabic", serif;
   --font-body: var(--font-plex), "IBM Plex Sans Arabic", sans-serif;
@@ -71,10 +77,12 @@
   --radius-dialog: 10px;
   --radius-container: 10px;
   --radius-panel: 18px;
+  --radius-section: 12px;
 
   --shadow-card: 0 1px 0 rgb(20 32 30 / 0.05);
   --shadow-float: 0 12px 28px rgb(20 32 30 / 0.12);
   --shadow-panel: 0 8px 28px rgb(20 32 30 / 0.08);
+  --shadow-section: 0 4px 14px rgb(20 32 30 / 0.04);
 }
 
 [data-theme="dark"] {
@@ -130,9 +138,16 @@
   --color-brass-tint: #3a3018;
   --color-stone: #12181c;
   --color-paper: #1c252b;
+  
+  --color-zone-bg: var(--color-bg);
+  --color-zone-surface: var(--color-surface);
+  --color-zone-panel: var(--color-elevated);
+  --color-zone-header: var(--color-surface);
+
   --shadow-card: 0 1px 0 rgb(255 255 255 / 0.03), 0 8px 20px rgb(0 0 0 / 0.28);
   --shadow-float: 0 16px 40px rgb(0 0 0 / 0.45);
   --shadow-panel: 0 10px 32px rgb(0 0 0 / 0.38);
+  --shadow-section: 0 4px 14px rgb(0 0 0 / 0.15);
 }
 
 html {
@@ -203,6 +218,24 @@ select {
   scrollbar-color: var(--color-line) transparent;
 }
 
+/* Zone Structural Utilities */
+.zone-header {
+  background: var(--color-zone-header);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.zone-content {
+  background: var(--color-zone-bg);
+}
+
+.zone-panel {
+  background: var(--color-zone-panel);
+  border-radius: var(--radius-section);
+  box-shadow: var(--shadow-section);
+  border: 1px solid var(--color-line);
+}
+
+/* Animations */
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -214,6 +247,45 @@ select {
   }
 }
 
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
 .animate-fade-in {
-  animation: fade-in 180ms ease-out;
+  animation: fade-in 180ms ease-out forwards;
+}
+
+.animate-slide-up {
+  animation: slide-up 250ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-scale-in {
+  animation: scale-in 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

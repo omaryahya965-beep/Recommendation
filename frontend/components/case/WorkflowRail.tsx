@@ -8,9 +8,9 @@ import type { RecommendationStatus, Role } from "@/lib/types";
 import { isWaitingOn, type StageState, visualSnapshot } from "@/lib/workflow";
 
 const STATE_DOT: Record<StageState, string> = {
-  completed: "border-primary/40 bg-primary text-white",
-  current: "border-inverse bg-inverse text-on-inverse ring-4 ring-primary/20",
-  returned: "border-danger bg-danger-light text-danger-dark ring-4 ring-danger/15",
+  completed: "border-primary/20 bg-primary text-white shadow-sm",
+  current: "border-navy bg-navy text-white ring-4 ring-primary/20 shadow-md",
+  returned: "border-danger bg-danger text-white ring-4 ring-danger/15 shadow-md",
   next: "border-line bg-subtle text-muted",
   skipped: "border-line bg-subtle text-muted",
 };
@@ -34,16 +34,16 @@ export function WorkflowRail({
   const yours = role ? isWaitingOn(status, role) : false;
 
   return (
-    <section className={cn("overflow-hidden border-b border-line pb-4", className)}>
-      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="font-heading text-sm font-semibold text-navy">{T.workflow.title}</h2>
+    <section className={cn("overflow-hidden border-b border-line pb-5", className)}>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="font-heading text-sm font-bold text-navy uppercase tracking-wider">{T.workflow.title}</h2>
         {yours ? (
-          <p className="text-[12px] font-semibold text-warning-dark">{T.workflow.actNow}</p>
+          <p className="text-[12px] font-bold text-warning-dark bg-warning-light/50 px-2.5 py-0.5 rounded-full border border-warning/20 ring-1 ring-warning/10">{T.workflow.actNow}</p>
         ) : null}
       </div>
 
-      <div className="scrollbar-thin overflow-x-auto">
-        <ol className="flex min-w-[920px] items-start gap-0">
+      <div className="scrollbar-thin overflow-x-auto pb-2">
+        <ol className="flex min-w-[920px] items-start gap-0 px-2">
           {beats.map((beat, index) => {
             const isLast = index === beats.length - 1;
             const done = beat.state === "completed";
@@ -54,44 +54,44 @@ export function WorkflowRail({
                   <span
                     aria-hidden
                     className={cn(
-                      "h-px flex-1",
+                      "h-1 flex-1 rounded-full",
                       index === 0
                         ? "opacity-0"
                         : done || here
                           ? "bg-primary"
-                          : "bg-line"
+                          : "bg-line/60"
                     )}
                   />
                   <span
                     className={cn(
-                      "flex shrink-0 items-center justify-center rounded-full border font-mono font-semibold",
-                      here ? "size-9 text-[13px]" : "size-5 text-[10px]",
+                      "flex shrink-0 items-center justify-center rounded-full border font-mono font-bold transition-all duration-200",
+                      here ? "size-10 text-[14px]" : "size-6 text-[11px]",
                       STATE_DOT[beat.state]
                     )}
                   >
                     {done ? (
-                      <Check className="size-3" strokeWidth={3} />
+                      <Check className="size-3.5" strokeWidth={3.5} />
                     ) : beat.state === "returned" ? (
-                      <RotateCcw className="size-3.5" strokeWidth={2.5} />
+                      <RotateCcw className="size-4" strokeWidth={3} />
                     ) : here ? (
                       index + 1
                     ) : (
-                      <span className="size-1.5 rounded-full bg-current opacity-40" />
+                      <span className="size-2 rounded-full bg-current opacity-40" />
                     )}
                   </span>
                   <span
                     aria-hidden
-                    className={cn("h-px flex-1", isLast ? "opacity-0" : done ? "bg-primary" : "bg-line")}
+                    className={cn("h-1 flex-1 rounded-full", isLast ? "opacity-0" : done ? "bg-primary" : "bg-line/60")}
                   />
                 </div>
                 <p
                   className={cn(
-                    "mt-1.5 px-0.5 text-center leading-snug",
+                    "mt-2.5 px-1.5 text-center leading-snug",
                     here
-                      ? "text-[12px] font-bold text-navy"
+                      ? "text-[12.5px] font-bold text-navy"
                       : done
-                        ? "text-[11px] text-ink-soft"
-                        : "text-[11px] text-muted"
+                        ? "text-[11.5px] font-semibold text-ink-soft"
+                        : "text-[11.5px] font-medium text-muted"
                   )}
                 >
                   {beat.label}
@@ -99,7 +99,7 @@ export function WorkflowRail({
                 {here ? (
                   <span
                     className={cn(
-                      "mt-1 rounded-full px-1.5 py-px text-[10px] font-semibold",
+                      "mt-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider",
                       beat.state === "returned"
                         ? "bg-danger-light text-danger-dark"
                         : "bg-inverse text-on-inverse"

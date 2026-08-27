@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ArrowUpRight, Check, Eye, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/Base";
 import { RiskBadge } from "@/components/ui/RiskBadge";
@@ -17,6 +18,15 @@ import {
   whyItArrived,
 } from "@/lib/notifications";
 import type { AppNotification, Role } from "@/lib/types";
+
+function DetailField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-line bg-subtle/40 p-3.5">
+      <dt className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1">{label}</dt>
+      <dd className="text-[13.5px] font-medium leading-relaxed text-ink">{children}</dd>
+    </div>
+  );
+}
 
 export function NotificationDetail({
   item,
@@ -39,92 +49,96 @@ export function NotificationDetail({
 
   return (
     <aside className="space-y-5">
-      <header className="border-b border-line pb-4">
-        <p className="text-[12px] font-semibold text-navy">
+      {/* Header */}
+      <header className="border-b border-line pb-5">
+        <p className="text-[11.5px] font-bold uppercase tracking-wider text-ai-dark">
           {meta.marker} {meta.label}
         </p>
         {item.recommendation ? (
           <>
-            <p className="mt-2 font-mono text-sm text-muted" dir="ltr">
+            <p className="mt-2 font-mono text-[13px] font-bold text-muted" dir="ltr">
               {recordCode(item.recommendation)}
             </p>
-            <h2 className="mt-1 font-heading text-lg font-semibold text-navy">{notificationTitle(item)}</h2>
+            <h2 className="mt-1 font-heading text-[18px] font-bold text-navy">{notificationTitle(item)}</h2>
           </>
         ) : (
-          <h2 className="mt-2 font-heading text-lg font-semibold text-navy">{notificationTitle(item)}</h2>
+          <h2 className="mt-2 font-heading text-[18px] font-bold text-navy">{notificationTitle(item)}</h2>
         )}
-        <p className="mt-2 flex flex-wrap items-center gap-2 text-[13px] text-ink-soft">
-          {item.department_name ? <span>{item.department_name}</span> : null}
-          {stage ? <span>· {stage}</span> : null}
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          {item.department_name ? (
+            <span className="rounded-full bg-subtle border border-line px-2.5 py-0.5 text-[11.5px] font-semibold text-ink-soft">
+              {item.department_name}
+            </span>
+          ) : null}
+          {stage ? (
+            <span className="rounded-full bg-subtle border border-line px-2.5 py-0.5 text-[11.5px] font-semibold text-ink-soft">
+              {stage}
+            </span>
+          ) : null}
           {item.risk_level ? <RiskBadge level={item.risk_level} /> : null}
-        </p>
+        </div>
       </header>
 
-      <dl className="space-y-4 text-sm">
-        <div>
-          <dt className="text-[11px] font-medium text-muted">{T.notify.whatHappened}</dt>
-          <dd className="mt-1 leading-[1.85] text-ink">{item.message}</dd>
-        </div>
-        <div>
-          <dt className="text-[11px] font-medium text-muted">{T.notify.when}</dt>
-          <dd className="mt-1 font-mono text-ink" dir="ltr">
-            {formatDateTime(item.sent_at)}
-          </dd>
-        </div>
+      {/* Detail fields */}
+      <dl className="space-y-3">
+        <DetailField label={T.notify.whatHappened}>{item.message}</DetailField>
+
+        <DetailField label={T.notify.when}>
+          <span dir="ltr">{formatDateTime(item.sent_at)}</span>
+        </DetailField>
+
         {item.recommendation ? (
-          <div>
-            <dt className="text-[11px] font-medium text-muted">{T.notify.related}</dt>
-            <dd className="mt-1 text-ink">
-              {recordCode(item.recommendation)} — {notificationTitle(item)}
-            </dd>
-          </div>
+          <DetailField label={T.notify.related}>
+            {recordCode(item.recommendation)} — {notificationTitle(item)}
+          </DetailField>
         ) : null}
-        {stage ? (
-          <div>
-            <dt className="text-[11px] font-medium text-muted">{T.notify.stage}</dt>
-            <dd className="mt-1 text-ink">{stage}</dd>
-          </div>
-        ) : null}
+
+        {stage ? <DetailField label={T.notify.stage}>{stage}</DetailField> : null}
+
         {item.target_date ? (
-          <div>
-            <dt className="text-[11px] font-medium text-muted">{T.notify.deadlineLabel}</dt>
-            <dd className="mt-1 text-ink" dir="ltr">
-              {formatDate(item.target_date)}
-              {overdueLabel ? <span className="ms-2 text-danger-dark">{overdueLabel}</span> : null}
-            </dd>
-          </div>
+          <DetailField label={T.notify.deadlineLabel}>
+            <span dir="ltr">{formatDate(item.target_date)}</span>
+            {overdueLabel ? (
+              <span className="ms-2 rounded-full bg-danger/10 px-2 py-0.5 text-[11px] font-bold text-danger-dark border border-danger/20">
+                {overdueLabel}
+              </span>
+            ) : null}
+          </DetailField>
         ) : null}
+
         {item.responsible_employee ? (
-          <div>
-            <dt className="text-[11px] font-medium text-muted">{T.notify.owner}</dt>
-            <dd className="mt-1 text-ink">{item.responsible_employee}</dd>
-          </div>
+          <DetailField label={T.notify.owner}>{item.responsible_employee}</DetailField>
         ) : null}
-        <div>
-          <dt className="text-[11px] font-medium text-muted">{T.notify.whyMe}</dt>
-          <dd className="mt-1 leading-[1.85] text-ink">{whyItArrived(item)}</dd>
-        </div>
+
+        <DetailField label={T.notify.whyMe}>{whyItArrived(item)}</DetailField>
+
         {mustAct && action ? (
-          <div>
-            <dt className="text-[11px] font-medium text-muted">{T.notify.whatToDo}</dt>
-            <dd className="mt-1 font-medium text-navy">{action}</dd>
+          <div className="rounded-xl border border-navy/15 bg-navy/5 p-4">
+            <dt className="text-[10px] font-bold uppercase tracking-wider text-navy mb-1.5">{T.notify.whatToDo}</dt>
+            <dd className="text-[14px] font-bold text-navy">{action}</dd>
           </div>
         ) : null}
       </dl>
 
-      <p className="text-[12px] text-muted">{T.notify.noActor}</p>
+      <p className="text-[11.5px] font-medium text-muted">{T.notify.noActor}</p>
 
-      <div className="flex flex-wrap gap-2 border-t border-line pt-4">
+      {/* Actions */}
+      <div className="flex flex-wrap gap-2.5 border-t border-line pt-5">
         <Link href={href} onClick={onMarkRead}>
-          <Button>{mustAct ? T.notify.takeAction : T.notify.openCase}</Button>
+          <Button className="gap-2 font-bold shadow-sm">
+            <ArrowUpRight className="size-4" />
+            {mustAct ? T.notify.takeAction : T.notify.openCase}
+          </Button>
         </Link>
         {!item.is_read && onMarkRead ? (
-          <Button variant="ghost" type="button" onClick={onMarkRead}>
+          <Button variant="secondary" type="button" onClick={onMarkRead} className="gap-2 font-bold">
+            <Eye className="size-4" />
             {T.notify.markRead}
           </Button>
         ) : null}
         {onRemove ? (
-          <Button variant="ghost" type="button" onClick={onRemove}>
+          <Button variant="ghost" type="button" onClick={onRemove} className="gap-2 font-bold text-danger-dark hover:bg-danger/10">
+            <Trash2 className="size-4" />
             {T.notify.remove}
           </Button>
         ) : null}

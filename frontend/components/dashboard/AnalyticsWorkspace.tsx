@@ -69,7 +69,7 @@ export function AnalyticsWorkspace({ role }: { role: Role }) {
   const ratified = reports.filter((item) => item.status === "ratified").length;
 
   return (
-    <div className="animate-fade-in space-y-4">
+    <div className="animate-fade-in space-y-6">
       <PageHeader title={T.nav.analytics} description={descriptionFor(role)} />
 
       {role === "council" ? (
@@ -121,7 +121,7 @@ export function AnalyticsWorkspace({ role }: { role: Role }) {
       {role === "council" ? (
         <ReportStageBoard reports={reports} />
       ) : (
-        <div className="grid items-stretch gap-4 xl:grid-cols-2">
+        <div className="grid items-stretch gap-6 xl:grid-cols-2">
           <RiskDistribution
             byRisk={data.stats.by_risk}
             base={base}

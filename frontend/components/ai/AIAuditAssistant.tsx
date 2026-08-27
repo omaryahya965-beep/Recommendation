@@ -66,28 +66,28 @@ export function AIAuditAssistant() {
       title={T.ai.assistant}
       actions={
         visible.length ? (
-          <Button variant="ghost" onClick={() => clear.mutate()} disabled={clear.isPending}>
+          <Button variant="ghost" onClick={() => clear.mutate()} disabled={clear.isPending} className="font-bold gap-1 text-xs">
             <Eraser className="size-4" />
             {T.ai.clearChat}
           </Button>
         ) : null
       }
     >
-      <div className="mb-3 flex flex-wrap gap-1.5">
+      <div className="mb-4 flex flex-wrap gap-2">
         {CHIPS.map((chip) => (
           <button
             key={chip.labelKey}
             type="button"
             onClick={() => send(T.ai[chip.messageKey])}
             disabled={ask.isPending}
-            className="rounded-full border border-ai/25 bg-surface px-3 py-1.5 text-[12.5px] font-medium text-ai-dark transition-colors hover:border-ai/50 hover:bg-ai-light disabled:opacity-50"
+            className="rounded-full border border-ai/20 bg-surface px-4 py-2 text-[12.5px] font-bold text-ai-dark transition-all duration-200 hover:border-ai/55 hover:bg-ai-light disabled:opacity-40"
           >
             {T.ai[chip.labelKey]}
           </button>
         ))}
       </div>
 
-      <div className="scrollbar-thin mb-3 max-h-96 min-h-32 space-y-3 overflow-y-auto rounded-(--radius-field) border border-ai/20 bg-surface p-3">
+      <div className="scrollbar-thin mb-4 max-h-[26rem] min-h-[10rem] space-y-4 overflow-y-auto rounded-xl border border-ai/15 bg-surface/50 p-4.5 shadow-inner">
         {visible.length ? (
           visible.map((message, index) => (
             <div
@@ -96,29 +96,38 @@ export function AIAuditAssistant() {
             >
               <div
                 className={cn(
-                  "max-w-[85%] rounded-(--radius-field) px-3 py-2 text-[13.5px] leading-[1.9]",
+                  "max-w-[80%] rounded-xl px-4 py-3 text-[13.5px] leading-[1.8] shadow-sm",
                   message.role === "user"
-                    ? "bg-subtle text-ink"
-                    : "border border-ai/20 bg-ai-light/50 text-ink"
+                    ? "bg-subtle text-ink border border-line"
+                    : "border border-ai/15 bg-ai-light/40 text-ink"
                 )}
               >
-                <p className="mb-0.5 font-heading text-[11px] font-medium text-muted">
+                <p className="mb-1 font-heading text-[10px] font-bold uppercase tracking-wider text-muted">
                   {message.role === "user" ? T.ai.you : T.ai.assistant}
                 </p>
-                <p className="whitespace-pre-wrap">{message.content}</p>
+                <p className="whitespace-pre-wrap font-medium">{message.content}</p>
               </div>
             </div>
           ))
         ) : (
-          <p className="py-6 text-center text-sm text-ink-soft">{T.ai.assistantHint}</p>
+          <div className="flex flex-col items-center justify-center h-full py-10 text-center">
+            <p className="text-sm font-semibold text-ink-soft">{T.ai.assistantHint}</p>
+          </div>
         )}
-        {ask.isPending ? <p className="text-center text-xs text-ai-dark">{T.ai.generating}</p> : null}
+        {ask.isPending ? (
+          <div className="flex justify-end">
+            <p className="text-xs font-bold text-ai-dark flex items-center gap-1.5 bg-ai-light/35 px-3 py-1.5 rounded-xl border border-ai/10">
+              <span className="size-2 rounded-full bg-ai animate-ping" />
+              {T.ai.generating}
+            </p>
+          </div>
+        ) : null}
       </div>
 
       <ErrorBanner message={error} />
 
       <form
-        className="space-y-2"
+        className="space-y-3 pt-3 border-t border-line"
         onSubmit={(event) => {
           event.preventDefault();
           send(text);
@@ -129,8 +138,9 @@ export function AIAuditAssistant() {
           onChange={(event) => setText(event.target.value)}
           rows={3}
           placeholder={T.ai.askPlaceholder}
+          className="bg-surface border-line focus:bg-surface focus:border-ai transition-colors"
         />
-        <Button type="submit" disabled={ask.isPending || !text.trim()}>
+        <Button type="submit" disabled={ask.isPending || !text.trim()} className="font-bold gap-2 shadow-md">
           <Send className="size-4" />
           {T.ai.ask}
         </Button>

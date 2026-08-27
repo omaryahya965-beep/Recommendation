@@ -1,5 +1,7 @@
 "use client";
 
+import { BrainCircuit } from "lucide-react";
+
 import { AIRecommendationAnalysis } from "@/components/ai/AIRecommendationAnalysis";
 import { AIRiskCard } from "@/components/ai/AIRiskCard";
 import { AISummaryPanel } from "@/components/ai/AISummaryPanel";
@@ -71,10 +73,17 @@ export function CaseStageAI({
   if (!showAnalysis && !showRisk && !showSummary) return null;
 
   return (
-    <div className={tab === "overview" ? "space-y-4 border-t border-line pt-5" : "mt-4 space-y-4"}>
-      <p className="text-[11.5px] font-medium text-ai-dark">{T.dashboard.advisoryBelow}</p>
-      {showAnalysis || showRisk ? (
-        <div className="grid gap-4 lg:grid-cols-2">
+    <div className={tab === "overview" ? "space-y-5 border-t border-line pt-6" : "mt-5 space-y-5"}>
+      {/* Advisory header */}
+      <div className="flex items-center gap-2">
+        <span className="flex size-6 items-center justify-center rounded-full bg-ai/10">
+          <BrainCircuit className="size-3.5 text-ai-dark" aria-hidden />
+        </span>
+        <p className="text-[12px] font-bold uppercase tracking-wider text-ai-dark">{T.dashboard.advisoryBelow}</p>
+      </div>
+
+      {(showAnalysis || showRisk) ? (
+        <div className="grid gap-5 lg:grid-cols-2">
           {showAnalysis ? (
             <AIRecommendationAnalysis
               recommendationId={rec.id}
@@ -90,6 +99,7 @@ export function CaseStageAI({
           {showRisk ? <AIRiskCard recommendationId={rec.id} /> : null}
         </div>
       ) : null}
+
       {showSummary ? <AISummaryPanel role={role} recommendationId={rec.id} /> : null}
     </div>
   );

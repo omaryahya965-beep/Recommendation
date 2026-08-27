@@ -39,35 +39,38 @@ const DECISION_ICON = {
 } as const;
 
 const DECISION_STYLE = {
-  sufficient: "border-success/25 bg-success-light text-success-dark",
-  partial: "border-warning/30 bg-warning-light text-warning-dark",
-  insufficient: "border-danger/25 bg-danger-light text-danger-dark",
+  sufficient: "border-success/25 bg-success/8 text-success-dark",
+  partial: "border-warning/25 bg-warning/8 text-warning-dark",
+  insufficient: "border-danger/25 bg-danger/8 text-danger-dark",
 } as const;
 
 function DecisionRecord({ decision }: { decision: VerificationDecision }) {
   useI18n();
   const Icon = DECISION_ICON[decision.decision];
   return (
-    <li className="border-b border-line py-4 last:border-b-0 last:pb-0">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+    <li className="rounded-xl border border-line bg-surface p-4 shadow-sm">
+      {/* Header row */}
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
         <span
           className={cn(
-            "inline-flex items-center gap-1.5 border px-2.5 py-1 text-[12px] font-medium",
+            "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[12px] font-bold",
             DECISION_STYLE[decision.decision]
           )}
         >
           <Icon className="size-3.5" />
           {VERIFICATION_LABELS[decision.decision]}
         </span>
-        <span className="font-mono text-xs text-muted" dir="ltr">
+        <span className="font-mono text-[11.5px] font-medium text-muted" dir="ltr">
           {formatDateTime(decision.created_at)}
         </span>
       </div>
 
+      {/* Notes */}
       {decision.notes?.trim() ? (
-        <p className="mt-3 whitespace-pre-wrap text-sm leading-[1.9] text-ink">{decision.notes}</p>
+        <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-ink font-medium">{decision.notes}</p>
       ) : null}
 
+      {/* Structured rejection fields */}
       {decision.decision !== "sufficient" ? (
         <dl className="mt-3 grid gap-3 border-t border-line pt-3 sm:grid-cols-3">
           {decision.rejection_reason?.trim() ? (
@@ -84,7 +87,7 @@ function DecisionRecord({ decision }: { decision: VerificationDecision }) {
         </dl>
       ) : null}
 
-      <p className="mt-3 text-xs text-ink-soft">
+      <p className="mt-3 text-[11.5px] font-semibold text-muted">
         {T.verify.reviewedBy}: {decision.reviewed_by_detail?.full_name_ar || decision.reviewed_by_detail?.username}
       </p>
     </li>
@@ -104,37 +107,34 @@ function DeskContext({ rec }: { rec: RecommendationDetail }) {
 
   return (
     <div className="space-y-5">
-      <dl className="grid gap-4 border-b border-line pb-4 sm:grid-cols-3">
-        <DataField label={T.verify.recommendationLabel}>
-          <span className="line-clamp-3">{statement}</span>
-        </DataField>
-        <DataField label={T.verify.planLabel}>
-          {rec.action_plan ? (
-            <>
-              <span dir="ltr">
-                {done}/{total}
-              </span>{" "}
-              {T.plan.done}
-              {rec.action_plan.target_date ? (
-                <span className="mt-0.5 block font-mono text-xs text-muted" dir="ltr">
-                  {formatDate(rec.action_plan.target_date)} · {planProgress(rec.action_plan)}%
-                </span>
-              ) : null}
-            </>
-          ) : (
-            T.case.noPlanYet
-          )}
-        </DataField>
-        <DataField label={T.verify.evidenceLabel}>
-          <span dir="ltr">{files.length}</span> {T.evidenceRegister.uploadedLabel}
-        </DataField>
+      {/* Summary stats */}
+      <dl className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-xl border border-line bg-surface p-4 text-center shadow-sm">
+          <dt className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1">{T.verify.recommendationLabel}</dt>
+          <dd className="text-[13px] font-semibold text-navy line-clamp-2 text-start">{statement}</dd>
+        </div>
+        <div className="rounded-xl border border-line bg-surface p-4 text-center shadow-sm">
+          <dt className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1">{T.verify.planLabel}</dt>
+          <dd className="text-[15px] font-bold text-navy" dir="ltr">{done}/{total}</dd>
+          {rec.action_plan?.target_date ? (
+            <dd className="font-mono text-[11px] text-muted mt-0.5" dir="ltr">
+              {formatDate(rec.action_plan.target_date)} · {planProgress(rec.action_plan)}%
+            </dd>
+          ) : null}
+        </div>
+        <div className="rounded-xl border border-line bg-surface p-4 text-center shadow-sm">
+          <dt className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1">{T.verify.evidenceLabel}</dt>
+          <dd className="text-[15px] font-bold text-navy" dir="ltr">{files.length}</dd>
+          <dd className="text-[11px] font-medium text-muted">{T.evidenceRegister.uploadedLabel}</dd>
+        </div>
       </dl>
 
+      {/* Context grids */}
       <div className="grid gap-4 lg:grid-cols-2">
         <ProseBlock label={T.verify.whatRequired}>
           {statement}
           {expected ? (
-            <p className="mt-2 text-[13px] text-ink-soft">
+            <p className="mt-2 text-[13px] text-ink-soft font-medium">
               {T.create.expectedEvidence}: {expected}
             </p>
           ) : null}
@@ -225,15 +225,17 @@ export function VerificationPanel({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-7">
+      {/* Header */}
       <header>
-        <h2 className="font-heading text-lg font-semibold text-navy">{T.verify.deskTitle}</h2>
-        <p className="mt-1 text-sm text-ink-soft">{T.verify.intro}</p>
+        <h2 className="font-heading text-[18px] font-bold text-navy">{T.verify.deskTitle}</h2>
+        <p className="mt-1.5 text-[13.5px] font-medium text-ink-soft">{T.verify.intro}</p>
       </header>
 
+      {/* Outstanding rejection callout */}
       {outstanding && outstanding.decision !== "sufficient" ? (
         <Callout tone="danger" title={T.verify.outstanding} icon={<ShieldAlert className="size-4" />}>
-          <dl className="mt-2 grid gap-3 sm:grid-cols-3">
+          <dl className="mt-3 grid gap-3 sm:grid-cols-3">
             {outstanding.rejection_reason?.trim() ? (
               <DataField label={T.verify.returnReason}>{outstanding.rejection_reason}</DataField>
             ) : null}
@@ -249,8 +251,10 @@ export function VerificationPanel({
         </Callout>
       ) : null}
 
+      {/* Context summary */}
       <DeskContext rec={rec} />
 
+      {/* Verification form */}
       {canVerify && action ? (
         <form onSubmit={ask} className="space-y-5">
           <VerificationChecklist state={checklist} onChange={setChecklist} />
@@ -259,10 +263,11 @@ export function VerificationPanel({
             <TextArea rows={4} value={notes} onChange={(event) => setNotes(event.target.value)} />
           </Field>
 
-          <section className="bg-inverse p-5 text-on-inverse">
-            <p className="text-[11px] font-semibold text-on-inverse/70">{T.verify.decisionBand}</p>
-            <fieldset className="mt-3">
-              <legend className="mb-2 text-sm font-medium text-on-inverse">{T.verify.decision}</legend>
+          {/* Decision band */}
+          <section className="rounded-2xl bg-inverse p-6 text-on-inverse">
+            <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-on-inverse/60">{T.verify.decisionBand}</p>
+            <fieldset className="mt-4">
+              <legend className="mb-3 text-[14px] font-bold text-on-inverse">{T.verify.decision}</legend>
               <ChoiceCards
                 name="verification-decision"
                 value={decision}
@@ -276,9 +281,9 @@ export function VerificationPanel({
             </fieldset>
 
             {structuredRequired ? (
-              <div className="mt-4 space-y-3 border-t border-white/15 pt-4 text-ink">
-                <p className="text-xs text-warning-light">{T.verify.structuredRequired}</p>
-                <div className="grid gap-3 bg-surface p-4 sm:grid-cols-2">
+              <div className="mt-5 space-y-4 border-t border-white/15 pt-5 text-ink">
+                <p className="text-[12px] font-bold text-warning-light">{T.verify.structuredRequired}</p>
+                <div className="grid gap-4 rounded-xl bg-surface p-5 sm:grid-cols-2">
                   <Field label={`${T.verify.rejectedItems} *`}>
                     <TextArea
                       rows={2}
@@ -317,16 +322,20 @@ export function VerificationPanel({
             ) : null}
 
             {composedNotes !== notes ? (
-              <pre className="mt-3 whitespace-pre-wrap border border-white/15 bg-white/10 p-3 font-body text-[12.5px] leading-[1.9] text-white/90">
+              <pre className="mt-4 whitespace-pre-wrap rounded-xl border border-white/15 bg-white/10 p-4 font-body text-[12.5px] leading-relaxed text-white/90">
                 {composedNotes}
               </pre>
             ) : null}
 
-            <div className="mt-4">
+            <div className="mt-5">
               <ErrorBanner message={localError ?? action.error} />
             </div>
 
-            <Button type="submit" className="mt-4 bg-elevated text-navy hover:bg-subtle" disabled={action.mutation.isPending}>
+            <Button
+              type="submit"
+              className="mt-4 gap-2 bg-elevated font-bold text-navy hover:bg-subtle"
+              disabled={action.mutation.isPending}
+            >
               <ShieldCheck className="size-4" />
               {T.verify.submit}
             </Button>
@@ -354,15 +363,16 @@ export function VerificationPanel({
 
       <Callout tone="ai">{T.verify.aiCannotVerify}</Callout>
 
-      <section className="border-t border-line pt-5">
-        <h3 className="mb-3 font-heading text-sm font-semibold text-navy">
+      {/* Decision history */}
+      <section className="border-t border-line pt-6">
+        <h3 className="mb-4 flex items-center gap-2 font-heading text-[15px] font-bold text-navy">
           {T.verify.history}
-          <span className="ms-2 font-mono text-xs font-normal text-muted" dir="ltr">
+          <span className="rounded-full bg-primary/10 px-2.5 py-0.5 font-mono text-[11px] font-bold text-primary-dark" dir="ltr">
             {decisions.length}
           </span>
         </h3>
         {decisions.length ? (
-          <ul>
+          <ul className="space-y-3">
             {[...decisions].reverse().map((item) => (
               <DecisionRecord key={item.id} decision={item} />
             ))}

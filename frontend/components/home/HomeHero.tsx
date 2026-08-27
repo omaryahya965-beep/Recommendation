@@ -41,45 +41,44 @@ export function HomeHero({
 
   useEffect(() => {
     const auth = loadAuth();
-    // Profile lives in localStorage, which is unreadable during SSR.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setName(auth?.user.full_name_ar || auth?.user.username || null);
   }, []);
 
   return (
-    <section className="relative overflow-hidden rounded-(--radius-card) border border-line min-h-[13.5rem] md:min-h-[15.5rem]">
+    <section className="relative overflow-hidden rounded-2xl border border-line min-h-[16rem] md:min-h-[18rem] shadow-sm">
       <Image
         src="/images/city-hall.png"
         alt={T.login.cityHallAlt}
         fill
         priority
         sizes="100vw"
-        className="object-cover object-[center_32%]"
+        className="object-cover object-[center_30%]"
       />
-      <div className="absolute inset-0 bg-gradient-to-t from-[#183B4E]/92 via-[#183B4E]/55 to-[#183B4E]/20" />
+      <div className="absolute inset-0 bg-gradient-to-t from-navy/95 via-navy/60 to-navy/10" />
 
-      <div className="relative z-10 flex h-full min-h-[13.5rem] flex-col justify-end gap-4 px-4 py-5 md:min-h-[15.5rem] md:px-6 md:py-6">
-        <div className="max-w-3xl">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="text-[13px] text-white/80">
+      <div className="relative z-10 flex h-full min-h-[16rem] flex-col justify-end gap-5 px-6 py-8 md:min-h-[18rem] md:px-10 md:py-10">
+        <div className="max-w-4xl">
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-[14px] font-medium text-white/90">
               {greeting()}
-              {name ? <span>{locale === "ar" ? "، " : ", "}{name}</span> : null}
+              {name ? <span>{locale === "ar" ? "، " : ", "}<span className="font-bold">{name}</span></span> : null}
             </p>
-            <span className="rounded-full border border-white/30 bg-white/12 px-2.5 py-0.5 text-[11px] font-medium text-white">
+            <span className="rounded-full bg-white/20 px-3 py-0.5 text-[11px] font-bold tracking-wider text-white backdrop-blur-md ring-1 ring-white/30">
               {ROLE_LABELS[role]}
             </span>
           </div>
-          <h1 className="mt-1.5 font-display text-[1.75rem] font-semibold leading-[1.75] text-white! [text-shadow:0_1px_12px_rgba(15,32,40,0.55)] md:text-[2.05rem]">
+          <h1 className="mt-3 font-heading text-[2rem] font-bold leading-tight text-white drop-shadow-md md:text-[2.5rem]">
             {title}
           </h1>
-          <p className="mt-1 text-[13px] font-medium text-white/85" dir={locale === "ar" ? "rtl" : "ltr"}>
+          <p className="mt-2 text-[14px] font-medium text-white/80" dir={locale === "ar" ? "rtl" : "ltr"}>
             {formatLongDate()}
           </p>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/80">{subtitle}</p>
+          <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-white/90">{subtitle}</p>
         </div>
 
         {actions.length ? (
-          <div className="flex flex-wrap gap-2" aria-label={T.dashboard.quickActions}>
+          <div className="mt-2 flex flex-wrap gap-3" aria-label={T.dashboard.quickActions}>
             {actions.map((action) => {
               const Icon = action.icon;
               return (
@@ -87,13 +86,13 @@ export function HomeHero({
                   key={action.href + action.label}
                   href={action.href}
                   className={cn(
-                    "inline-flex items-center gap-2 rounded-(--radius-btn) px-3.5 py-2 text-sm font-medium transition-colors",
+                    "inline-flex items-center gap-2.5 rounded-lg px-5 py-2.5 text-[14px] font-bold transition-all duration-200 active:scale-95",
                     action.primary
-                      ? "bg-white text-navy hover:bg-white/90"
-                      : "border border-white/35 bg-white/12 text-white hover:bg-white/20"
+                      ? "bg-white text-navy hover:bg-white/90 shadow-md"
+                      : "bg-white/10 text-white hover:bg-white/20 backdrop-blur-md ring-1 ring-white/30"
                   )}
                 >
-                  <Icon className="size-4 shrink-0" />
+                  <Icon className="size-4.5 shrink-0" />
                   {action.label}
                 </Link>
               );
@@ -101,7 +100,7 @@ export function HomeHero({
           </div>
         ) : null}
 
-        <p className="text-[11px] text-white/65">{T.dashboard.placeCaption}</p>
+        <p className="absolute top-6 end-6 text-[11px] font-medium text-white/50 tracking-wide uppercase">{T.dashboard.placeCaption}</p>
       </div>
     </section>
   );

@@ -22,14 +22,14 @@ export function StatusBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-md border font-medium whitespace-nowrap",
-        size === "lg" ? "px-3 py-1.5 text-sm" : "px-2 py-0.5 text-[12px]",
+        "inline-flex items-center gap-1.5 rounded-full border font-semibold whitespace-nowrap shadow-sm transition-colors",
+        size === "lg" ? "px-3.5 py-1.5 text-[13px]" : "px-2.5 py-0.5 text-[11px]",
         classes.fg,
         classes.bg,
         classes.border
       )}
     >
-      <span className={cn("size-1.5 shrink-0 rounded-full", classes.dot)} aria-hidden />
+      <span className={cn("size-2 shrink-0 rounded-full", classes.dot)} aria-hidden />
       {text}
     </span>
   );

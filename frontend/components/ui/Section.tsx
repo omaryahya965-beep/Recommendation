@@ -23,17 +23,20 @@ export function Section({
 }) {
   useI18n();
   return (
-    <section className={cn("flex h-fit flex-col overflow-hidden rounded-(--radius-card) border border-line bg-surface shadow-(--shadow-card)", className)}>
+    <section className={cn("flex h-fit flex-col overflow-hidden rounded-xl border border-line bg-surface shadow-sm transition-shadow hover:shadow-md", className)}>
       {title || actions || hint ? (
-        <header className="flex flex-wrap items-start justify-between gap-2 border-b border-line px-4 py-3">
-          <div className="min-w-0">
-            {title ? <h2 className="font-heading text-[15px] font-semibold text-navy">{title}</h2> : null}
-            {hint ? <p className="mt-0.5 text-xs leading-snug text-muted">{hint}</p> : null}
+        <header className="flex flex-wrap items-center justify-between gap-4 border-b border-line px-5 py-4">
+          <div className="flex items-start gap-3 min-w-0">
+            {title ? <div className="mt-1 h-4 w-1 shrink-0 rounded-full bg-primary" aria-hidden /> : null}
+            <div className="min-w-0">
+              {title ? <h2 className="font-heading text-[16px] font-bold text-navy truncate">{title}</h2> : null}
+              {hint ? <p className="mt-1 text-[13px] leading-snug text-ink-soft">{hint}</p> : null}
+            </div>
           </div>
-          {actions ? <div className="shrink-0">{actions}</div> : null}
+          {actions ? <div className="shrink-0 flex items-center gap-2">{actions}</div> : null}
         </header>
       ) : null}
-      <div className={cn("min-h-0 flex-1", padded && "p-4")}>{children}</div>
+      <div className={cn("min-h-0 flex-1", padded && "p-5")}>{children}</div>
     </section>
   );
 }

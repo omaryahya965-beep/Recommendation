@@ -16,11 +16,11 @@ export interface MetricItem {
 
 function Cell({ item }: { item: MetricItem }) {
   const inner = (
-    <>
-      <p className="text-xs font-medium text-muted">{item.label}</p>
+    <div className="flex flex-col h-full justify-center">
+      <p className="text-[12px] font-bold uppercase tracking-wider text-muted mb-2">{item.label}</p>
       <p
         className={cn(
-          "mt-1 font-heading text-[1.35rem] font-bold tabular-nums leading-none",
+          "font-heading text-[1.75rem] font-bold tabular-nums leading-none tracking-tight",
           item.tone === "danger" && item.value ? "text-danger-dark" : null,
           item.tone === "warning" && item.value ? "text-warning-dark" : null,
           item.tone === "success" ? "text-success-dark" : null,
@@ -30,14 +30,15 @@ function Cell({ item }: { item: MetricItem }) {
       >
         {item.value}
       </p>
-    </>
+    </div>
   );
 
   const className =
-    "flex min-h-[5.25rem] min-w-[7.5rem] flex-1 flex-col justify-center border-b border-e border-line px-4 py-3.5";
+    "group flex min-h-[6.5rem] min-w-[8.5rem] flex-1 flex-col border-b border-e border-line px-5 py-4 transition-all duration-200 hover:bg-subtle/50 hover:shadow-inner hover:z-10 relative";
+  
   if (item.href) {
     return (
-      <Link href={item.href} className={cn(className, "transition-colors hover:bg-subtle/70")}>
+      <Link href={item.href} className={className}>
         {inner}
       </Link>
     );
@@ -59,10 +60,10 @@ export function MetricStrip({
 }) {
   useI18n();
   return (
-    <Section title={title} hint={hint}>
-      <div className="flex min-w-0 flex-wrap items-stretch overflow-hidden">
+    <Section title={title} hint={hint} className="overflow-hidden bg-surface">
+      <div className="flex min-w-0 flex-wrap items-stretch overflow-hidden -mb-px -me-px">
         {leading ? (
-          <div className="flex items-center border-b border-e border-line px-4 py-3">{leading}</div>
+          <div className="flex items-center justify-center border-b border-e border-line px-6 py-4 bg-subtle/30">{leading}</div>
         ) : null}
         {items.map((item) => (
           <Cell key={item.label} item={item} />

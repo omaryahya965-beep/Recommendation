@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { Info, Plus, Trash2 } from "lucide-react";
 
 import { Button, Card, ErrorBanner, Field, Select, TextInput, ToggleSwitch } from "@/components/ui/Base";
 import { CardSkeleton } from "@/components/ui/EmptyState";
@@ -41,25 +42,9 @@ function offsetFromForm(direction: Direction, days: string): number | null {
 function EscalationTag() {
   useI18n();
   return (
-    <span className="ms-2 inline-block rounded-full bg-slate-tint px-2 py-0.5 font-heading text-[11px] font-medium text-slate-dark">
+    <span className="ms-2 inline-flex rounded-full bg-danger/10 px-2 py-0.5 font-heading text-[10px] font-bold text-danger-dark border border-danger/15 uppercase tracking-wider">
       {T.reminders.escalationTag}
     </span>
-  );
-}
-
-function TrashIcon() {
-  useI18n();
-  return (
-    <svg viewBox="0 0 16 16" className="size-4" fill="none" aria-hidden>
-      <path
-        d="M3.5 4.5h9M6 4.5V3.25A.75.75 0 0 1 6.75 2.5h2.5a.75.75 0 0 1 .75.75V4.5m-.5 0V13a.75.75 0 0 1-.75.75h-4.5A.75.75 0 0 1 4.5 13V4.5"
-        stroke="currentColor"
-        strokeWidth="1.25"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path d="M6.5 7v4M9.5 7v4" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" />
-    </svg>
   );
 }
 
@@ -71,9 +56,9 @@ function DirectionToggle({ value, onChange }: { value: Direction; onChange: (nex
     { id: "after", label: T.reminders.afterDeadline },
   ];
   return (
-    <fieldset className="min-w-64 flex-1">
-      <legend className="mb-1 font-heading text-sm font-medium text-ink">{T.reminders.direction}</legend>
-      <div role="radiogroup" className="flex rounded-(--radius-field) border hairline bg-surface p-0.5">
+    <fieldset className="min-w-[260px] flex-1">
+      <legend className="mb-2 font-heading text-[12px] font-bold uppercase tracking-wider text-muted">{T.reminders.direction}</legend>
+      <div role="radiogroup" className="flex rounded-xl border border-line bg-subtle/55 p-1">
         {options.map((option) => {
           const selected = value === option.id;
           return (
@@ -83,8 +68,8 @@ function DirectionToggle({ value, onChange }: { value: Direction; onChange: (nex
               role="radio"
               aria-checked={selected}
               onClick={() => onChange(option.id)}
-              className={`flex-1 rounded-[6px] px-2 py-2 font-heading text-xs font-medium transition-colors
-                ${selected ? "bg-primary-dark text-white" : "text-ink hover:bg-subtle"}`}
+              className={`flex-1 rounded-lg px-2.5 py-1.5 font-heading text-[12px] font-bold transition-all
+                ${selected ? "bg-navy text-white shadow-sm" : "text-ink-soft hover:text-ink hover:bg-subtle"}`}
             >
               {option.label}
             </button>
@@ -98,9 +83,9 @@ function DirectionToggle({ value, onChange }: { value: Direction; onChange: (nex
 function ReminderNotice() {
   useI18n();
   return (
-    <Card title={T.nav.reminders}>
-      <p className="text-sm font-medium text-ink">{T.reminders.managedHelp}</p>
-      <p className="mt-2 text-sm text-ink-soft">{T.reminders.managedBody}</p>
+    <Card title={T.nav.reminders} className="rounded-2xl border border-line bg-surface shadow-sm">
+      <p className="text-sm font-bold text-navy">{T.reminders.managedHelp}</p>
+      <p className="mt-2 text-sm leading-relaxed font-medium text-ink-soft">{T.reminders.managedBody}</p>
     </Card>
   );
 }
@@ -176,20 +161,22 @@ function AuditReminderEditor() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <ErrorBanner message={error} />
 
-      <Card title={T.reminders.rulesTitle}>
-        <p className="mb-4 text-sm text-ink-soft">{T.reminders.rulesHelp}</p>
+      <Card title={T.reminders.rulesTitle} className="rounded-2xl border border-line bg-surface shadow-sm">
+        <p className="mb-5 text-sm font-medium leading-relaxed text-ink-soft">{T.reminders.rulesHelp}</p>
 
         {list.length === 0 ? (
-          <p className="text-sm text-ink-soft">{T.reminders.noRules}</p>
+          <p className="text-sm font-bold text-ink-soft bg-subtle/50 rounded-xl p-6 text-center border border-dashed border-line">
+            {T.reminders.noRules}
+          </p>
         ) : (
-          <ul className="divide-y divide-ink/10">
+          <ul className="divide-y divide-line/60">
             {list.map((rule) => {
               const switchLabel = `${rule.enabled ? T.reminders.enabled : T.reminders.disabled} — ${T.reminders.toggleRule}`;
               return (
-                <li key={rule.id} className="flex items-center gap-3 py-3">
+                <li key={rule.id} className="flex items-center gap-4 py-4 first:pt-0 last:pb-0">
                   <ToggleSwitch
                     checked={rule.enabled}
                     onCheckedChange={() => toggleRule.mutate(rule)}
@@ -197,23 +184,23 @@ function AuditReminderEditor() {
                     hideLabel
                     disabled={toggleRule.isPending}
                   />
-                  <p className="min-w-0 flex-1 text-sm">
+                  <div className="min-w-0 flex-1 text-[13.5px] font-semibold text-ink">
                     <span>{whenPhrase(rule.offset_days)}</span>
-                    <span className="text-ink-soft">{T.common.listSep}{T.reminders.notify} </span>
-                    <span className="font-heading font-medium">
+                    <span className="text-ink-soft font-medium">{T.common.listSep}{T.reminders.notify} </span>
+                    <span className="font-bold text-navy">
                       {RECIPIENT_ROLE_LABELS[rule.recipient_role]}
                     </span>
                     {rule.recipient_role === "audit" ? <EscalationTag /> : null}
-                    {rule.label ? <span className="text-ink-soft"> — {rule.label}</span> : null}
-                  </p>
+                    {rule.label ? <span className="text-ink-soft font-medium"> — {rule.label}</span> : null}
+                  </div>
                   <button
                     type="button"
                     onClick={() => deleteRule.mutate(rule)}
                     disabled={deleteRule.isPending}
                     aria-label={T.reminders.deleteRule}
-                    className="rounded-(--radius-field) p-1.5 text-seal-dark hover:bg-seal-tint disabled:opacity-50"
+                    className="flex size-8 items-center justify-center rounded-lg border border-danger/15 bg-surface text-danger-dark transition-colors hover:bg-danger/10 disabled:opacity-40"
                   >
-                    <TrashIcon />
+                    <Trash2 className="size-4" />
                   </button>
                 </li>
               );
@@ -221,6 +208,7 @@ function AuditReminderEditor() {
           </ul>
         )}
 
+        {/* Rule creation form */}
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -231,53 +219,57 @@ function AuditReminderEditor() {
             }
             createRule.mutate(offsetDays);
           }}
-          className="mt-4 flex flex-wrap items-end gap-3 border-t hairline pt-4"
+          className="mt-6 border-t border-line/65 pt-6 space-y-4"
         >
-          <DirectionToggle value={direction} onChange={setDirection} />
-          {direction === "on" ? null : (
-            <Field label={T.reminders.dayCount}>
-              <TextInput
-                type="number"
-                min={1}
-                step={1}
-                value={days}
-                onChange={(e) => setDays(e.target.value)}
-                className="w-28"
-                dir="ltr"
-                required
-              />
+          <div className="flex flex-wrap items-end gap-4">
+            <DirectionToggle value={direction} onChange={setDirection} />
+            {direction === "on" ? null : (
+              <Field label={T.reminders.dayCount} className="w-28">
+                <TextInput
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={days}
+                  onChange={(e) => setDays(e.target.value)}
+                  dir="ltr"
+                  required
+                />
+              </Field>
+            )}
+            <Field label={T.reminders.recipient} className="min-w-[200px]">
+              <Select value={recipient} onChange={(e) => setRecipient(e.target.value)}>
+                {Object.entries(RECIPIENT_ROLE_LABELS).map(([value, text]) => (
+                  <option key={value} value={value}>
+                    {text}
+                  </option>
+                ))}
+              </Select>
             </Field>
-          )}
-          <Field label={T.reminders.recipient}>
-            <Select value={recipient} onChange={(e) => setRecipient(e.target.value)}>
-              {Object.entries(RECIPIENT_ROLE_LABELS).map(([value, text]) => (
-                <option key={value} value={value}>
-                  {text}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label={T.reminders.labelOptional}>
-            <TextInput value={label} onChange={(e) => setLabel(e.target.value)} />
-          </Field>
-          <Button type="submit" disabled={createRule.isPending}>
-            + {T.common.add}
-          </Button>
+            <Field label={T.reminders.labelOptional} className="flex-1 min-w-[200px]">
+              <TextInput value={label} onChange={(e) => setLabel(e.target.value)} />
+            </Field>
+            <Button type="submit" disabled={createRule.isPending} className="gap-1.5 font-bold shadow-sm h-[40px] px-4">
+              <Plus className="size-4" />
+              {T.common.add}
+            </Button>
+          </div>
+
           {draftOffset !== null ? (
-            <p className="basis-full text-sm text-ink-soft">
-              {whenPhrase(draftOffset)}{T.common.listSep}{T.reminders.notify} {RECIPIENT_ROLE_LABELS[recipient]}
-              {recipient === "audit" ? ` — ${T.reminders.escalationTag}` : ""}
-              {label ? ` — ${label}` : ""}
-            </p>
+            <div className="flex items-start gap-2.5 rounded-xl border border-primary/10 bg-primary/5 p-4 text-[13px] font-medium text-primary-dark">
+              <Info className="size-4 shrink-0 mt-0.5" aria-hidden />
+              <div>
+                <span>{whenPhrase(draftOffset)}</span>
+                <span>{T.common.listSep}{T.reminders.notify} {RECIPIENT_ROLE_LABELS[recipient]}</span>
+                {recipient === "audit" ? ` — ${T.reminders.escalationTag}` : ""}
+                {label ? ` — ${label}` : ""}
+              </div>
+            </div>
           ) : null}
         </form>
       </Card>
 
-      <div className="flex items-center gap-3" aria-hidden>
-        <span className="h-px flex-1 bg-ink/15" />
-      </div>
-
-      <Card title={T.reminders.policyTitle}>
+      {/* Action plan requirement policy */}
+      <Card title={T.reminders.policyTitle} className="rounded-2xl border border-line bg-surface shadow-sm">
         <ToggleSwitch
           checked={policy?.require_plan_with_response ?? false}
           onCheckedChange={(next) => updatePolicy.mutate({ require_plan_with_response: next })}

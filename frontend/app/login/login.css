@@ -4,13 +4,13 @@
   --login-accent: #08b8b0;
   --login-btn: #087f78;
   --login-btn-hover: #066860;
-  --login-bg: #f7f9fa;
+  --login-bg: #f8fafc;
   --login-card: #ffffff;
-  --login-text: #102f40;
-  --login-muted: #647784;
-  --login-border: #d9e1e5;
-  --login-field: #f3f6f8;
-  --login-shadow: 0 12px 40px rgb(16 47 64 / 0.08);
+  --login-text: #0f172a;
+  --login-muted: #64748b;
+  --login-border: #e2e8f0;
+  --login-field: #f8fafc;
+  --login-shadow: 0 20px 25px -5px rgb(15 23 42 / 0.05), 0 8px 10px -6px rgb(15 23 42 / 0.05);
 }
 
 .login-shell,
@@ -38,33 +38,38 @@
   background: var(--login-card);
   border: 1px solid var(--login-border);
   box-shadow: var(--login-shadow);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
 .login-field {
-  background: #ffffff;
+  background: var(--login-field);
   border: 1px solid var(--login-border);
   color: var(--login-text);
-  font-size: 16px;
+  font-size: 15px;
+  font-weight: 500;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .login-field::placeholder {
-  color: #8a9aa3;
+  color: #94a3b8;
 }
 
 .login-field:focus {
   border-color: var(--login-accent);
-  box-shadow: 0 0 0 3px rgb(8 184 176 / 0.18);
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgb(8 184 176 / 0.15);
   outline: none;
 }
 
 [data-theme="dark"] .login-shell {
-  --login-bg: #0c1a22;
-  --login-card: #14242d;
-  --login-text: #e7eef2;
-  --login-muted: #8aa0ab;
-  --login-border: #2a3e48;
-  --login-field: #1a2c35;
-  --login-shadow: 0 12px 40px rgb(0 0 0 / 0.35);
+  --login-bg: #0b1319;
+  --login-card: rgba(20, 31, 41, 0.8);
+  --login-text: #f1f5f9;
+  --login-muted: #94a3b8;
+  --login-border: rgba(255, 255, 255, 0.08);
+  --login-field: #141f29;
+  --login-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.5);
 }
 
 [data-theme="dark"] .login-field {
@@ -72,5 +77,10 @@
 }
 
 [data-theme="dark"] .login-field::placeholder {
-  color: #7d9099;
+  color: #64748b;
+}
+
+[data-theme="dark"] .login-field:focus {
+  background: #192633;
+  box-shadow: 0 0 0 3px rgb(8 184 176 / 0.2);
 }
