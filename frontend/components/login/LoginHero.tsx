@@ -34,7 +34,7 @@ export function LoginHero() {
   const { dir } = useI18n();
 
   return (
-    <aside className="relative isolate h-[13.75rem] shrink-0 overflow-hidden sm:h-[16.25rem] lg:absolute lg:inset-0 lg:h-auto">
+    <aside className="relative isolate h-[13.75rem] shrink-0 overflow-hidden sm:h-[16.25rem] lg:absolute lg:inset-0 lg:h-full">
       <Image
         src="/images/city-hall.png"
         alt={T.login.cityHallAlt}
