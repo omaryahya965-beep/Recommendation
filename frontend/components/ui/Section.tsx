@@ -36,7 +36,7 @@ export function Section({
           {actions ? <div className="shrink-0 flex items-center gap-2">{actions}</div> : null}
         </header>
       ) : null}
-      <div className={cn("min-h-0 flex-1", padded && "p-5")}>{children}</div>
+      <div className={cn("flex min-h-0 flex-1 flex-col", padded && "p-5")}>{children}</div>
     </section>
   );
 }

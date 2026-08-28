@@ -75,7 +75,7 @@ export default function AuditDashboard() {
           title={T.dashboard.hottest}
           hint={T.dashboard.auditReviewHint}
         />
-        <RecentActivity detailBase={BASE} />
+        <RecentActivity detailBase={BASE} moreHref="/audit/notifications" />
       </div>
 
       <TodayAgenda

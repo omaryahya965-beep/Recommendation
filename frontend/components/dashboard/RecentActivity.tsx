@@ -123,7 +123,7 @@ export function RecentActivity({
               );
             })}
           </ol>
-          <footer className="border-t border-line bg-subtle/50 px-5 py-4 text-center">
+          <footer className="mt-auto border-t border-line bg-subtle/50 px-5 py-4 text-center">
               <Link
                 href={moreTo}
                 className="inline-flex min-h-11 items-center justify-center gap-2 text-[14px] font-bold text-primary-dark hover:text-primary transition-colors"

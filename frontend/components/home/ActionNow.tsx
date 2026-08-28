@@ -42,6 +42,7 @@ export function ActionNow({
   const visible = filtered.slice(0, limit);
   const live = sources.filter((source) => source.block.count > 0);
   const total = sources.reduce((sum, source) => sum + source.block.count, 0);
+  const moreHref = (queue && live.find((source) => source.key === queue)?.href) || viewAllHref;
 
   const DirForward = locale === "ar" ? ChevronLeft : ChevronRight;
 
@@ -94,7 +95,7 @@ export function ActionNow({
 
       {visible.length ? (
         <>
-          <ul className="divide-y divide-line">
+          <ul className="min-h-0 flex-1 divide-y divide-line">
             {visible.map(({ item, reason }) => {
               const next = STATUS_NEXT_ACTION[item.status];
               const stage = stageForStatus(item.status);
@@ -139,10 +140,10 @@ export function ActionNow({
               );
             })}
           </ul>
-          <footer className="border-t border-line bg-subtle/50 px-5 py-4 text-center">
+          <footer className="mt-auto border-t border-line bg-subtle/50 px-5 py-4 text-center">
             <Link
-              href={viewAllHref}
-              className="inline-flex items-center gap-2 text-[14px] font-bold text-primary-dark hover:text-primary transition-colors"
+              href={moreHref}
+              className="inline-flex min-h-11 items-center justify-center gap-2 text-[14px] font-bold text-primary-dark hover:text-primary transition-colors"
             >
               {T.notify.loadMore}
               <DirForward className="size-4.5" />
@@ -155,7 +156,7 @@ export function ActionNow({
           icon={<CheckCircle2 className="size-6" />}
           title={T.dashboard.nothingPending}
           description={T.dashboard.nothingPendingHint}
-          className="border-0 shadow-none py-10"
+          className="flex-1 border-0 shadow-none py-10"
         />
       )}
     </Section>
