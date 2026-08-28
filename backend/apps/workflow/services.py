@@ -34,12 +34,32 @@ logger = logging.getLogger(__name__)
 # Notification helpers (ad-hoc events; reminder jobs use dedupe keys instead)
 # ---------------------------------------------------------------------------
 def _notify(users, recommendation, ntype, message):
-    Notification.objects.bulk_create(
-        [
-            Notification(user=u, recommendation=recommendation, type=ntype, message=message)
-            for u in users
-        ]
-    )
+    seen = set()
+    rows = []
+    for user in users or []:
+        if user is None or not getattr(user, "pk", None) or not user.is_active:
+            continue
+        if user.pk in seen:
+            continue
+        seen.add(user.pk)
+        rows.append(
+            Notification(user=user, recommendation=recommendation, type=ntype, message=message)
+        )
+    if rows:
+        Notification.objects.bulk_create(rows)
+
+
+def _rec_ref(recommendation):
+    return f"REC-{recommendation.id}"
+
+
+def _heads_of(recommendation):
+    return _department_heads(recommendation.report.department)
+
+
+def _assignee(recommendation):
+    plan = getattr(recommendation, "action_plan", None)
+    return plan.responsible_employee if plan else None
 
 
 def _department_heads(department):
@@ -80,17 +100,16 @@ def submit_report_to_department(report, user):
     for rec in recommendations:
         if rec.status == S.DRAFT:
             transition(rec, S.PENDING_RESPONSE, user, "report_submitted_to_department")
+            _notify(
+                _department_heads(report.department),
+                rec,
+                Notification.Type.RESPONSE_NEEDED,
+                f"توصية جديدة بانتظار رد الإدارة — {_rec_ref(rec)} في التقرير: {report.title}",
+            )
 
     report.status = AuditReport.Status.PENDING_RESPONSE
     report.save(update_fields=["status", "updated_at"])
     log_action(user, "report_submitted_to_department", report=report)
-
-    _notify(
-        _department_heads(report.department),
-        None,
-        Notification.Type.RESPONSE_NEEDED,
-        f"تقرير تدقيق جديد بانتظار رد الإدارة: {report.title}",
-    )
     return report
 
 
@@ -107,12 +126,13 @@ def submit_report_to_council(report, user):
     report.status = AuditReport.Status.PENDING_COUNCIL
     report.save(update_fields=["status", "updated_at"])
     log_action(user, "report_submitted_to_council", report=report)
-    _notify(
-        _council_users(report.municipality),
-        None,
-        Notification.Type.ACTION_REQUIRED,
-        f"تقرير بانتظار مصادقة المجلس: {report.title}",
-    )
+    for rec in report.recommendations.all():
+        _notify(
+            _council_users(report.municipality),
+            rec,
+            Notification.Type.ACTION_REQUIRED,
+            f"توصية بانتظار مصادقة المجلس — {_rec_ref(rec)} في التقرير: {report.title}",
+        )
     return report
 
 
@@ -136,10 +156,15 @@ def ratify_report(report, user, notes=""):
         )
         response = getattr(rec, "response", None)
         if response and response.decision == ManagementResponse.Decision.DISAGREE:
-            # Council ratified an audit-accepted disagreement: nothing to implement.
             rec.resolution = Recommendation.Resolution.DISAGREEMENT_ACCEPTED
             rec.save(update_fields=["resolution", "updated_at"])
             transition(rec, S.CLOSED, user, "council_ratified_disagreement")
+            _notify(
+                list(_department_heads(report.department)) + list(_audit_users(report.municipality)),
+                rec,
+                Notification.Type.STATUS_CHANGE,
+                f"أغلق المجلس التوصية {_rec_ref(rec)} بعد قبول عدم الاتفاق.",
+            )
             continue
 
         transition(rec, S.APPROVED_FOR_IMPLEMENTATION, user, "council_ratification")
@@ -148,24 +173,30 @@ def ratify_report(report, user, notes=""):
             transition(rec, S.ACTION_PLAN_APPROVED, user, "plan_pre_approved_with_response", system=True)
             transition(rec, S.IN_PROGRESS, user, "execution_started", system=True)
             _notify(
-                [plan.responsible_employee], rec,
+                [plan.responsible_employee],
+                rec,
                 Notification.Type.ACTION_REQUIRED,
-                "بدأ تنفيذ التوصية المسندة إليك.",
+                f"بدأ تنفيذ التوصية المسندة إليك — {_rec_ref(rec)}.",
+            )
+            _notify(
+                _department_heads(report.department),
+                rec,
+                Notification.Type.STATUS_CHANGE,
+                f"صادق المجلس على {_rec_ref(rec)} وبدأ التنفيذ.",
             )
         else:
             transition(rec, S.ACTION_PLAN_REQUIRED, user, "action_plan_requested", system=True)
+            _notify(
+                _department_heads(report.department),
+                rec,
+                Notification.Type.ACTION_REQUIRED,
+                f"صادق المجلس على {_rec_ref(rec)} — المطلوب تقديم خطة العمل.",
+            )
 
     report.status = AuditReport.Status.RATIFIED
     report.council_approval_date = now
     report.save(update_fields=["status", "council_approval_date", "updated_at"])
     log_action(user, "report_ratified_by_council", report=report, notes=notes)
-
-    _notify(
-        _department_heads(report.department),
-        None,
-        Notification.Type.ACTION_REQUIRED,
-        f"صادق المجلس على التقرير: {report.title} — المطلوب تقديم خطط العمل.",
-    )
     return report
 
 
@@ -229,7 +260,7 @@ def submit_response(recommendation, user, decision, justification="", attachment
         _audit_users(recommendation.report.municipality),
         recommendation,
         Notification.Type.ACTION_REQUIRED,
-        "رد إدارة جديد بانتظار مراجعة التدقيق الداخلي.",
+        f"رد إدارة جديد بانتظار مراجعة التدقيق الداخلي — {_rec_ref(recommendation)}.",
     )
     return response
 
@@ -267,6 +298,12 @@ def review_response(recommendation, user, accept, notes=""):
             notes=notes,
         )
         transition(recommendation, S.PENDING_COUNCIL, user, "audit_approved_response", notes=notes)
+        _notify(
+            _heads_of(recommendation),
+            recommendation,
+            Notification.Type.STATUS_CHANGE,
+            f"قبل التدقيق رد الإدارة على {_rec_ref(recommendation)}. بانتظار رفع التقرير للمجلس.",
+        )
     else:
         if not notes.strip():
             raise WorkflowError("Rejecting a response requires review notes for the department.")
@@ -279,7 +316,7 @@ def review_response(recommendation, user, accept, notes=""):
             _department_heads(recommendation.report.department),
             recommendation,
             Notification.Type.RETURNED,
-            f"أُعيد رد الإدارة للتعديل: {notes}",
+            f"أُعيد رد الإدارة للتعديل على {_rec_ref(recommendation)}: {notes}",
         )
     return response
 
@@ -353,7 +390,7 @@ def submit_action_plan(recommendation, user, plan_data):
         _audit_users(recommendation.report.municipality),
         recommendation,
         Notification.Type.ACTION_REQUIRED,
-        "خطة عمل جديدة بانتظار مراجعة التدقيق الداخلي.",
+        f"خطة عمل جديدة بانتظار مراجعة التدقيق الداخلي — {_rec_ref(recommendation)}.",
     )
     return plan
 
@@ -378,7 +415,13 @@ def review_action_plan(recommendation, user, approve, notes=""):
             [plan.responsible_employee],
             recommendation,
             Notification.Type.ACTION_REQUIRED,
-            "اعتُمدت خطة العمل — بدأ التنفيذ للتوصية المسندة إليك.",
+            f"اعتُمدت خطة العمل وبدأ التنفيذ للتوصية المسندة إليك — {_rec_ref(recommendation)}.",
+        )
+        _notify(
+            _heads_of(recommendation),
+            recommendation,
+            Notification.Type.STATUS_CHANGE,
+            f"اعتُمدت خطة العمل لـ {_rec_ref(recommendation)} وبدأ التنفيذ.",
         )
     else:
         if not notes.strip():
@@ -386,11 +429,14 @@ def review_action_plan(recommendation, user, approve, notes=""):
         plan.status = ActionPlan.Status.REVISION_REQUIRED
         plan.save()
         transition(recommendation, S.REVISION_REQUIRED, user, "action_plan_revision_requested", notes=notes)
+        recipients = list(_heads_of(recommendation))
+        if plan.responsible_employee_id:
+            recipients.append(plan.responsible_employee)
         _notify(
-            _department_heads(recommendation.report.department),
+            recipients,
             recommendation,
             Notification.Type.RETURNED,
-            f"مطلوب تعديل خطة العمل: {notes}",
+            f"مطلوب تعديل خطة العمل لـ {_rec_ref(recommendation)}: {notes}",
         )
     return plan
 
@@ -556,7 +602,7 @@ def mark_implemented(recommendation, user):
         _department_heads(recommendation.report.department),
         recommendation,
         Notification.Type.ACTION_REQUIRED,
-        "تنفيذ التوصية بانتظار مراجعة رئيس الدائرة قبل إرساله للرقابة الداخلية.",
+        f"تنفيذ {_rec_ref(recommendation)} بانتظار مراجعة رئيس الدائرة قبل إرساله للرقابة الداخلية.",
     )
     return recommendation
 
@@ -587,8 +633,16 @@ def review_implementation(recommendation, user, accept, notes=""):
             _audit_users(recommendation.report.municipality),
             recommendation,
             Notification.Type.ACTION_REQUIRED,
-            "توصية بانتظار تحقق التدقيق الداخلي من الأدلة.",
+            f"توصية بانتظار تحقق التدقيق الداخلي من الأدلة — {_rec_ref(recommendation)}.",
         )
+        assignee = _assignee(recommendation)
+        if assignee:
+            _notify(
+                [assignee],
+                recommendation,
+                Notification.Type.STATUS_CHANGE,
+                f"رُفع تنفيذ {_rec_ref(recommendation)} إلى التدقيق الداخلي للتحقق.",
+            )
     else:
         if not notes.strip():
             raise WorkflowError("Returning implementation to the employee requires notes.")
@@ -596,14 +650,12 @@ def review_implementation(recommendation, user, accept, notes=""):
             recommendation, S.IN_PROGRESS, user,
             "implementation_returned_by_head", notes=notes,
         )
-        plan = getattr(recommendation, "action_plan", None)
-        if plan:
-            _notify(
-                [plan.responsible_employee],
-                recommendation,
-                Notification.Type.RETURNED,
-                f"أعادت الإدارة التنفيذ للمزيد من العمل: {notes}",
-            )
+        _notify(
+            [_assignee(recommendation)],
+            recommendation,
+            Notification.Type.RETURNED,
+            f"أعادت الإدارة التنفيذ للمزيد من العمل على {_rec_ref(recommendation)}: {notes}",
+        )
     return recommendation
 
 
@@ -649,18 +701,24 @@ def verify(recommendation, user, decision, notes="", rejected_items="", rejectio
 
     if decision == D.SUFFICIENT:
         transition(recommendation, S.CLOSURE_REVIEW, user, "verified_sufficient", notes=notes)
+        _notify(
+            list(_heads_of(recommendation)) + [_assignee(recommendation)],
+            recommendation,
+            Notification.Type.STATUS_CHANGE,
+            f"قبل التدقيق أدلة {_rec_ref(recommendation)}. التوصية في مراجعة الإغلاق.",
+        )
     elif decision == D.PARTIAL:
         transition(recommendation, S.PARTIAL, user, "verified_partial", notes=notes)
     else:
         transition(recommendation, S.RETURNED_INSUFFICIENT, user, "verified_insufficient", notes=notes)
 
-    if decision != D.SUFFICIENT and assigned_to:
+    if decision != D.SUFFICIENT:
         _notify(
-            [assigned_to],
+            list(_heads_of(recommendation)) + [assigned_to],
             recommendation,
             Notification.Type.RETURNED,
             (
-                f"قرار التحقق: {verification.get_decision_display()}. "
+                f"قرار التحقق على {_rec_ref(recommendation)}: {verification.get_decision_display()}. "
                 f"المرفوض: {rejected_items}. السبب: {rejection_reason}. "
                 f"المطلوب: {required_action}. الموعد النهائي: {action_deadline}."
             ),
@@ -687,7 +745,13 @@ def submit_for_closure(recommendation, user, notes=""):
         _council_users(recommendation.report.municipality),
         recommendation,
         Notification.Type.ACTION_REQUIRED,
-        "توصية بانتظار مراجعة المجلس لإغلاقها.",
+        f"توصية بانتظار مراجعة المجلس لإغلاقها — {_rec_ref(recommendation)}.",
+    )
+    _notify(
+        list(_heads_of(recommendation)) + [_assignee(recommendation)],
+        recommendation,
+        Notification.Type.STATUS_CHANGE,
+        f"أُرسلت {_rec_ref(recommendation)} إلى المجلس لمراجعة الإغلاق.",
     )
     return recommendation
 
@@ -713,17 +777,23 @@ def council_closure(recommendation, user, accept, notes=""):
         recommendation.resolution = Recommendation.Resolution.IMPLEMENTED
         recommendation.save(update_fields=["resolution", "updated_at"])
         transition(recommendation, S.CLOSED, user, "council_closed_recommendation", notes=notes)
+        _notify(
+            list(_audit_users(recommendation.report.municipality))
+            + list(_heads_of(recommendation))
+            + [_assignee(recommendation)],
+            recommendation,
+            Notification.Type.STATUS_CHANGE,
+            f"أغلق المجلس التوصية {_rec_ref(recommendation)}.",
+        )
     else:
         transition(recommendation, S.REOPENED, user, "council_reopened_recommendation", notes=notes)
-        plan = getattr(recommendation, "action_plan", None)
-        recipients = list(_department_heads(recommendation.report.department))
-        if plan:
-            recipients.append(plan.responsible_employee)
         _notify(
-            recipients,
+            list(_heads_of(recommendation))
+            + [_assignee(recommendation)]
+            + list(_audit_users(recommendation.report.municipality)),
             recommendation,
             Notification.Type.RETURNED,
-            f"المجلس طلب إجراءً إضافياً ولم يُغلق التوصية: {notes}",
+            f"المجلس طلب إجراءً إضافياً ولم يُغلق {_rec_ref(recommendation)}: {notes}",
         )
     return recommendation
 

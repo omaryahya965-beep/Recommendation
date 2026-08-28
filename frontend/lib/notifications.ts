@@ -5,9 +5,9 @@ import type { AppNotification, NotificationType, RecommendationStatus, Role } fr
 import { isWaitingOn, stageForStatus, STATUS_NEXT_ACTION } from "./workflow";
 
 /**
- * Backend `Notification.type` values only. `status_change` exists on the
- * model but is not currently emitted by workflow or reminders — it is still
- * mapped so a stored row would render correctly.
+ * Backend `Notification.type` values. Workflow emits `status_change` for
+ * informational updates (accepted, sent to council, closed) that do not
+ * require the recipient to act.
  */
 export type NotifyCategory = "overdue" | "due" | "returned" | "action" | "deadline" | "status";
 

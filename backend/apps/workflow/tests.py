@@ -529,3 +529,108 @@ class EvidenceDeleteTests(TestCase):
         with self.assertRaises(WorkflowError):
             services.delete_evidence(self.rec, self.users["emp"], ev)
 
+
+class WorkflowNotificationTests(TestCase):
+    def setUp(self):
+        self.muni, self.dept, self.users, self.report, self.rec = make_world()
+
+    def test_department_is_notified_when_report_is_sent(self):
+        from apps.notifications.models import Notification
+
+        services.submit_report_to_department(self.report, self.users["audit"])
+        notes = Notification.objects.filter(user=self.users["head"])
+        self.assertEqual(notes.count(), 1)
+        note = notes.get()
+        self.assertEqual(note.type, Notification.Type.RESPONSE_NEEDED)
+        self.assertEqual(note.recommendation_id, self.rec.id)
+        self.assertEqual(Notification.objects.filter(user=self.users["audit"]).count(), 0)
+        self.assertEqual(Notification.objects.filter(user=self.users["council"]).count(), 0)
+        self.assertEqual(Notification.objects.filter(user=self.users["emp"]).count(), 0)
+
+    def test_happy_path_notifies_each_actor_through_closure(self):
+        from apps.notifications.models import Notification
+
+        users, report, rec = self.users, self.report, self.rec
+        services.submit_report_to_department(report, users["audit"])
+        rec.refresh_from_db()
+        services.submit_response(rec, users["head"], decision="agree")
+        rec.refresh_from_db()
+        self.assertTrue(
+            Notification.objects.filter(
+                user=users["audit"], type=Notification.Type.ACTION_REQUIRED, recommendation=rec
+            ).exists()
+        )
+        services.review_response(rec, users["audit"], accept=True)
+        rec.refresh_from_db()
+        self.assertTrue(
+            Notification.objects.filter(
+                user=users["head"], type=Notification.Type.STATUS_CHANGE, recommendation=rec
+            ).exists()
+        )
+        services.submit_report_to_council(report, users["audit"])
+        self.assertTrue(
+            Notification.objects.filter(
+                user=users["council"], type=Notification.Type.ACTION_REQUIRED, recommendation=rec
+            ).exists()
+        )
+        services.ratify_report(report, users["council"])
+        rec.refresh_from_db()
+        self.assertTrue(
+            Notification.objects.filter(
+                user=users["head"], type=Notification.Type.ACTION_REQUIRED, recommendation=rec
+            ).filter(message__contains="خطة العمل").exists()
+        )
+        services.submit_action_plan(rec, users["head"], plan_data(users))
+        rec.refresh_from_db()
+        services.review_action_plan(rec, users["audit"], approve=True)
+        rec.refresh_from_db()
+        self.assertTrue(
+            Notification.objects.filter(
+                user=users["emp"], type=Notification.Type.ACTION_REQUIRED, recommendation=rec
+            ).exists()
+        )
+        finish_steps_and_evidence(users, rec)
+        services.mark_implemented(rec, users["emp"])
+        rec.refresh_from_db()
+        self.assertTrue(
+            Notification.objects.filter(
+                user=users["head"], type=Notification.Type.ACTION_REQUIRED, recommendation=rec
+            ).filter(message__contains="رئيس الدائرة").exists()
+        )
+        services.review_implementation(rec, users["head"], accept=True, notes="ok")
+        rec.refresh_from_db()
+        self.assertTrue(
+            Notification.objects.filter(
+                user=users["audit"], type=Notification.Type.ACTION_REQUIRED, recommendation=rec
+            ).filter(message__contains="تحقق").exists()
+        )
+        services.verify(rec, users["audit"], decision="sufficient", notes="ok")
+        rec.refresh_from_db()
+        self.assertTrue(
+            Notification.objects.filter(
+                user=users["head"], type=Notification.Type.STATUS_CHANGE, recommendation=rec
+            ).filter(message__contains="أدلة").exists()
+        )
+        self.assertTrue(
+            Notification.objects.filter(
+                user=users["emp"], type=Notification.Type.STATUS_CHANGE, recommendation=rec
+            ).filter(message__contains="أدلة").exists()
+        )
+        services.submit_for_closure(rec, users["audit"], notes="ready")
+        rec.refresh_from_db()
+        self.assertTrue(
+            Notification.objects.filter(
+                user=users["council"], type=Notification.Type.ACTION_REQUIRED, recommendation=rec
+            ).filter(message__contains="إغلاق").exists()
+        )
+        services.council_closure(rec, users["council"], accept=True, notes="closed")
+        rec.refresh_from_db()
+        for actor in ("audit", "head", "emp"):
+            self.assertTrue(
+                Notification.objects.filter(
+                    user=users[actor], type=Notification.Type.STATUS_CHANGE, recommendation=rec
+                ).filter(message__contains="أغلق المجلس").exists(),
+                msg=f"{actor} was not notified of closure",
+            )
+        self.assertFalse(Notification.objects.filter(recommendation__isnull=True).exists())
+
