@@ -14,7 +14,9 @@ from apps.ai.services.common import (
     content_hash,
     generate_structured,
     language_of,
+    prefer_prose,
     store_analysis,
+    text_matches_language,
 )
 from apps.ai.services.prompt_manager import render_prompt
 from apps.audits.finding import case_title
@@ -22,7 +24,7 @@ from apps.audits.models import Recommendation
 from apps.audits.serializers import is_overdue
 from apps.workflow.models import VerificationDecision
 
-ANALYSIS_VERSION = "risk_v2"
+ANALYSIS_VERSION = "risk_v3"
 
 ACTIVE = (
     Recommendation.Status.IN_PROGRESS,
@@ -149,16 +151,12 @@ def _narrative_from(data: dict, score: int, estimable: bool, language: str) -> s
     if not estimable:
         if ar:
             return (
-                f"لا يمكن تقدير احتمالية التأخير بعد على {data.get('reference')}: "
-                f"لا توجد خطة عمل بموعد مستهدف. التوصية ما زالت في مرحلة "
-                f"«{status_label(data.get('status') or '', language)}». "
-                f"{nxt} بعد اعتماد الخطة يصبح التقدير مبنياً على الأيام المتبقية وتقدم الخطوات والأدلة."
+                f"لا يُقدَّر التأخير بعد لـ {data.get('reference')} — لا خطة بموعد. "
+                f"الحالة: «{status_label(data.get('status') or '', language)}». {nxt}"
             )
         return (
-            f"Delay likelihood cannot be estimated yet for {data.get('reference')}: "
-            f"there is no action plan with a target date. The recommendation is still "
-            f"«{status_label(data.get('status') or '', language)}». {nxt} "
-            f"Once a plan is approved, the estimate uses remaining days, step progress, and evidence."
+            f"Delay cannot be estimated yet for {data.get('reference')}: no plan with a target date. "
+            f"Status: «{status_label(data.get('status') or '', language)}». {nxt}"
         )
     remaining = data.get("remaining_days")
     progress = int(data.get("progress_percent") or 0)
@@ -169,8 +167,8 @@ def _narrative_from(data: dict, score: int, estimable: bool, language: str) -> s
             else "الموعد غير محدد"
         )
         return (
-            f"تقدير احتمالية التأخير لـ {data.get('reference')} هو {score}% — وليس حكماً بأنها ستتأخر. "
-            f"{remain}، وتقدم التنفيذ {progress}%. {nxt}"
+            f"تقدير التأخير لـ {data.get('reference')}: {score}%. "
+            f"{remain}، والتقدم {progress}%. {nxt}"
         )
     remain = (
         f"It is {abs(remaining)} days past the target date" if remaining is not None and remaining < 0
@@ -215,10 +213,10 @@ def score_from_inputs(data: dict, language: str) -> dict:
             "risk_level": "UNAVAILABLE",
             "estimable": False,
             "confidence": 38,
-            "factors": factors,
-            "situation": _situation_lines(data, language),
-            "recommended_attention": attention,
-            "narrative": _narrative_from(data, 0, False, language),
+        "factors": factors[:4],
+        "situation": _situation_lines(data, language)[:2],
+        "recommended_attention": attention,
+        "narrative": _narrative_from(data, 0, False, language),
             "next_action": attention,
             "inputs": data,
             "missing_data": list(factors),
@@ -337,9 +335,9 @@ def score_from_inputs(data: dict, language: str) -> dict:
         "risk_level": level,
         "estimable": True,
         "confidence": 78 if total else 62,
-        "factors": factors,
-        "situation": _situation_lines(data, language),
-        "recommended_attention": f"{attention} {next_action(data.get('status') or '', language)}",
+        "factors": factors[:4],
+        "situation": _situation_lines(data, language)[:2],
+        "recommended_attention": attention,
         "narrative": _narrative_from(data, score, True, language),
         "next_action": next_action(data.get("status") or "", language),
         "inputs": data,
@@ -378,10 +376,14 @@ def estimate_delay_risk(rec, user, language: str = "ar") -> AIAnalysis:
         "recommended_attention": local["recommended_attention"],
         "confidence": local["confidence"],
     })
-    if isinstance(llm_out.get("recommended_attention"), str) and llm_out["recommended_attention"].strip():
-        local["recommended_attention"] = llm_out["recommended_attention"][:400]
-    if isinstance(llm_out.get("narrative"), str) and llm_out["narrative"].strip():
-        local["narrative"] = llm_out["narrative"][:800]
+    if isinstance(llm_out.get("recommended_attention"), str) and text_matches_language(
+        llm_out["recommended_attention"], lang
+    ):
+        local["recommended_attention"] = prefer_prose(
+            llm_out["recommended_attention"], local["recommended_attention"], lang, 180
+        )
+    if isinstance(llm_out.get("narrative"), str):
+        local["narrative"] = prefer_prose(llm_out["narrative"], local["narrative"], lang, 280)
     local["confidence"] = clamp_score(llm_out.get("confidence"), local["confidence"])
     return store_analysis(
         analysis_type=AIAnalysis.AnalysisType.RISK,

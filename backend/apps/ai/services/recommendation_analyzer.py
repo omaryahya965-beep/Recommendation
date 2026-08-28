@@ -13,7 +13,9 @@ from apps.ai.services.common import (
     content_hash,
     generate_structured,
     language_of,
+    prefer_prose,
     store_analysis,
+    text_matches_language,
 )
 from apps.ai.services.prompt_manager import render_prompt
 from apps.ai.services.sanitizer import recommendation_public_facts, scrub_text
@@ -28,7 +30,7 @@ from apps.audits.finding import (
 )
 from apps.audits.models import Recommendation
 
-ANALYSIS_VERSION = "analysis_v2"
+ANALYSIS_VERSION = "analysis_v3"
 
 ACTION_VERBS = re.compile(
     r"يجب|ينبغي|يتعين|يلزم|تحديث|وضع|إعداد|تطبيق|تنفيذ|اعتماد|إصدار|فصل|توثيق|"
@@ -279,33 +281,21 @@ def local_recommendation_analysis(rec, language: str) -> dict:
         )
 
     dept = rec.report.department.name
-    brief_parts = []
+    found = clip(condition if condition and not placeholder else statement, 160)
     if ar:
-        brief_parts.append(
-            f"REC-{rec.id} — {title}. الدائرة المسؤولة: {dept}. "
-            f"الخطورة المسجّلة: {risk_label(rec.risk_level, language)}. "
-            f"الحالة: {status_label(rec.status, language)}."
+        brief = (
+            f"REC-{rec.id} — {clip(title, 72)}. الدائرة: {dept}. "
+            f"{'ما وُجد: ' + found + '. ' if found else ''}"
+            f"الخطورة {risk_label(rec.risk_level, language)}، والحالة «{status_label(rec.status, language)}». "
+            f"المطلوب الآن: {next_action(rec.status, language)}."
         )
-        if condition and not placeholder:
-            brief_parts.append(f"ما وُجد: {clip(condition, 260)}")
-        if statement and not placeholder:
-            brief_parts.append(f"ما يُطلب لمعالجة الخلل: {clip(statement, 220)}")
-        if root:
-            brief_parts.append(f"السبب الجذري الموثّق: {clip(root, 180)}")
-        brief_parts.append(f"المطلوب الآن: {next_action(rec.status, language)}")
     else:
-        brief_parts.append(
-            f"REC-{rec.id} — {title}. Responsible department: {dept}. "
-            f"Recorded risk: {risk_label(rec.risk_level, language)}. "
-            f"Status: {status_label(rec.status, language)}."
+        brief = (
+            f"REC-{rec.id} — {clip(title, 72)}. Department: {dept}. "
+            f"{'Found: ' + found + '. ' if found else ''}"
+            f"Risk {risk_label(rec.risk_level, language)}; status “{status_label(rec.status, language)}”. "
+            f"Required now: {next_action(rec.status, language)}."
         )
-        if condition and not placeholder:
-            brief_parts.append(f"What was found: {clip(condition, 260)}")
-        if statement and not placeholder:
-            brief_parts.append(f"Corrective action requested: {clip(statement, 220)}")
-        if root:
-            brief_parts.append(f"Documented root cause: {clip(root, 180)}")
-        brief_parts.append(f"Required now: {next_action(rec.status, language)}")
 
     resolve = clip(required_action or statement or condition, 280) if not placeholder else (
         "إعادة صياغة الملاحظة بأقسام مكتملة قبل متابعة التنفيذ."
@@ -343,9 +333,9 @@ def local_recommendation_analysis(rec, language: str) -> dict:
         "suggested_category": category,
         "department_relevance": dept,
         "keywords": keywords,
-        "issues": issues,
-        "suggestions": suggestions,
-        "brief": "\n\n".join(brief_parts),
+        "issues": issues[:3],
+        "suggestions": suggestions[:3],
+        "brief": brief,
         "title": title,
         "next_action": next_action(rec.status, language),
         "how_to_resolve": resolve,
@@ -372,7 +362,7 @@ def _specific_enough(item: str, rec) -> bool:
     )
 
 
-def _merge_llm(local: dict, llm: dict, rec) -> dict:
+def _merge_llm(local: dict, llm: dict, rec, language: str) -> dict:
     merged = dict(local)
     score_keys = [
         "quality_score", "clarity_score", "specificity_score", "actionability_score",
@@ -395,19 +385,30 @@ def _merge_llm(local: dict, llm: dict, rec) -> dict:
     if llm.get("suggested_category") in allowed_cat:
         merged["suggested_category"] = llm["suggested_category"]
 
-    llm_issues = [str(x).strip()[:300] for x in (llm.get("issues") or []) if str(x).strip()]
-    llm_suggestions = [str(x).strip()[:300] for x in (llm.get("suggestions") or []) if str(x).strip()]
+    llm_issues = [
+        str(x).strip()[:180]
+        for x in (llm.get("issues") or [])
+        if str(x).strip() and text_matches_language(str(x), language)
+    ]
+    llm_suggestions = [
+        str(x).strip()[:180]
+        for x in (llm.get("suggestions") or [])
+        if str(x).strip() and text_matches_language(str(x), language)
+    ]
     merged["issues"] = list(dict.fromkeys(
         [*local["issues"], *[i for i in llm_issues if _specific_enough(i, rec)]]
-    ))[:8]
+    ))[:3]
     merged["suggestions"] = list(dict.fromkeys(
         [*local["suggestions"], *[s for s in llm_suggestions if _specific_enough(s, rec)]]
-    ))[:8]
+    ))[:3]
 
-    for key in ("brief", "how_to_resolve", "next_action"):
-        candidate = llm.get(key) if isinstance(llm.get(key), str) else None
-        if candidate and _specific_enough(candidate, rec):
-            merged[key] = candidate[:800] if key == "brief" else candidate[:300]
+    merged["brief"] = prefer_prose(llm.get("brief"), local["brief"], language, 420)
+    merged["how_to_resolve"] = prefer_prose(
+        llm.get("how_to_resolve"), local["how_to_resolve"], language, 220
+    )
+    merged["next_action"] = prefer_prose(
+        llm.get("next_action"), local["next_action"], language, 160
+    )
 
     if isinstance(llm.get("keywords"), list):
         merged["keywords"] = [str(x)[:40] for x in llm["keywords"][:10]]
@@ -438,7 +439,7 @@ def analyze_recommendation(rec, user, language: str = "ar") -> AIAnalysis:
         untrusted_root_cause=scrub_text(rec.root_cause),
     )
     llm_out = generate_structured(prompt, fallback=local)
-    output = _merge_llm(local, llm_out, rec)
+    output = _merge_llm(local, llm_out, rec, lang)
     output["disclaimer"] = (
         "تحليل استشاري لهذا الملف تحديداً. لا يغيّر حالة التوصية ولا يغني عن اعتماد بشري."
         if lang == "ar"

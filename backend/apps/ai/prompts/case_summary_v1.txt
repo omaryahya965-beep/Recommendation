@@ -68,4 +68,4 @@ Return valid JSON matching this schema:
   "model": "model-name"
 }
 
-Do not write portfolio-wide statistics unless relevant to the record. Keep recommendation IDs and department names unchanged. Modern Standard Arabic when language is ar.
+If language is Arabic, write every string in Modern Standard Arabic. executive_summary: 4 sentences maximum. key_findings: at most 4 short bullets. Do not write long essays.

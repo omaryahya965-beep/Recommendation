@@ -59,8 +59,8 @@ export function AIRecommendationAnalysis({
   const lang = uiLanguage();
 
   const cached = useQuery({
-    queryKey: ["ai-analysis", recommendationId],
-    queryFn: () => api<AIAnalysisEnvelope | { analysis: null }>(`/api/ai/recommendations/${recommendationId}/analyze/`),
+    queryKey: ["ai-analysis", recommendationId, lang],
+    queryFn: () => api<AIAnalysisEnvelope | { analysis: null }>(`/api/ai/recommendations/${recommendationId}/analyze/?language=${lang}`),
   });
 
   const analyze = useMutation({
@@ -113,10 +113,7 @@ export function AIRecommendationAnalysis({
         <div className="space-y-4 text-[13.5px]">
           {/* Brief */}
           {typeof out.brief === "string" && out.brief ? (
-            <div className="space-y-1.5">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-navy">{T.ai.brief}</p>
-              <p className="whitespace-pre-wrap leading-relaxed text-ink font-medium bg-surface rounded-xl p-4 border border-line">{out.brief}</p>
-            </div>
+            <p className="leading-relaxed text-ink font-medium">{out.brief}</p>
           ) : null}
 
           {/* Score grid */}
@@ -161,7 +158,7 @@ export function AIRecommendationAnalysis({
             <div className="space-y-2">
               <p className="text-[11px] font-bold uppercase tracking-wider text-danger-dark">{T.ai.issues}</p>
               <ul className="list-disc ps-5 space-y-1.5 font-medium text-ink bg-danger/5 rounded-xl p-3.5 border border-danger/10">
-                {(out.issues as string[]).map((item) => (
+                {(out.issues as string[]).slice(0, 3).map((item) => (
                   <li key={item}>{item}</li>
                 ))}
               </ul>
@@ -173,7 +170,7 @@ export function AIRecommendationAnalysis({
             <div className="space-y-2">
               <p className="text-[11px] font-bold uppercase tracking-wider text-success-dark">{T.ai.suggestions}</p>
               <ul className="list-disc ps-5 space-y-1.5 font-medium text-ink bg-success/5 rounded-xl p-3.5 border border-success/10">
-                {(out.suggestions as string[]).map((item) => (
+                {(out.suggestions as string[]).slice(0, 3).map((item) => (
                   <li key={item}>{item}</li>
                 ))}
               </ul>

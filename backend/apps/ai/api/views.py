@@ -21,6 +21,7 @@ from apps.ai.services.action_plan_generator import suggest_action_plan
 from apps.ai.services.audit_assistant import clear_conversation, run_assistant
 from apps.ai.services.common import (
     latest_analysis,
+    output_matches_language,
     require_ai_enabled,
     run_job,
     serialize_analysis,
@@ -43,8 +44,10 @@ from .serializers import AssistantRequestSerializer, SummaryRequestSerializer
 
 def _language(request) -> str:
     if request.method == "GET":
-        return request.query_params.get("language") or request.headers.get("Accept-Language", "ar")
-    return (request.data or {}).get("language") or request.query_params.get("language") or "ar"
+        raw = request.query_params.get("language")
+    else:
+        raw = (request.data or {}).get("language") or request.query_params.get("language")
+    return raw or "ar"
 
 
 def _ai_error(exc: Exception) -> Response:
@@ -107,7 +110,8 @@ class RecommendationAnalyzeView(APIView):
         except AIError as exc:
             return _ai_error(exc)
         analysis = latest_analysis(AIAnalysis.AnalysisType.RECOMMENDATION, "recommendation", rec.id)
-        if analysis is not None and (analysis.output or {}).get("brief"):
+        lang = _language(request)
+        if analysis is not None and output_matches_language(analysis.output, lang):
             return Response(serialize_analysis(analysis))
         return Response(
             serialize_live(
@@ -202,7 +206,8 @@ class RecommendationRiskView(APIView):
         except AIError as exc:
             return _ai_error(exc)
         analysis = latest_analysis(AIAnalysis.AnalysisType.RISK, "recommendation", rec.id)
-        if analysis is not None and "estimable" in (analysis.output or {}):
+        lang = _language(request)
+        if analysis is not None and output_matches_language(analysis.output, lang):
             return Response(serialize_analysis(analysis))
         return Response(
             serialize_live(
@@ -295,7 +300,12 @@ class SummaryView(APIView):
         except AIError as exc:
             return _ai_error(exc)
         analysis = latest_analysis(AIAnalysis.AnalysisType.SUMMARY, "recommendation", rec.id)
-        if analysis is None or not (analysis.output or {}).get("stats", {}).get("reference"):
+        lang = request.query_params.get("language") or "ar"
+        if (
+            analysis is None
+            or not (analysis.output or {}).get("stats", {}).get("reference")
+            or not output_matches_language(analysis.output, lang)
+        ):
             return Response({"detail": "No summary yet.", "analysis": None})
         return Response(serialize_analysis(analysis))
 

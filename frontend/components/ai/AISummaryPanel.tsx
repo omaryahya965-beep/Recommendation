@@ -3,54 +3,48 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { LayoutGrid } from "lucide-react";
-
 import { AIPanel } from "@/components/ai/AIPrimitives";
-import { ExpandableSection } from "@/components/mobile/ExpandableSection";
-import { Button, ErrorBanner, Select } from "@/components/ui/Base";
+import { Button, ErrorBanner } from "@/components/ui/Base";
 import { uiLanguage } from "@/lib/ai";
 import { api, errorMessage } from "@/lib/api";
 import { T, useI18n } from "@/lib/i18n";
 import type { AIAnalysisEnvelope, AIJob, Role } from "@/lib/types";
 
-const SCOPES: Array<{ id: string; labelKey: keyof typeof T.ai; roles?: Role[] }> = [
-  { id: "recommendation", labelKey: "scopeRecommendation" },
-  { id: "department", labelKey: "scopeDepartment", roles: ["audit", "council", "department_head"] },
-  { id: "report", labelKey: "scopeReport", roles: ["audit", "council", "department_head"] },
-  { id: "municipality", labelKey: "scopeMunicipality", roles: ["audit", "council"] },
-  { id: "followup_period", labelKey: "scopeFollowup", roles: ["audit", "council", "department_head"] },
-];
-
 interface SummaryItem {
   text?: string;
   label?: string;
   value?: string;
-  date?: string;
   source_ids?: string[];
-  id?: string;
-  title?: string;
 }
 
 export function AISummaryPanel({
   role,
   recommendationId,
   reportId,
+  periodStart,
+  periodEnd,
 }: {
   role: Role;
   recommendationId?: number;
   reportId?: number;
+  periodStart?: string;
+  periodEnd?: string;
 }) {
   useI18n();
-  const [scope, setScope] = useState(
-    recommendationId ? "recommendation" : role === "audit" || role === "council" ? "municipality" : "department"
-  );
+  const lang = uiLanguage();
+  const lockedScope = recommendationId
+    ? "recommendation"
+    : periodStart || periodEnd
+      ? "followup_period"
+      : null;
   const [error, setError] = useState<string | null>(null);
+  const scope = lockedScope ?? (role === "audit" || role === "council" ? "municipality" : "department");
 
   const cached = useQuery({
-    queryKey: ["ai-summary", scope, recommendationId],
+    queryKey: ["ai-summary", scope, recommendationId, lang],
     queryFn: () =>
       api<AIAnalysisEnvelope | { analysis: null }>(
-        `/api/ai/summaries/?scope=${encodeURIComponent(scope)}&recommendation_id=${recommendationId ?? ""}&language=${uiLanguage()}`,
+        `/api/ai/summaries/?scope=${encodeURIComponent(scope)}&recommendation_id=${recommendationId ?? ""}&language=${lang}`,
       ),
     enabled: scope === "recommendation" && Boolean(recommendationId),
     retry: false,
@@ -62,9 +56,11 @@ export function AISummaryPanel({
         method: "POST",
         body: {
           scope,
-          language: uiLanguage(),
+          language: lang,
           recommendation_id: recommendationId,
           report_id: reportId,
+          period_start: periodStart || undefined,
+          period_end: periodEnd || undefined,
         },
       }),
     onError: (err) => setError(errorMessage(err)),
@@ -74,187 +70,60 @@ export function AISummaryPanel({
   const analysis =
     mutation.data?.analysis ?? (cached.data && "output" in cached.data ? cached.data : null);
   const out = (analysis?.output ?? null) as Record<string, unknown> | null;
+  const findings = Array.isArray(out?.key_findings) ? (out.key_findings as SummaryItem[]).slice(0, 4) : [];
+  const nextSteps = Array.isArray(out?.recommended_next_steps)
+    ? (out.recommended_next_steps as SummaryItem[]).slice(0, 3)
+    : [];
+
+  const hint = recommendationId
+    ? lang === "ar"
+      ? "ملخص هذه التوصية فقط."
+      : "Summary of this recommendation only."
+    : periodStart || periodEnd
+      ? lang === "ar"
+        ? "ملخص فترة المتابعة المحددة."
+        : "Summary of the selected follow-up period."
+      : T.ai.empty;
 
   return (
     <AIPanel
       title={T.ai.summary}
       actions={
-        <div className="flex flex-wrap items-center gap-2.5">
-          <div className="flex items-center gap-1.5 rounded-lg border border-line bg-subtle/60 px-2.5 py-1">
-            <LayoutGrid className="size-3 text-muted shrink-0" aria-hidden />
-            <Select
-              value={scope}
-              onChange={(event) => setScope(event.target.value)}
-              className="h-auto border-0 bg-transparent py-0 text-[12px] font-semibold shadow-none ring-0 focus:ring-0"
-            >
-              {SCOPES.filter((item) => !item.roles || item.roles.includes(role)).map((item) => (
-                <option key={item.id} value={item.id}>
-                  {T.ai[item.labelKey]}
-                </option>
-              ))}
-            </Select>
-          </div>
-          <Button onClick={() => mutation.mutate()} disabled={mutation.isPending} variant="secondary" className="font-bold text-xs ring-1 ring-line">
-            {mutation.isPending ? T.ai.generating : T.ai.generateSummary}
-          </Button>
-        </div>
+        <Button onClick={() => mutation.mutate()} disabled={mutation.isPending} variant="secondary" className="font-bold text-xs ring-1 ring-line">
+          {mutation.isPending ? T.ai.generating : T.ai.generateSummary}
+        </Button>
       }
     >
+      <p className="mb-3 text-xs font-semibold text-ink-soft">{hint}</p>
       <ErrorBanner message={error} />
       {out ? (
-        <article className="space-y-6 text-[13.5px]">
-          <div className="border-b border-line pb-3">
-            <h3 className="font-heading text-[17px] font-bold text-navy leading-snug">{String(out.title ?? T.ai.summary)}</h3>
-          </div>
-
-          {/* Executive Summary */}
+        <article className="space-y-4 text-[13.5px]">
+          <h3 className="font-heading text-[16px] font-bold text-navy leading-snug">{String(out.title ?? T.ai.summary)}</h3>
           {out.executive_summary ? (
-            <div className="space-y-1">
-              <h4 className="text-[12px] font-bold uppercase text-ai-dark">{uiLanguage() === "ar" ? "الملخص التنفيذي" : "Executive Summary"}</h4>
-              <p className="whitespace-pre-wrap leading-relaxed text-ink font-medium bg-surface rounded-xl p-4 border border-line">{String(out.executive_summary)}</p>
-            </div>
+            <p className="leading-relaxed text-ink font-medium">{String(out.executive_summary)}</p>
           ) : null}
-
-          {/* Key Findings */}
-          {Array.isArray(out.key_findings) && out.key_findings.length ? (
-            <div className="space-y-2">
-              <h4 className="text-[12px] font-bold uppercase text-navy">{uiLanguage() === "ar" ? "النتائج الرئيسية" : "Key Findings"}</h4>
-              <ul className="space-y-2 bg-surface rounded-xl p-4 border border-line">
-                {(out.key_findings as SummaryItem[]).map((item, idx: number) => (
-                  <li key={idx} className="flex flex-col gap-1 text-ink font-medium">
-                    <div className="flex gap-2">
-                      <span className="mt-2 size-1.5 shrink-0 rounded-full bg-ai" aria-hidden />
-                      <span>{item.text}</span>
-                    </div>
-                    {item.source_ids?.length ? (
-                      <div className="ps-3.5 flex flex-wrap gap-1.5 mt-0.5">
-                        {item.source_ids.map((sid: string) => (
-                          <span key={sid} className="px-2 py-0.5 text-[10px] font-bold bg-subtle text-muted rounded-md border border-line font-mono">{sid}</span>
-                        ))}
-                      </div>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            </div>
+          {findings.length ? (
+            <ul className="space-y-1.5">
+              {findings.map((item, idx) => (
+                <li key={idx} className="flex gap-2 font-medium text-ink">
+                  <span className="mt-2 size-1.5 shrink-0 rounded-full bg-ai" aria-hidden />
+                  <span>{item.text}</span>
+                </li>
+              ))}
+            </ul>
           ) : null}
-
-          {/* Status & Risk Grid */}
-          {((Array.isArray(out.status_overview) && out.status_overview.length) || (Array.isArray(out.risk_overview) && out.risk_overview.length)) ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {Array.isArray(out.status_overview) && out.status_overview.length ? (
-                <div className="space-y-2">
-                  <h4 className="text-[12px] font-bold uppercase text-navy">{uiLanguage() === "ar" ? "نظرة عامة على الحالة" : "Status Overview"}</h4>
-                  <div className="bg-surface rounded-xl border border-line divide-y divide-line">
-                    {(out.status_overview as SummaryItem[]).map((item, idx: number) => (
-                      <div key={idx} className="p-3 flex justify-between items-center text-[12.5px] font-medium">
-                        <span className="text-muted">{item.label}</span>
-                        <span className="font-bold text-navy">{item.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-
-              {Array.isArray(out.risk_overview) && out.risk_overview.length ? (
-                <div className="space-y-2">
-                  <h4 className="text-[12px] font-bold uppercase text-danger-dark">{uiLanguage() === "ar" ? "نظرة عامة على المخاطر" : "Risk Overview"}</h4>
-                  <div className="bg-surface rounded-xl border border-line divide-y divide-line">
-                    {(out.risk_overview as SummaryItem[]).map((item, idx: number) => (
-                      <div key={idx} className="p-3 flex justify-between items-center text-[12.5px] font-medium">
-                        <span className="text-muted">{item.label}</span>
-                        <span className="font-bold text-danger">{item.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-
-          {/* Important Deadlines */}
-          {Array.isArray(out.important_deadlines) && out.important_deadlines.length ? (
-            <div className="space-y-2">
-              <h4 className="text-[12px] font-bold uppercase text-navy">{uiLanguage() === "ar" ? "مواعيد هامة" : "Important Deadlines"}</h4>
-              <div className="bg-surface rounded-xl border border-line divide-y divide-line">
-                {(out.important_deadlines as SummaryItem[]).map((item, idx: number) => (
-                  <div key={idx} className="p-3 flex justify-between items-center text-[12.5px] font-medium">
-                    <span className="text-muted">{item.label}</span>
-                    <span className="font-bold text-navy font-mono bg-subtle px-2 py-0.5 rounded border border-line">{item.date}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          {/* Recommended Next Steps */}
-          {Array.isArray(out.recommended_next_steps) && out.recommended_next_steps.length ? (
-            <div className="space-y-2">
-              <h4 className="text-[12px] font-bold uppercase text-success-dark">{uiLanguage() === "ar" ? "الخطوات التالية الموصى بها" : "Recommended Next Steps"}</h4>
-              <ul className="space-y-2 bg-success/5 rounded-xl p-4 border border-success/10">
-                {(out.recommended_next_steps as SummaryItem[]).map((item, idx: number) => (
-                  <li key={idx} className="flex gap-2.5 font-medium leading-relaxed text-ink">
-                    <span className="mt-2 size-1.5 shrink-0 rounded-full bg-success" aria-hidden />
+          {nextSteps.length ? (
+            <div className="space-y-1.5">
+              <p className="text-[12px] font-bold text-success-dark">{lang === "ar" ? "المطلوب الآن" : "Next"}</p>
+              <ul className="space-y-1.5">
+                {nextSteps.map((item, idx) => (
+                  <li key={idx} className="font-medium leading-relaxed text-ink">
                     {item.text}
                   </li>
                 ))}
               </ul>
             </div>
           ) : null}
-
-          {/* Open Questions */}
-          {Array.isArray(out.open_questions) && out.open_questions.length ? (
-            <div className="space-y-2">
-              <h4 className="text-[12px] font-bold uppercase text-warning-dark">{uiLanguage() === "ar" ? "أسئلة مفتوحة للمراجعة" : "Open Questions for Review"}</h4>
-              <ul className="space-y-2 bg-warning/5 rounded-xl p-4 border border-warning/10">
-                {(out.open_questions as SummaryItem[]).map((item, idx: number) => (
-                  <li key={idx} className="flex gap-2.5 font-medium leading-relaxed text-ink">
-                    <span className="mt-2 size-1.5 shrink-0 rounded-full bg-warning" aria-hidden />
-                    {item.text}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-
-          {/* Limitations */}
-          {Array.isArray(out.limitations) && out.limitations.length ? (
-            <div className="space-y-2">
-              <h4 className="text-[12px] font-bold uppercase text-muted">{uiLanguage() === "ar" ? "محددات وتنبيهات" : "Limitations & Disclaimers"}</h4>
-              <ul className="space-y-2 bg-subtle/50 rounded-xl p-4 border border-line">
-                {(out.limitations as SummaryItem[]).map((item, idx: number) => (
-                  <li key={idx} className="flex gap-2.5 font-medium leading-relaxed text-ink-soft">
-                    <span className="mt-2 size-1.5 shrink-0 rounded-full bg-muted" aria-hidden />
-                    {item.text}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-
-          {/* Sources */}
-          {Array.isArray(out.sources) && out.sources.length ? (
-            <ExpandableSection summary={uiLanguage() === "ar" ? "المصادر والمراجع" : "Sources & References"}>
-              <div className="flex flex-wrap gap-2">
-                {(out.sources as SummaryItem[]).map((item, idx: number) => (
-                  <div key={idx} className="flex min-h-11 min-w-0 items-center gap-1.5 rounded-lg border border-line bg-subtle px-3 py-2 text-[13px] font-bold">
-                    <span className="font-mono text-navy">{item.id}</span>
-                    {item.title ? <span className="min-w-0 truncate font-normal text-ink-soft">| {item.title}</span> : null}
-                  </div>
-                ))}
-              </div>
-            </ExpandableSection>
-          ) : null}
-
-          <div className="border-t border-line pt-4">
-            <p className="text-[11px] text-muted font-semibold">
-              {uiLanguage() === "ar" ? "توليد بواسطة: " : "Generated by: "}
-              <span className="font-mono text-navy">{String(out.provider || "local")}</span>
-              {" | "}
-              {uiLanguage() === "ar" ? "النموذج: " : "Model: "}
-              <span className="font-mono text-navy">{String(out.model || "heuristic-v1")}</span>
-            </p>
-          </div>
         </article>
       ) : (
         <p className="text-sm font-semibold text-ink-soft">{T.ai.empty}</p>

@@ -68,4 +68,4 @@ Return valid JSON matching this schema:
   "model": "model-name"
 }
 
-Keep recommendation IDs, dates, and department names unchanged. Modern Standard Arabic when language is ar.
+If language is Arabic, write every string in Modern Standard Arabic. executive_summary: 4 sentences maximum covering THIS scope only (recommendation or follow-up period). No long essays.

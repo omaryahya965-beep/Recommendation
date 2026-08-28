@@ -166,6 +166,7 @@ export const TRAIL_ACTION_LABELS: Record<string, string> = {
   reminder_rule_updated: "تعديل قاعدة تذكير",
   reminder_rule_deleted: "حذف قاعدة تذكير",
   followup_report_generated: "توليد تقرير متابعة",
+  followup_report_deleted: "حذف تقرير متابعة",
   workflow_policy_updated: "تعديل سياسة سير العمل",
 };
 
@@ -1133,19 +1134,20 @@ export const T = {
   /** Periodic follow-up reports */
   followup: {
     title: "تقارير المتابعة",
-    subtitle: "لقطات دورية لحالة التوصيات ونِسب الإنجاز خلال فترة محددة",
+    subtitle: "ولِّد متابعة لفترة من/إلى. النتيجة لهذه الجلسة فقط، وتُفرَّغ عند مغادرة الصفحة.",
     generate: "توليد تقرير متابعة لفترة",
     from: "من",
     to: "إلى",
     generateAction: "توليد التقرير",
     period: "الفترة",
     generatedBy: "أُنشئ بواسطة",
-    snapshot: "لقطة التوصيات في هذه الفترة",
-    open: "عرض اللقطة",
-    close: "إخفاء اللقطة",
-    empty: "لا توجد تقارير متابعة بعد.",
-    emptyHint: "حدّد فترة زمنية ووَلِّد أول تقرير متابعة لتوثيق حالة التوصيات فيها.",
-    immutable: "تقرير المتابعة لقطة ثابتة للفترة، ولا يتغيّر بعد توليده.",
+    snapshot: "التوصيات في هذه الفترة",
+    open: "عرض التوصيات",
+    close: "إخفاء التوصيات",
+    empty: "لا توجد تقارير محفوظة.",
+    emptyHint: "حدّد فترة زمنية وولِّد المتابعة لعرض التوصيات وملخصها.",
+    sessionOnly: "هذه المتابعة لهذه الجلسة فقط. إذا غادرت الصفحة تُفرَّغ ولا تُحفظ.",
+    nextForFollowup: "المطلوب في هذه المتابعة",
   },
   /** Portfolio analytics derived from the recommendation register */
   analytics: {

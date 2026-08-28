@@ -540,10 +540,7 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
           ) : null}
 
           {resolvedTab === "finding" ? (
-            <div className="space-y-6">
-              <FindingSection rec={rec} />
-              <CaseStageAI rec={rec} role={role} tab="finding" />
-            </div>
+            <FindingSection rec={rec} />
           ) : null}
 
           {resolvedTab === "response" ? (
@@ -580,15 +577,11 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
               ) : (
                 <ResponseRecord rec={rec} />
               )}
-              <CaseStageAI rec={rec} role={role} tab="response" />
             </div>
           ) : null}
 
           {resolvedTab === "plan" ? (
-            <div className="space-y-6">
-              <PlanTab rec={rec} role={role} action={action} />
-              <CaseStageAI rec={rec} role={role} tab="plan" />
-            </div>
+            <PlanTab rec={rec} role={role} action={action} />
           ) : null}
 
           {resolvedTab === "evidence" ? (
@@ -605,7 +598,6 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
             <div className="space-y-6">
               <VerificationPanel rec={rec} action={action} canVerify={can("verify", rec.status, role)} />
               <ClosurePanel rec={rec} role={role} action={action} />
-              <CaseStageAI rec={rec} role={role} tab="verification" />
             </div>
           ) : null}
 

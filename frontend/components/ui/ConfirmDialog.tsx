@@ -3,6 +3,7 @@
 import { AlertTriangle, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useCallback, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { useFocusTrap } from "@/components/mobile/useFocusTrap";
 import { Button } from "@/components/ui/Base";
@@ -41,11 +42,11 @@ export function ConfirmDialog({
 
   useFocusTrap(open, panelRef, onCancel, confirmRef);
 
-  if (!open) return null;
+  if (!open || typeof document === "undefined") return null;
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-end justify-center bg-overlay/80 p-0 backdrop-blur-sm transition-all sm:items-center sm:p-4"
+      className="fixed inset-0 z-[200] flex items-end justify-center bg-overlay/80 p-0 backdrop-blur-sm transition-all sm:items-center sm:p-4"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onCancel();
       }}
@@ -56,8 +57,10 @@ export function ConfirmDialog({
         aria-modal="true"
         aria-labelledby="confirm-title"
         className="relative w-full max-w-md animate-scale-in overflow-hidden rounded-t-[20px] bg-surface shadow-2xl ring-1 ring-line sm:rounded-[20px]"
+        onMouseDown={(event) => event.stopPropagation()}
       >
         <button
+          type="button"
           onClick={onCancel}
           className="absolute end-3 top-3 z-10 flex size-11 items-center justify-center rounded-full text-muted hover:bg-subtle hover:text-ink"
           aria-label={T.confirm.cancel}
@@ -79,7 +82,7 @@ export function ConfirmDialog({
             <AlertTriangle className="size-7" strokeWidth={2.5} />
           </div>
 
-          <div className="min-w-0">
+          <div className="min-w-0 px-8">
             <h2 id="confirm-title" className="font-heading text-xl font-bold text-navy">
               {title}
             </h2>
@@ -88,10 +91,11 @@ export function ConfirmDialog({
         </div>
 
         <div className="flex flex-col-reverse gap-3 border-t border-line bg-subtle/50 px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:flex-row sm:flex-wrap sm:justify-end sm:px-8 sm:py-5">
-          <Button variant="ghost" onClick={onCancel} disabled={busy} className="min-h-12 w-full min-w-[100px] sm:w-auto">
+          <Button type="button" variant="ghost" onClick={onCancel} disabled={busy} className="min-h-12 w-full min-w-[100px] sm:w-auto">
             {cancelLabel}
           </Button>
           <Button
+            type="button"
             ref={confirmRef}
             variant={tone === "danger" ? "danger" : tone === "warn" ? "warn" : "primary"}
             onClick={onConfirm}
@@ -102,7 +106,8 @@ export function ConfirmDialog({
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

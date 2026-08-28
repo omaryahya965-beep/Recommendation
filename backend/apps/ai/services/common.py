@@ -17,6 +17,8 @@ from apps.ai.providers import get_llm_provider, provider_meta
 logger = logging.getLogger("apps.ai")
 
 JSON_FENCE = re.compile(r"```(?:json)?\s*([\s\S]*?)```", re.IGNORECASE)
+ARABIC_LETTERS = re.compile(r"[\u0600-\u06FF]")
+LATIN_LETTERS = re.compile(r"[A-Za-z]")
 
 
 def require_ai_enabled():
@@ -28,6 +30,40 @@ def language_of(value: str | None) -> str:
     if (value or "").lower().startswith("en"):
         return "en"
     return "ar"
+
+
+def text_matches_language(text: str | None, language: str) -> bool:
+    """Reject English-dominant copy when the UI asked for Arabic."""
+    blob = (text or "").strip()
+    if not blob:
+        return False
+    if language_of(language) != "ar":
+        return True
+    return len(ARABIC_LETTERS.findall(blob)) >= max(4, len(LATIN_LETTERS.findall(blob)))
+
+
+def output_matches_language(output: dict | None, language: str) -> bool:
+    if not isinstance(output, dict):
+        return False
+    blob = " ".join(
+        str(output.get(key) or "")
+        for key in ("brief", "narrative", "executive_summary", "body", "how_to_resolve")
+    )
+    return text_matches_language(blob, language)
+
+
+def prefer_prose(candidate, fallback: str, language: str, max_chars: int) -> str:
+    local = " ".join((fallback or "").split()).strip()
+    text = candidate if isinstance(candidate, str) else ""
+    text = " ".join(text.split()).strip()
+    if not text or not text_matches_language(text, language) or len(text) > max_chars * 2:
+        text = local
+    if len(text) <= max_chars:
+        return text
+    cut = text[: max_chars - 1]
+    if " " in cut:
+        cut = cut.rsplit(" ", 1)[0]
+    return f"{cut}…"
 
 
 def content_hash(*parts: Any) -> str:

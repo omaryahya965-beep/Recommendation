@@ -8,7 +8,7 @@ from apps.core.permissions import IsAudit, RolePermission
 
 from .models import FollowUpReport
 from .serializers import FollowUpReportSerializer, GenerateFollowUpSerializer
-from .services import generate_followup_report
+from .services import preview_followup_report
 
 
 class CanViewFollowUps(RolePermission):
@@ -16,10 +16,17 @@ class CanViewFollowUps(RolePermission):
 
 
 class FollowUpReportViewSet(
-    mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
 ):
     serializer_class = FollowUpReportSerializer
     permission_classes = [CanViewFollowUps]
+
+    def get_permissions(self):
+        if self.action == "generate":
+            return [IsAudit()]
+        return super().get_permissions()
 
     def get_queryset(self):
         return FollowUpReport.objects.filter(
@@ -30,12 +37,13 @@ class FollowUpReportViewSet(
     def generate(self, request):
         serializer = GenerateFollowUpSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        report = generate_followup_report(
+        language = request.data.get("language") or "ar"
+        preview = preview_followup_report(
             request.user.municipality,
-            request.user,
             serializer.validated_data["period_start"],
             serializer.validated_data["period_end"],
+            language,
         )
-        return Response(
-            FollowUpReportSerializer(report).data, status=http_status.HTTP_201_CREATED
-        )
+        preview["period_start"] = str(preview["period_start"])
+        preview["period_end"] = str(preview["period_end"])
+        return Response(preview, status=http_status.HTTP_200_OK)

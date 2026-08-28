@@ -218,30 +218,54 @@ export interface WorkflowPolicy {
   require_plan_with_response: boolean;
 }
 
+export interface FollowUpSnapshot {
+  generated_at: string;
+  totals: { total: number; closed: number; completion_rate: number; overdue: number };
+  by_status: Record<string, number>;
+  by_risk: Record<string, number>;
+  by_department: Record<string, number>;
+  items: Array<{
+    id: number;
+    text: string;
+    department: string;
+    report: string;
+    risk_level: string;
+    status: string;
+    is_recurring: boolean;
+    target_date: string | null;
+    responsible: string | null;
+    overdue: boolean;
+  }>;
+}
+
+export interface FollowUpExecutiveSummary {
+  title: string;
+  text: string;
+  key_findings: Array<{ text: string }>;
+  recommended_next_steps: Array<{ text: string }>;
+  focus: Array<{
+    id: number;
+    department?: string;
+    status?: string;
+    risk_level?: string;
+    overdue?: boolean;
+    text?: string;
+  }>;
+}
+
+export interface FollowUpPreview {
+  period_start: string;
+  period_end: string;
+  snapshot: FollowUpSnapshot;
+  executive_summary: FollowUpExecutiveSummary;
+}
+
 export interface FollowUpReport {
   id: number;
   period_start: string;
   period_end: string;
   generated_by_detail: User;
-  snapshot: {
-    generated_at: string;
-    totals: { total: number; closed: number; completion_rate: number; overdue: number };
-    by_status: Record<string, number>;
-    by_risk: Record<string, number>;
-    by_department: Record<string, number>;
-    items: Array<{
-      id: number;
-      text: string;
-      department: string;
-      report: string;
-      risk_level: string;
-      status: string;
-      is_recurring: boolean;
-      target_date: string | null;
-      responsible: string | null;
-      overdue: boolean;
-    }>;
-  };
+  snapshot: FollowUpSnapshot;
   created_at: string;
 }
 

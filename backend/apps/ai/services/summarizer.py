@@ -9,7 +9,14 @@ from apps.ai.exceptions import AIError
 from apps.ai.models import AIAnalysis
 from apps.ai.providers import provider_meta
 from apps.ai.services.case_copy import next_action, risk_label, status_label
-from apps.ai.services.common import content_hash, generate_structured, language_of, store_analysis
+from apps.ai.services.common import (
+    content_hash,
+    generate_structured,
+    language_of,
+    prefer_prose,
+    store_analysis,
+    text_matches_language,
+)
 from apps.accounts.models import User
 from apps.ai.services.prompt_manager import render_prompt
 from apps.ai.services.sanitizer import recommendation_public_facts, scrub_text
@@ -84,101 +91,41 @@ def _case_summary(rec, language: str) -> tuple[str, list[str], dict]:
     parsed = parse_finding(rec.text)
     sections = parsed["sections"]
     condition = sections.get("condition") or parsed["preamble"] or rec.text
-    criteria = sections.get("criteria", "")
-    effect = sections.get("effect", "")
     statement = sections.get("statement") or ("" if parsed["structured"] else rec.text)
     required_action = sections.get("required_action", "")
-    success = sections.get("success") or sections.get("outcome", "")
-    root = (rec.root_cause or "").strip()
     title = case_title(rec.text)
-    plan = getattr(rec, "action_plan", None)
     overdue = is_overdue(rec)
-    heading = f"ملخص تنفيذي — REC-{rec.id}" if ar else f"Executive Summary — REC-{rec.id}"
+    heading = f"ملخص REC-{rec.id}" if ar else f"Summary — REC-{rec.id}"
     placeholder = is_repeated_placeholder(rec.text)
 
-    paragraphs = [heading, ""]
     if ar:
-        paragraphs.append(
-            f"الملف يخص دائرة {rec.report.department.name} ضمن تقرير «{rec.report.title}». "
-            f"الخطورة المسجّلة {risk_label(rec.risk_level, language)}، والحالة الحالية "
-            f"«{status_label(rec.status, language)}»."
-        )
+        parts = [
+            f"{heading}: {clip(title, 80)}.",
+            f"دائرة {rec.report.department.name} — الخطورة {risk_label(rec.risk_level, language)}، الحالة «{status_label(rec.status, language)}».",
+        ]
         if placeholder:
-            paragraphs.append(
-                "نص الملاحظة الحالي مكرر في أكثر من قسم ولا يكفي لوصف الخلل الرقابي أو حلّه. "
-                "يلزم إعادة الصياغة قبل متابعة التنفيذ."
-            )
+            parts.append("نص الملاحظة مكرر ولا يكفي للمتابعة حتى يُعاد صياغته.")
         else:
             if condition:
-                paragraphs.append(f"ما وُجد أثناء التدقيق: {clip(condition, 420)}")
-            if criteria:
-                paragraphs.append(f"المعيار الذي كان يجب تطبيقه: {clip(criteria, 280)}")
-            if effect:
-                paragraphs.append(f"الأثر المترتب: {clip(effect, 280)}")
-            if statement:
-                paragraphs.append(f"التوصية التصحيحية: {clip(statement, 360)}")
-            if required_action and required_action != statement:
-                paragraphs.append(f"الإجراء المطلوب من الإدارة: {clip(required_action, 280)}")
-            if root:
-                paragraphs.append(f"السبب الجذري الموثّق: {clip(root, 240)}")
+                parts.append(f"ما وُجد: {clip(condition, 180)}")
             resolve = required_action or statement
             if resolve:
-                paragraphs.append(f"ما الذي يحل المشكلة: {clip(resolve, 320)}")
-            if success:
-                paragraphs.append(f"مؤشر التحقق عند الإغلاق: {clip(success, 220)}")
-        if plan and plan.target_date:
-            progress = 0
-            steps = list(plan.steps.all()) if hasattr(plan, "steps") else []
-            if steps:
-                progress = round(sum(s.progress_percent for s in steps) / len(steps))
-            late = " (متأخرة عن الموعد)" if overdue else ""
-            paragraphs.append(
-                f"خطة العمل قائمة بموعد {plan.target_date}{late}، وتقدم الخطوات {progress}%."
-            )
-        else:
-            paragraphs.append("لم تُعتمد خطة عمل بموعد مستهدف بعد.")
-        paragraphs.append(f"المطلوب الآن: {next_action(rec.status, language)}")
+                parts.append(f"ما يُطلب: {clip(resolve, 160)}")
+        parts.append(f"المطلوب الآن: {next_action(rec.status, language)}")
     else:
-        paragraphs.append(
-            f"This file sits with {rec.report.department.name} under report “{rec.report.title}”. "
-            f"Recorded risk is {risk_label(rec.risk_level, language)}; current status is "
-            f"“{status_label(rec.status, language)}”."
-        )
+        parts = [
+            f"{heading}: {clip(title, 80)}.",
+            f"{rec.report.department.name} — risk {risk_label(rec.risk_level, language)}, status “{status_label(rec.status, language)}”.",
+        ]
         if placeholder:
-            paragraphs.append(
-                "The finding text repeats the same short wording across sections and does not "
-                "describe a control gap that can be followed up. It should be rewritten first."
-            )
+            parts.append("The finding text is repeated and should be rewritten before follow-up.")
         else:
             if condition:
-                paragraphs.append(f"What audit found: {clip(condition, 420)}")
-            if criteria:
-                paragraphs.append(f"Criteria / expected control: {clip(criteria, 280)}")
-            if effect:
-                paragraphs.append(f"Impact: {clip(effect, 280)}")
-            if statement:
-                paragraphs.append(f"Recommendation: {clip(statement, 360)}")
-            if required_action and required_action != statement:
-                paragraphs.append(f"Required management action: {clip(required_action, 280)}")
-            if root:
-                paragraphs.append(f"Documented root cause: {clip(root, 240)}")
+                parts.append(f"Found: {clip(condition, 180)}")
             resolve = required_action or statement
             if resolve:
-                paragraphs.append(f"What would resolve the issue: {clip(resolve, 320)}")
-            if success:
-                paragraphs.append(f"Success indicator at closure: {clip(success, 220)}")
-        if plan and plan.target_date:
-            progress = 0
-            steps = list(plan.steps.all()) if hasattr(plan, "steps") else []
-            if steps:
-                progress = round(sum(s.progress_percent for s in steps) / len(steps))
-            late = " (overdue)" if overdue else ""
-            paragraphs.append(
-                f"An action plan is in place with target date {plan.target_date}{late}; step progress is {progress}%."
-            )
-        else:
-            paragraphs.append("No action plan with a target date has been approved yet.")
-        paragraphs.append(f"Required now: {next_action(rec.status, language)}")
+                parts.append(f"Required to resolve: {clip(resolve, 160)}")
+        parts.append(f"Required now: {next_action(rec.status, language)}")
 
     highlights = [
         f"REC-{rec.id} — {title}",
@@ -202,31 +149,24 @@ def _case_summary(rec, language: str) -> tuple[str, list[str], dict]:
         "focus_text": scrub_text(rec.text, 800),
         "items": [{"id": rec.id, "reference": f"REC-{rec.id}", "status": rec.status, "department": rec.report.department.name}],
     }
-    return "\n".join(paragraphs).strip(), highlights, stats
+    return " ".join(parts).strip(), highlights, stats
 
 
 def _template(stats: dict, language: str, title: str) -> str:
     ar = language != "en"
     top = stats.get("top_overdue_department") or ("—" if ar else "n/a")
-    theme = stats.get("top_theme") or ("التوثيق والاعتمادات" if ar else "documentation and approvals")
     if ar:
         return (
             f"{title}\n\n"
-            f"خلال النطاق المحدد جرى متابعة {stats['total']} توصية. "
-            f"أُغلق منها {stats['closed']}، وبقي {stats['open']} قيد المتابعة، "
-            f"منها {stats['overdue']} متأخرة عن الموعد المستهدف.\n\n"
-            f"أعلى تركيز للتوصيات المتأخرة في دائرة {top}. "
-            f"إشارات التكرار/المواضيع المتشابهة ترتبط غالباً بـ {theme}. "
-            f"عدد التوصيات المعلّمة كتكرار محتمل أو مؤكد: {stats['recurring']}."
+            f"{stats['total']} توصية في النطاق: أُغلق {stats['closed']}، "
+            f"قيد المتابعة {stats['open']}، متأخر {stats['overdue']}. "
+            f"أعلى تأخير في دائرة {top}."
         )
     return (
         f"{title}\n\n"
-        f"During the selected scope, {stats['total']} recommendations were monitored. "
-        f"{stats['closed']} were closed, {stats['open']} remain in progress, "
-        f"and {stats['overdue']} are overdue.\n\n"
-        f"The highest concentration of overdue recommendations is within {top}. "
-        f"Recurring themes primarily concern {theme}. "
-        f"{stats['recurring']} recommendations are flagged as possibly or confirmed recurring."
+        f"{stats['total']} recommendations in scope: {stats['closed']} closed, "
+        f"{stats['open']} open, {stats['overdue']} overdue. "
+        f"Highest overdue concentration: {top}."
     )
 
 
@@ -391,16 +331,49 @@ def generate_summary(user, payload: dict, language: str = "ar") -> AIAnalysis:
         fallback=fallback,
     )
 
-    # Validate output schema keys
     for key in ["title", "executive_summary", "body", "key_findings", "risk_overview", "status_overview", "important_deadlines", "recommended_next_steps", "open_questions", "limitations", "sources"]:
         if key not in llm_out:
             llm_out[key] = fallback.get(key) or []
 
-    # Map executive_summary to body and vice versa
-    if "body" not in llm_out or not llm_out["body"]:
-        llm_out["body"] = llm_out.get("executive_summary") or fallback["body"]
-    if "executive_summary" not in llm_out or not llm_out["executive_summary"]:
-        llm_out["executive_summary"] = llm_out.get("body") or fallback["executive_summary"]
+    summary_text = prefer_prose(
+        llm_out.get("executive_summary") or llm_out.get("body"),
+        body,
+        lang,
+        480,
+    )
+    reference = stats.get("reference")
+    if reference and reference not in summary_text:
+        summary_text = body
+    llm_out["executive_summary"] = summary_text
+    llm_out["body"] = summary_text
+    if not text_matches_language(str(llm_out.get("title") or ""), lang):
+        llm_out["title"] = title
+
+    for key in ["key_findings", "recommended_next_steps"]:
+        raw = llm_out.get(key)
+        if isinstance(raw, list):
+            filtered = []
+            for item in raw:
+                text = item.get("text") if isinstance(item, dict) else str(item)
+                if not str(text).strip():
+                    continue
+                if lang == "ar" and not text_matches_language(str(text), lang):
+                    continue
+                filtered.append(item if isinstance(item, dict) else {"text": str(text)})
+                if len(filtered) >= 4:
+                    break
+            llm_out[key] = filtered or fallback.get(key) or []
+        else:
+            llm_out[key] = fallback.get(key) or []
+
+    for key in ["risk_overview", "status_overview", "important_deadlines"]:
+        raw = llm_out.get(key)
+        llm_out[key] = (raw[:4] if isinstance(raw, list) else fallback.get(key) or [])
+
+    if not llm_out.get("recommended_next_steps"):
+        llm_out["recommended_next_steps"] = [{"text": highlights[-1], "source_ids": []}] if highlights else []
+    llm_out["open_questions"] = []
+    llm_out["limitations"] = []
 
     # Filter out hallucinated source IDs
     allowed_ids = {f"REC-{item['id']}" for item in stats.get("items") or [] if item.get("id")}
@@ -420,7 +393,7 @@ def generate_summary(user, payload: dict, language: str = "ar") -> AIAnalysis:
     llm_out["model"] = meta["model"]
     llm_out["stats"] = trusted
 
-    digest = content_hash(scope, trusted, lang, meta["model"], "summary_v3")
+    digest = content_hash(scope, trusted, lang, meta["model"], "summary_v4")
     return store_analysis(
         analysis_type=AIAnalysis.AnalysisType.SUMMARY,
         target_type=target_type,

@@ -18,16 +18,11 @@ TRUSTED SYSTEM DATA (facts — do not contradict identifiers, department, status
 {{untrusted_root_cause}}
 -----END UNTRUSTED ROOT CAUSE TEXT-----
 
-Write about the actual content of this file:
-- What was found (condition)
-- What should have happened (criteria)
-- Why it matters (effect / recorded risk)
-- What the department must do (recommendation / required action)
-- What should happen next given the current workflow status
+Write about THIS file only, in {{language}}, in at most 3 short sentences for "brief".
+Do not write essays. Do not repeat the finding text. Issues/suggestions: at most 3 bullets, each under 20 words.
 
-Do NOT treat missing action-plan dates, missing management responses, or missing evidence as drafting defects when the recommendation is still in draft / pending response / pending council / action-plan-required. Those are later workflow steps.
-Do NOT write generic bullets such as "lack of information", "unclear expected impact", "lack of a target date", or "lack of a response". If something is missing, name the empty SECTION (condition, criteria, effect, statement, root cause) and say what that section should contain for THIS finding.
-Issues and suggestions must be specific to the wording of this recommendation.
+Do NOT treat missing action-plan dates, missing management responses, or missing evidence as drafting defects when the recommendation is still in draft / pending response / pending council / action-plan-required.
+Do NOT write generic English bullets. If language is Arabic, every string MUST be Modern Standard Arabic.
 
 Return JSON with this exact schema:
 {
@@ -49,9 +44,9 @@ Return JSON with this exact schema:
   "reputational_risk": 0-100,
   "suggested_priority": "HIGH" | "MEDIUM" | "LOW",
   "suggested_category": "PROCUREMENT" | "FINANCE" | "HR" | "IT" | "OPERATIONS" | "COMPLIANCE" | "ASSET_MANAGEMENT" | "REVENUE" | "OTHER",
-  "brief": "3-6 sentences in {{language}} that summarise THIS finding and the corrective action",
-  "how_to_resolve": "one short paragraph in {{language}} stating how this specific weakness is treated",
-  "next_action": "the current workflow next step in {{language}}",
+  "brief": "max 3 short sentences in {{language}}",
+  "how_to_resolve": "one sentence in {{language}}",
+  "next_action": "one short clause in {{language}}",
   "keywords": ["..."],
   "issues": ["..."],
   "suggestions": ["..."],
