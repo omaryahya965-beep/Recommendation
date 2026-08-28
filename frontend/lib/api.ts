@@ -1,7 +1,7 @@
 "use client";
 
 import { currentT } from "./i18n/messages";
-import type { User } from "./types";
+import type { Role, User } from "./types";
 
 function resolveApiBase(): string {
   const fromEnv = process.env.NEXT_PUBLIC_API_URL?.trim().replace(/\/$/, "");
@@ -155,4 +155,11 @@ export const ROLE_HOME: Record<string, string> = {
   department_head: "/department/dashboard",
   employee: "/employee/my-tasks",
   council: "/council/pending-approvals",
+};
+
+export const ROLE_PROFILE: Record<Role, string> = {
+  audit: "/audit/profile",
+  department_head: "/department/profile",
+  employee: "/employee/profile",
+  council: "/council/profile",
 };

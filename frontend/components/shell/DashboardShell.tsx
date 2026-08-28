@@ -29,7 +29,7 @@ import { MobileNavDrawer } from "@/components/shell/MobileNavDrawer";
 import { MobileSearchOverlay } from "@/components/shell/MobileSearchOverlay";
 import { usePrefetchAIInsights } from "@/lib/ai";
 import { StatusBadge } from "@/components/ui/StampBadge";
-import { api, loadAuth, logout, ROLE_HOME } from "@/lib/api";
+import { api, loadAuth, logout, ROLE_HOME, ROLE_PROFILE } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { caseTitle } from "@/lib/finding";
 import { ROLE_LABELS, T, useI18n } from "@/lib/i18n";
@@ -158,9 +158,14 @@ function settingsFor(role: Role): NavItem {
   return { href, label: T.nav.settings, icon: Settings };
 }
 
+function profileHref(role: Role) {
+  return ROLE_PROFILE[role];
+}
+
 function pageTitles(): Record<string, string> {
   return {
     "/audit/dashboard": T.nav.dashboard,
+    "/audit/profile": T.nav.profile,
     "/audit/settings": T.nav.settings,
     "/audit/notifications": T.nav.notifications,
     "/audit/analytics": T.nav.analytics,
@@ -171,6 +176,7 @@ function pageTitles(): Record<string, string> {
     "/audit/followup-reports": T.nav.followups,
     "/audit/assistant": T.nav.assistant,
     "/department/dashboard": T.nav.dashboard,
+    "/department/profile": T.nav.profile,
     "/department/settings": T.nav.settings,
     "/department/notifications": T.nav.notifications,
     "/department/analytics": T.nav.analytics,
@@ -179,11 +185,13 @@ function pageTitles(): Record<string, string> {
     "/department/assistant": T.nav.assistant,
     "/employee/my-tasks": T.nav.dashboard,
     "/employee/recommendations": T.dashboard.myRecommendations,
+    "/employee/profile": T.nav.profile,
     "/employee/settings": T.nav.settings,
     "/employee/notifications": T.nav.notifications,
     "/employee/analytics": T.nav.analytics,
     "/employee/assistant": T.nav.assistant,
     "/council/pending-approvals": T.nav.pendingApprovals,
+    "/council/profile": T.nav.profile,
     "/council/settings": T.nav.settings,
     "/council/notifications": T.nav.notifications,
     "/council/analytics": T.nav.analytics,
@@ -467,6 +475,7 @@ function ShellFrame({
   const [searchOpen, setSearchOpen] = useState(false);
   const searchParams = useSearchParams();
   const settings = settingsFor(role);
+  const profile = profileHref(role);
 
   const toggleCollapsed = () => {
     setCollapsed((v) => {
@@ -478,6 +487,7 @@ function ShellFrame({
 
   const initials = (user.full_name_ar || user.username).slice(0, 1);
   const settingsActive = navItemActive(pathname, searchParams, settings.href);
+  const profileActive = navItemActive(pathname, searchParams, profile);
 
   const sidebar = (
     <>
@@ -518,16 +528,29 @@ function ShellFrame({
           {collapsed ? <span className="sr-only">{settings.label}</span> : settings.label}
         </Link>
         
-        <div className={cn("mt-2 flex items-center gap-3 rounded-lg bg-sidebar-hover/30 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]", collapsed && "justify-center p-1.5")}>
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-sidebar-hover font-heading text-[13px] font-bold text-white shadow-sm ring-1 ring-white/5">
-            {initials}
-          </div>
-          {collapsed ? null : (
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-heading text-[13px] font-semibold text-white">{user.full_name_ar || user.username}</p>
-              <p className="truncate text-[12px] text-sidebar-muted">{user.municipality_name || ROLE_LABELS[user.role]}</p>
+        <div className={cn("mt-2 flex items-center gap-2 rounded-lg bg-sidebar-hover/30 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]", collapsed && "justify-center p-1.5")}>
+          <Link
+            href={profile}
+            title={user.full_name_ar || user.username}
+            aria-label={T.nav.profile}
+            aria-current={profileActive ? "page" : undefined}
+            onClick={() => setMobileOpen(false)}
+            className={cn(
+              "flex min-w-0 flex-1 items-center gap-3 rounded-md p-1.5 transition-colors",
+              collapsed && "flex-none justify-center p-0",
+              profileActive ? "bg-sidebar-hover text-sidebar-text" : "hover:bg-sidebar-hover/60"
+            )}
+          >
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-sidebar-hover font-heading text-[13px] font-bold text-white shadow-sm ring-1 ring-white/5">
+              {initials}
             </div>
-          )}
+            {collapsed ? <span className="sr-only">{T.nav.profile}</span> : (
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-heading text-[13px] font-semibold text-white">{user.full_name_ar || user.username}</p>
+                <p className="truncate text-[12px] text-sidebar-muted">{user.municipality_name || ROLE_LABELS[user.role]}</p>
+              </div>
+            )}
+          </Link>
           {collapsed ? null : (
             <button
               type="button"

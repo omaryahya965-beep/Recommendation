@@ -126,3 +126,15 @@ describe("API base URL", () => {
     );
   });
 });
+
+describe("ROLE_PROFILE", () => {
+  it("maps every role to its own profile route", async () => {
+    const { ROLE_PROFILE } = await import("./api");
+    expect(ROLE_PROFILE).toEqual({
+      audit: "/audit/profile",
+      department_head: "/department/profile",
+      employee: "/employee/profile",
+      council: "/council/profile",
+    });
+  });
+});

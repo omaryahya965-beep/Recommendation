@@ -10,6 +10,7 @@ from apps.notifications.services import ensure_default_rules
 from apps.organizations.models import Department, Municipality, WorkflowPolicy
 
 PASSWORD = "Demo@12345"
+MUNICIPALITY_NAME = "بلدية البيرة"
 
 USERS = [
     # username, role, department name (or None), Arabic full name
@@ -27,7 +28,8 @@ class Command(BaseCommand):
     help = "Seed demo municipality, departments, users and default reminder rules."
 
     def handle(self, *args, **options):
-        municipality, _ = Municipality.objects.get_or_create(name="بلدية النموذج")
+        Municipality.objects.filter(name="بلدية النموذج").update(name=MUNICIPALITY_NAME)
+        municipality, _ = Municipality.objects.get_or_create(name=MUNICIPALITY_NAME)
         WorkflowPolicy.objects.get_or_create(municipality=municipality)
 
         departments = {}

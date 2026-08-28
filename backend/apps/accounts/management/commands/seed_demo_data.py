@@ -118,7 +118,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         call_command("seed_demo")
-        muni = Municipality.objects.get(name="بلدية النموذج")
+        muni = Municipality.objects.get(name="بلدية البيرة")
         finance = Department.objects.get(municipality=muni, name="الدائرة المالية")
         users = _users(muni)
         summary = []

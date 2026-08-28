@@ -6,7 +6,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 
-from apps.accounts.views import EmployeeListView, LoginView, MeView
+from apps.accounts.views import ChangePasswordView, EmployeeListView, LoginView, MeView
 from apps.audits.views import AuditReportViewSet, PendingApprovalsView, RecommendationViewSet
 from apps.core.views import DashboardView, HealthView
 from apps.core.media_views import MediaSignView
@@ -28,6 +28,7 @@ urlpatterns = [
     path("api/auth/login/", LoginView.as_view(), name="login"),
     path("api/auth/refresh/", TokenRefreshView.as_view(), name="token-refresh"),
     path("api/auth/me/", MeView.as_view(), name="me"),
+    path("api/auth/change-password/", ChangePasswordView.as_view(), name="change-password"),
     path("api/employees/", EmployeeListView.as_view(), name="employees"),
     path("api/workflow-policy/", WorkflowPolicyView.as_view(), name="workflow-policy"),
     path("api/council/pending-approvals/", PendingApprovalsView.as_view(), name="pending-approvals"),

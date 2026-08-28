@@ -1,11 +1,17 @@
 from django.contrib.auth import get_user_model
-from rest_framework.generics import ListAPIView, RetrieveAPIView
+from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveUpdateAPIView
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from apps.core.permissions import IsAuditOrDepartmentHead
 
-from .serializers import RoleTokenObtainPairSerializer, SafeTokenRefreshSerializer, UserSerializer
+from .serializers import (
+    ChangePasswordSerializer,
+    RoleTokenObtainPairSerializer,
+    SafeTokenRefreshSerializer,
+    UserSerializer,
+)
 
 User = get_user_model()
 
@@ -18,12 +24,24 @@ class RefreshView(TokenRefreshView):
     serializer_class = SafeTokenRefreshSerializer
 
 
-class MeView(RetrieveAPIView):
+class MeView(RetrieveUpdateAPIView):
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
+    http_method_names = ["get", "patch", "head", "options"]
 
     def get_object(self):
         return self.request.user
+
+
+class ChangePasswordView(CreateAPIView):
+    serializer_class = ChangePasswordSerializer
+    permission_classes = [IsAuthenticated]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(status=204)
 
 
 class EmployeeListView(ListAPIView):
