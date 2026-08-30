@@ -20,7 +20,7 @@ export function MunicipalLogo({
 }) {
   useI18n();
   const svgSize =
-    size === "lg" ? "size-12 sm:size-16" : size === "sm" ? "size-9" : "size-12";
+    size === "lg" ? "size-16 sm:size-20" : size === "sm" ? "size-9" : "size-12";
   const titleClass =
     size === "lg"
       ? "text-base font-bold sm:text-xl"

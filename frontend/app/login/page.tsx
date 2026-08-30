@@ -108,8 +108,8 @@ export default function LoginPage() {
   const passwordToggleLabel = showPassword ? T.login.hidePassword : T.login.showPassword;
 
   return (
-    <main className="login-shell relative flex min-h-dvh min-w-0 flex-col lg:h-dvh">
-      <div className="flex min-h-dvh min-w-0 flex-1 flex-col lg:h-full lg:min-h-0 lg:flex-row" dir="ltr">
+    <main className="login-shell relative flex h-dvh min-h-0 min-w-0 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:flex-row" dir="ltr">
         {/* Hero Section */}
         <div className="relative min-w-0 lg:h-full lg:w-1/2 lg:shrink-0 lg:min-h-0">
           <LoginHero />
@@ -118,34 +118,39 @@ export default function LoginPage() {
         {/* Form Section */}
         <section
           dir={dir}
-          className="login-bg relative flex min-h-0 min-w-0 flex-1 flex-col justify-between lg:h-full lg:w-1/2"
+          className="login-bg relative flex min-h-0 min-w-0 flex-1 flex-col lg:w-1/2"
         >
           {/* Toolbar */}
-          <div className="hidden justify-end px-6 pt-4 sm:px-8 lg:flex lg:px-10 lg:pt-4">
+          <div className="hidden justify-end px-6 pt-3 sm:px-8 lg:flex lg:px-10 lg:pt-3">
             <LoginToolbar />
           </div>
 
-          {/* Form Container */}
-          <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-4 py-8 sm:px-8 lg:overflow-y-auto lg:px-12 lg:py-4">
-            <div className="flex w-full max-w-[28rem] flex-col items-center text-[var(--login-text)]">
-              <div className="mb-3 hidden lg:block">
-                <RamallahMark size="md" layout="stacked" />
-              </div>
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain px-4 sm:px-8 lg:px-12">
+            <div
+              className={cn(
+                "flex min-h-full w-full shrink-0 flex-col items-center py-2",
+                showDemo ? "justify-start" : "justify-safe-center"
+              )}
+            >
+              <div className="flex w-full max-w-[28rem] flex-col items-center text-[var(--login-text)]">
+                <div className="mb-3">
+                  <RamallahMark size="md" layout="stacked" />
+                </div>
               <h1
                 id="login-heading"
-                className="text-[20px] font-bold leading-tight text-navy lg:text-[24px]"
+                className="text-[20px] font-bold leading-tight text-navy lg:text-[22px]"
               >
                 {T.login.title}
               </h1>
-              <p className="mt-1.5 text-center text-[14px] font-semibold text-ink-soft">
+              <p className="login-fit-sm mt-1 text-center text-[13px] font-semibold text-ink-soft">
                 {T.login.platformSubtitle}
               </p>
-              <p className="mt-2 max-w-[26rem] text-center text-[12px] font-medium leading-relaxed text-muted">
+              <p className="login-fit-lg mt-1 max-w-[26rem] text-center text-[12px] font-medium leading-5 text-muted">
                 {T.login.welcomeHint}
               </p>
 
               {/* Login Card */}
-              <div className="login-card mt-5 w-full rounded-2xl px-5 py-6 sm:px-8">
+              <div className="login-card mt-3 w-full rounded-2xl px-5 py-3.5 sm:px-8 sm:py-4">
                 <form
                   onSubmit={submit}
                   aria-labelledby="login-heading"
@@ -157,7 +162,7 @@ export default function LoginPage() {
                     <ErrorBanner message={error} />
                   </div>
 
-                  <div className={cn("flex flex-col gap-4", error && "mt-4")}>
+                  <div className={cn("flex flex-col gap-3", error && "mt-3")}>
                     {/* Username */}
                     <div>
                       <label
@@ -254,8 +259,8 @@ export default function LoginPage() {
                   </div>
 
                   {/* Remember & Forgot options */}
-                  <div className="mt-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-                    <label className="flex min-h-10 cursor-pointer items-center gap-2 text-[13px] font-semibold text-navy">
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                    <label className="flex min-h-8 cursor-pointer items-center gap-2 text-[13px] font-semibold text-navy">
                       <input
                         type="checkbox"
                         checked={remember}
@@ -281,7 +286,7 @@ export default function LoginPage() {
                   <button
                     type="submit"
                     disabled={busy}
-                    className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-base font-bold text-white transition-colors duration-150 hover:bg-primary-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50 shadow-sm"
+                    className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-base font-bold text-white transition-colors duration-150 hover:bg-primary-dark focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50 shadow-sm"
                   >
                     {T.login.submit}
                     {busy ? (
@@ -293,14 +298,14 @@ export default function LoginPage() {
                 </form>
 
                 {/* Divider */}
-                <div className="mt-6 flex items-center gap-3">
+                <div className="mt-4 flex items-center gap-3">
                   <span className="h-px flex-1 bg-line" />
                   <span className="text-[12px] font-bold text-muted">{T.login.orDivider}</span>
                   <span className="h-px flex-1 bg-line" />
                 </div>
 
                 {/* Demo accounts selector */}
-                <div className="mt-5">
+                <div className="mt-4">
                   <button
                     type="button"
                     onClick={() => setShowDemo((v) => !v)}
@@ -340,16 +345,17 @@ export default function LoginPage() {
                 </div>
 
                 {/* Secure label */}
-                <p className="mt-6 flex items-center justify-center gap-1.5 text-center text-[12px] font-semibold text-muted">
+                <p className="login-fit-lg mt-4 flex items-center justify-center gap-1.5 text-center text-[12px] font-semibold text-muted">
                   <Lock className="size-3.5 shrink-0" aria-hidden />
                   {T.login.secure}
                 </p>
+              </div>
               </div>
             </div>
           </div>
 
           {/* Footer copyright */}
-          <p className="px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-center text-[11px] font-semibold leading-5 text-muted lg:px-10 lg:pb-4">
+          <p className="px-4 py-2 text-center text-[11px] font-semibold leading-5 text-muted lg:px-10">
             © 2024 {T.login.footerOwner}
             <span className="mx-1.5 text-muted/30">|</span>
             {T.login.footerPlatform}

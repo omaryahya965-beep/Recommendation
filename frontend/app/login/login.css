@@ -83,3 +83,15 @@
   background: #192633;
   box-shadow: 0 0 0 3px rgb(8 184 176 / 0.2);
 }
+
+@media (max-height: 50.5rem) {
+  .login-fit-lg {
+    display: none;
+  }
+}
+
+@media (max-height: 42rem) {
+  .login-fit-sm {
+    display: none;
+  }
+}
