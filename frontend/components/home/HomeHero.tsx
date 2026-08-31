@@ -60,11 +60,15 @@ export function HomeHero({
         aria-hidden
         className="absolute inset-0 bg-gradient-to-t from-[#062b3d]/90 via-[#062b3d]/35 to-[#062b3d]/10"
       />
+      <div
+        aria-hidden
+        className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-[#062b3d]/65 to-transparent md:h-24"
+      />
 
       <div className="relative z-10 flex h-full min-h-[13.5rem] flex-col justify-end gap-2 px-3 py-4 md:min-h-[19rem] md:gap-5 md:px-10 md:py-10 lg:min-h-[21rem]">
-        <div className="max-w-4xl min-w-0">
-          <div className="flex flex-wrap items-center gap-2 md:gap-3">
-            <p className="text-[14px] font-medium text-white/90">
+        <div className="absolute inset-x-3 top-3 flex items-start justify-between gap-3 md:inset-x-10 md:top-6">
+          <div className="flex min-w-0 flex-wrap items-center gap-2 md:gap-3">
+            <p className="text-[14px] font-medium text-white drop-shadow-md">
               {greeting()}
               {name ? <span>{locale === "ar" ? "، " : ", "}<span className="font-bold">{name}</span></span> : null}
             </p>
@@ -72,7 +76,13 @@ export function HomeHero({
               {ROLE_LABELS[role]}
             </span>
           </div>
-          <h1 className="mt-2 font-heading text-[1.375rem] font-bold leading-tight text-white drop-shadow-md md:mt-3 md:text-[1.75rem]">
+          <p className="hidden shrink-0 rounded-full bg-[#062b3d]/55 px-3 py-1 text-[12px] font-semibold text-white shadow-sm ring-1 ring-white/25 md:block md:text-[13px]">
+            {T.dashboard.placeCaption}
+          </p>
+        </div>
+
+        <div className="max-w-4xl min-w-0">
+          <h1 className="font-heading text-[1.375rem] font-bold leading-tight text-white drop-shadow-md md:text-[1.75rem]">
             {title}
           </h1>
           <p className="mt-1 hidden text-[14px] font-medium text-white/80 md:mt-2 md:block" dir={locale === "ar" ? "rtl" : "ltr"}>
@@ -103,8 +113,6 @@ export function HomeHero({
             })}
           </div>
         ) : null}
-
-        <p className="absolute top-3 end-3 hidden text-[11px] font-medium text-white/50 md:top-6 md:end-6 md:block">{T.dashboard.placeCaption}</p>
       </div>
     </section>
   );
