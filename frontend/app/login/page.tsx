@@ -6,7 +6,7 @@ import { useEffect, useId, useRef, useState } from "react";
 
 import { LoginHero } from "@/components/login/LoginHero";
 import { LoginToolbar } from "@/components/login/LoginToolbar";
-import { RamallahMark } from "@/components/login/RamallahMark";
+import { MunicipalityMark } from "@/components/login/MunicipalityMark";
 import { ErrorBanner } from "@/components/ui/Base";
 import { login, ROLE_HOME } from "@/lib/api";
 import { cn } from "@/lib/cn";
@@ -134,7 +134,7 @@ export default function LoginPage() {
             >
               <div className="flex w-full max-w-[28rem] flex-col items-center text-[var(--login-text)]">
                 <div className="mb-3">
-                  <RamallahMark size="md" layout="stacked" />
+                  <MunicipalityMark size="md" layout="stacked" />
                 </div>
               <h1
                 id="login-heading"
@@ -355,13 +355,18 @@ export default function LoginPage() {
           </div>
 
           {/* Footer copyright */}
-          <p className="px-4 py-2 text-center text-[11px] font-semibold leading-5 text-muted lg:px-10">
-            © 2024 {T.login.footerOwner}
-            <span className="mx-1.5 text-muted/30">|</span>
-            {T.login.footerPlatform}
-            <span className="mx-1.5 text-muted/30">|</span>
-            {T.login.versionLabel}
-          </p>
+          <div className="px-4 py-2 text-center text-[11px] leading-5 text-muted lg:px-10">
+            <p className="font-semibold">
+              © 2024 {T.login.footerOwner}
+              <span className="mx-1.5 text-muted/30">|</span>
+              {T.login.footerPlatform}
+              <span className="mx-1.5 text-muted/30">|</span>
+              {T.login.versionLabel}
+            </p>
+            <p className="mt-0.5 font-medium">
+              {T.login.mayorLabel}: {T.login.mayorName}
+            </p>
+          </div>
         </section>
       </div>
     </main>

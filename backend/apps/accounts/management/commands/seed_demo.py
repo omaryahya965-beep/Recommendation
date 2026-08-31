@@ -28,7 +28,9 @@ class Command(BaseCommand):
     help = "Seed demo municipality, departments, users and default reminder rules."
 
     def handle(self, *args, **options):
-        Municipality.objects.filter(name="بلدية النموذج").update(name=MUNICIPALITY_NAME)
+        Municipality.objects.filter(name__in=("بلدية النموذج", "بلدية رام الله")).update(
+            name=MUNICIPALITY_NAME
+        )
         municipality, _ = Municipality.objects.get_or_create(name=MUNICIPALITY_NAME)
         WorkflowPolicy.objects.get_or_create(municipality=municipality)
 

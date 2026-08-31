@@ -46,18 +46,22 @@ export function HomeHero({
   }, []);
 
   return (
-    <section className="relative overflow-hidden rounded-2xl border border-line min-h-[11.5rem] shadow-sm md:min-h-[18rem]">
+    <section className="relative overflow-hidden rounded-2xl border border-line bg-[#062b3d] min-h-[13.5rem] shadow-sm md:min-h-[19rem] lg:min-h-[21rem]">
       <Image
-        src="/images/city-hall.png"
+        src="/images/al-bireh-city-hall.jpg"
         alt={T.login.cityHallAlt}
         fill
         priority
+        unoptimized
         sizes="100vw"
-        className="object-cover object-[center_30%]"
+        className="object-cover object-[center_38%]"
       />
-      <div className="absolute inset-0" style={{background: "linear-gradient(to top, rgba(12,32,44,0.97) 0%, rgba(12,32,44,0.58) 55%, rgba(12,32,44,0.08) 100%)"}} />
+      <div
+        aria-hidden
+        className="absolute inset-0 bg-gradient-to-t from-[#062b3d]/90 via-[#062b3d]/35 to-[#062b3d]/10"
+      />
 
-      <div className="relative z-10 flex h-full min-h-[11.5rem] flex-col justify-end gap-2 px-3 py-4 md:min-h-[18rem] md:gap-5 md:px-10 md:py-10">
+      <div className="relative z-10 flex h-full min-h-[13.5rem] flex-col justify-end gap-2 px-3 py-4 md:min-h-[19rem] md:gap-5 md:px-10 md:py-10 lg:min-h-[21rem]">
         <div className="max-w-4xl min-w-0">
           <div className="flex flex-wrap items-center gap-2 md:gap-3">
             <p className="text-[14px] font-medium text-white/90">

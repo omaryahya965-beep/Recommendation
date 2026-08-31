@@ -4,7 +4,7 @@ import { MunicipalLogo } from "@/components/brand/MunicipalLogo";
 import { cn } from "@/lib/cn";
 import { T, useI18n } from "@/lib/i18n";
 
-export function RamallahMark({
+export function MunicipalityMark({
   inverted = false,
   size = "md",
   layout = "horizontal",
