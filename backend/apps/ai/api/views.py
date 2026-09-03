@@ -1,4 +1,6 @@
 """AI intelligence API. Advisory only — never mutates workflow status."""
+import logging
+
 from django.conf import settings
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -14,7 +16,8 @@ class AIUserRateThrottle(SimpleRateThrottle):
         return self.get_ident(request)
 
 from apps.accounts.models import User
-from apps.ai.exceptions import AIError
+from apps.ai.exceptions import AIError, AIUnavailable
+from apps.ai.providers.llm import USER_SAFE_UNAVAILABLE
 from apps.ai.models import AIAnalysis, AIJob
 from apps.ai.providers import provider_meta
 from apps.ai.services.action_plan_generator import suggest_action_plan
@@ -40,6 +43,8 @@ from apps.core.permissions import scope_recommendations
 from apps.workflow.models import Evidence
 
 from .serializers import AssistantRequestSerializer, SummaryRequestSerializer
+
+logger = logging.getLogger("apps.ai")
 
 
 def _language(request) -> str:
@@ -356,8 +361,20 @@ class AssistantView(APIView):
             # Safe browser response enforcement: strip raw database tool outputs
             result.pop("tool_results", None)
             return Response(result)
-        except Exception as exc:
+        except AIUnavailable:
+            logger.warning("ai_assistant_unavailable")
+            return Response(
+                {"detail": USER_SAFE_UNAVAILABLE, "code": "ai_unavailable"},
+                status=503,
+            )
+        except AIError as exc:
             return _ai_error(exc)
+        except Exception:
+            logger.exception("ai_assistant_unhandled")
+            return Response(
+                {"detail": USER_SAFE_UNAVAILABLE, "code": "ai_unavailable"},
+                status=503,
+            )
 
 
 class AssistantClearView(APIView):

@@ -189,6 +189,7 @@ AI_MAX_CONTEXT_ITEMS = int(os.environ.get("AI_MAX_CONTEXT_ITEMS", "10"))
 AI_MAX_OUTPUT_TOKENS = int(os.environ.get("AI_MAX_OUTPUT_TOKENS", "2000"))
 AI_TEMPERATURE = float(os.environ.get("AI_TEMPERATURE", "0.2"))
 AI_TIMEOUT_SECONDS = int(os.environ.get("AI_TIMEOUT_SECONDS", "30"))
+AI_MAX_TOOL_ITERATIONS = int(os.environ.get("AI_MAX_TOOL_ITERATIONS", "6"))
 AI_MAX_EXTRACT_CHARS = int(os.environ.get("AI_MAX_EXTRACT_CHARS", "20000"))
 
 CORS_ALLOWED_ORIGINS = [

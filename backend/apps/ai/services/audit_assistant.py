@@ -6,20 +6,22 @@ import re
 import logging
 from datetime import timedelta
 
+from django.conf import settings
 from django.db.models import Count, Q
 from django.utils import timezone
 
+from apps.ai.exceptions import AIUnavailable
 from apps.ai.models import AIConversation, AIMessage
-from apps.ai.providers import provider_meta
-from apps.ai.services.case_copy import next_action, risk_label, status_label
-from apps.ai.services.common import generate_structured, language_of
+from apps.ai.providers import get_chat_llm
+from apps.ai.providers.llm import USER_SAFE_UNAVAILABLE
 from apps.ai.services.prompt_manager import render_prompt
 from apps.ai.services.risk_engine import delay_risk_score_only
 from apps.ai.services.sanitizer import recommendation_public_facts, scrub_text
+from apps.ai.services.common import language_of
 from apps.audits.finding import case_title
-from apps.audits.models import Recommendation
+from apps.audits.models import AuditReport, Recommendation
 from apps.audits.serializers import is_overdue
-from apps.core.permissions import scope_recommendations
+from apps.core.permissions import scope_recommendations, scope_reports
 from apps.followup.models import FollowUpReport
 from apps.workflow.models import VerificationDecision
 
@@ -33,94 +35,10 @@ ACTIVE = (
     S.CLOSURE_REVIEW, S.PENDING_CLOSURE_COUNCIL,
 )
 
-INJECTION = re.compile(
-    r"(ignore (all )?(previous|prior) instructions|you are now|system prompt|"
-    r"تجاهل.*(تعليمات|التعليمات)|نفّذ SQL|execute sql)",
-    re.I,
-)
-REC_ID = re.compile(r"(?:REC-?|توصية\s*)(\d+)", re.I)
-NAMED = re.compile(
-    r"(?:اسمها|اسمه|عنوانها|عنوانه|عنوان(?:ها)?|تسمى|يُسم[ىي]|named|called|titled)\s+[:\-]?\s*(.+)$",
-    re.I,
-)
-BARE_NAMED = re.compile(
-    r"هل\s+(?:في|فيه|توجد|يوجد)\s+توصي[ةه]\s+(?:اسمها\s+|اسمه\s+|عنوانها\s+)?[\"'«»]?([A-Za-z0-9_\u0600-\u06FF]{2,})",
-    re.I,
-)
-NAME_HINT = re.compile(r"(اسمها|اسمه|عنوانها|عنوانه|تسمى|named|called|titled)", re.I)
-GENERIC_DUMP = re.compile(
-    r"ضمن صلاحياتك حالياً\s+\d+\s+توصية|In your scope there are currently\s+\d+\s+recommendations",
-    re.I,
-)
-OVERVIEW_RE = re.compile(
-    r"ملخص|إحصائ|احصائ|صورة عامة|كم توصية عند|كم عدد التوصيات|عدد التوصيات|"
-    r"how many recommendations|overview|portfolio snapshot|what do i have",
-    re.I,
-)
-LIST_RE = re.compile(
-    r"كل التوصيات|جميع التوصيات|اعرض(?:ي)? التوصيات|أظهر التوصيات|قائمة التوصيات|"
-    r"list (all )?recommendations|show (all )?recommendations",
-    re.I,
-)
-GREETING_RE = re.compile(
-    r"^(مرحباً?|أهلاً?|اهلا|السلام عليكم|سلام|hi+|hello|hey|صباح الخير|مساء الخير|"
-    r"شكراً?|thanks|thank you)[\s!.،,]*$",
-    re.I,
-)
-HELP_RE = re.compile(
-    r"ماذا تستطيع|ما الذي تستطيع|ماذا يمكنك|كيف أستخدم|كيف استخدم|شو بتقدر|help\b|"
-    r"what can you (do|answer)",
-    re.I,
-)
-WHY_RE = re.compile(r"لماذا|ليش|سبب|أسباب|اسباب|\bwhy\b", re.I)
-FOLLOWUP_RE = re.compile(
-    r"تفاصيل|هذه التوصية|هذا الملف|هذي|هاي التوصية|السابق|نفس التوصية|"
-    r"more details|tell me more|that one",
-    re.I,
-)
-STOPWORDS = {
-    "هل", "في", "فيه", "ما", "هي", "هو", "هم", "عن", "من", "إلى", "الى", "على", "و",
-    "أو", "او", "ثم", "قد", "لم", "لن", "لا", "يا", "أي", "اى", "التي", "الذي", "الذين",
-    "هذا", "هذه", "ذلك", "تلك", "هناك", "هنا", "الان", "الآن", "حاليا", "حالياً",
-    "كم", "قديش", "وين", "شو", "ليش", "لماذا", "كيف", "متى", "أين", "اين",
-    "أظهر", "اظهر", "أعرض", "اعرض", "عرض", "قائمة", "القائمة", "لي",
-    "أريد", "اريد", "ممكن", "الرجاء", "رجاء", "يرجى",
-    "أخبرني", "اخبرني", "قلي", "احكي", "وضح", "اشرح", "شرح",
-    "التوصية", "توصية", "التوصيات", "توصيات", "توصيه", "التوصيه",
-    "recommendation", "recommendations", "please", "what", "which", "where",
-    "when", "how", "why", "show", "list", "tell", "give", "me", "my", "the",
-    "a", "an", "are", "is", "of", "in", "for", "and", "or", "to", "do", "does",
-    "about", "regarding", "need", "needs", "require", "requires", "current",
-    "currently", "all", "any", "some", "those", "these", "that", "this",
-    "عندي", "عندنا", "كلها", "كل", "موجود", "موجودة", "توجد", "يوجد",
-    "تحتاج", "يحتاج", "معلومات", "تفاصيل", "عنها", "عنه", "فقط",
-}
-INTENT_STOP = {
-    "متأخر", "متأخرة", "المتأخرة", "المتأخر", "تأخر", "تأخير", "تاخير",
-    "overdue", "delay", "delayed", "late",
-    "خطر", "خطورة", "الخطورة", "عالية", "مرتفع", "مرتفعة", "risk", "high",
-    "تحقق", "التحقق", "verification", "verify",
-    "تكرار", "التكرار", "تكرارات", "التكرارات", "recurring", "recurrence",
-    "موعد", "الموعد", "مواعيد", "المواعيد", "deadline", "deadlines", "upcoming",
-    "دائرة", "الدائرة", "دوائر", "الدوائر", "إدارة", "ادارة", "الإدارة",
-    "الادارة", "إدارات", "ادارات", "department", "departments",
-    "كاف", "كافية", "insufficient",
-    "متابعة", "المتابعة", "followup", "follow",
-    "ملخص", "إحصائيات", "احصائيات", "overview", "summary",
-}
-
 ADVISORY_AR = "هذه إجابة استشارية ولا تغيّر حالة سير العمل."
 ADVISORY_EN = "This is advisory and does not change workflow status."
-CAPABILITIES_AR = (
-    "يمكنني المساعدة في: التوصيات المتأخرة وسبب التأخير، عالية الخطورة، "
-    "بانتظار التحقق، التكرارات، المواعيد القريبة، الإدارات الأكثر تأخراً، "
-    "أو البحث عن توصية بالاسم أو بالرقم مثل REC-12."
-)
-CAPABILITIES_EN = (
-    "I can help with: overdue recommendations and why they are late, high-risk items, "
-    "items awaiting verification, recurrences, upcoming deadlines, departments with the most delays, "
-    "or a recommendation by name or number such as REC-12."
-)
+TOOL_RESULT_CHAR_CAP = 24000
+HISTORY_MESSAGE_CAP = 24
 
 
 def _qs(user):
@@ -137,26 +55,6 @@ def _qs(user):
 
 def _display_title(text: str) -> str:
     return case_title(text, 120)
-
-
-def _name_query(message: str) -> str:
-    text = (message or "").strip()
-    if not text:
-        return ""
-    quoted = re.findall(r"[\"'«»]([^\"'«»]{1,80})[\"'«»]", text)
-    if quoted and NAME_HINT.search(text):
-        return quoted[0].strip()[:80]
-    named = NAMED.search(text)
-    if named:
-        raw = re.split(r"[؟?!.]", named.group(1), 1)[0]
-        raw = re.sub(r"^(ال)?توصي[ةه]\s+", "", raw.strip())
-        token = raw.strip(" \"'«»").strip()
-        if token:
-            return token[:80]
-    bare = BARE_NAMED.search(text)
-    if bare:
-        return bare.group(1).strip()[:80]
-    return ""
 
 
 def _brief(rec) -> dict:
@@ -187,10 +85,18 @@ def tool_get_recommendation(user, rec_id: int):
     if rec is None:
         return {"error": "not_found_or_unauthorized"}
     facts = recommendation_public_facts(rec)
+    plan = getattr(rec, "action_plan", None)
+    emp = getattr(plan, "responsible_employee", None) if plan else None
     facts["title"] = _display_title(rec.text)
-    facts["text"] = scrub_text(rec.text, 800)
-    facts["root_cause"] = scrub_text(rec.root_cause, 400)
+    facts["text"] = scrub_text(rec.text, 4000)
+    facts["root_cause"] = scrub_text(rec.root_cause, 2000)
     facts["overdue"] = is_overdue(rec)
+    facts["report_status"] = rec.report.status
+    facts["evidence_count"] = rec.evidence_files.count()
+    if emp:
+        facts["responsible_employee"] = emp.full_name_ar or emp.get_full_name() or emp.username
+    else:
+        facts["responsible_employee"] = None
     return facts
 
 
@@ -413,6 +319,45 @@ def tool_why_high_risk(user, rec_id: int):
     return facts
 
 
+def tool_get_report(user, report_id: int):
+    report = (
+        scope_reports(AuditReport.objects.select_related("department"), user)
+        .filter(pk=report_id)
+        .first()
+    )
+    if report is None:
+        return {"error": "not_found_or_unauthorized"}
+    rec_ids = list(_qs(user).filter(report=report).values_list("id", flat=True)[:50])
+    return {
+        "id": report.id,
+        "title": report.title,
+        "status": report.status,
+        "engagement_type": report.engagement_type,
+        "department": report.department.name,
+        "response_deadline": str(report.response_deadline) if report.response_deadline else None,
+        "recommendation_ids": rec_ids,
+        "recommendation_count": len(rec_ids),
+    }
+
+
+def tool_search_reports(user, query: str = ""):
+    qs = scope_reports(AuditReport.objects.select_related("department"), user)
+    term = (query or "").strip()[:80]
+    if term:
+        qs = qs.filter(Q(title__icontains=term) | Q(department__name__icontains=term))
+    matches = [
+        {
+            "id": r.id,
+            "title": r.title,
+            "status": r.status,
+            "department": r.department.name,
+            "engagement_type": r.engagement_type,
+        }
+        for r in qs[:15]
+    ]
+    return {"query": term, "count": len(matches), "matches": matches}
+
+
 TOOLS = {
     "get_portfolio": lambda user, args: tool_get_portfolio(user),
     "get_recommendation": lambda user, args: tool_get_recommendation(user, int(args.get("id") or 0)),
@@ -431,531 +376,64 @@ TOOLS = {
     "get_approaching_deadlines": lambda user, args: tool_get_approaching_deadlines(user),
     "get_insufficient_verification": lambda user, args: tool_get_insufficient_verification(user),
     "why_high_risk": lambda user, args: tool_why_high_risk(user, int(args.get("id") or 0)),
+    "get_report": lambda user, args: tool_get_report(user, int(args.get("id") or 0)),
+    "search_reports": lambda user, args: tool_search_reports(user, args.get("query") or ""),
 }
 
 
-def _topic_query(message: str) -> str:
-    tokens = re.findall(r"[A-Za-z0-9_\u0600-\u06FF]{2,}", message or "")
-    kept = []
-    for tok in tokens:
-        key = tok.lower()
-        if key in STOPWORDS or key in INTENT_STOP:
-            continue
-        kept.append(tok)
-        if len(kept) >= 6:
-            break
-    if not kept or all(t.isdigit() for t in kept):
-        return ""
-    return " ".join(kept)[:80]
+def _fn_schema(name: str, description: str, properties: dict | None = None, required: list | None = None):
+    params = {"type": "object", "properties": properties or {}, "additionalProperties": False}
+    if required:
+        params["required"] = required
+    return {"type": "function", "function": {"name": name, "description": description, "parameters": params}}
 
 
-def _parse_query(message: str) -> dict:
-    text = message or ""
-    low = text.lower()
-    kinds: set[str] = set()
-    if INJECTION.search(text):
-        kinds.add("injection")
-    rec_ids = [int(x) for x in REC_ID.findall(text)]
-    name_q = _name_query(text)
+REC_ID_PROP = {"id": {"type": "integer", "description": "Numeric recommendation id (not the REC- prefix)."}}
 
-    if GREETING_RE.search(text.strip()):
-        kinds.add("greeting")
-    if HELP_RE.search(text):
-        kinds.add("help")
-    if WHY_RE.search(text):
-        kinds.add("why")
-    if re.search(r"متأخر|تأخر|تأخير|overdue|delay", low):
-        kinds.add("overdue")
-    if re.search(r"خطر|خطورة|high.?risk", low):
-        kinds.add("high_risk")
-    if re.search(r"غير كاف|insufficient", low):
-        kinds.add("insufficient")
-    elif re.search(r"تحقق|verif", low):
-        kinds.add("verification")
-    if re.search(r"تكرار|recurring", low):
-        kinds.add("recurring")
-    if re.search(r"موعد|deadline|approaching", low):
-        kinds.add("deadlines")
-    if re.search(r"دائرة|دوائر|إدار|ادار|department", low):
-        kinds.add("departments")
-    if re.search(r"متابع|follow-?up", low):
-        kinds.add("followup")
-    if OVERVIEW_RE.search(text):
-        kinds.add("overview")
-    if LIST_RE.search(text) and not (kinds & {"overdue", "high_risk", "verification", "recurring", "insufficient"}):
-        kinds.add("list")
-
-    topic_q = ""
-    if name_q:
-        kinds.add("search")
-    elif rec_ids:
-        kinds.add("rec")
-    elif not (kinds & {
-        "overdue", "high_risk", "verification", "recurring", "deadlines", "departments", "followup", "overview", "list", "greeting", "help"
-    }):
-        topic_q = _topic_query(text)
-        if topic_q:
-            kinds.add("search")
-        else:
-            kinds.add("unclear")
-
-    return {
-        "kinds": kinds,
-        "rec_ids": rec_ids,
-        "name_query": name_q,
-        "topic_query": topic_q,
-        "department": None,
-    }
+TOOL_SCHEMAS = [
+    _fn_schema("get_portfolio", "Scoped counts and sample lists: overdue, high-risk, verification, recurring, departments."),
+    _fn_schema("get_recommendation", "Full facts for one recommendation the user is allowed to see.", REC_ID_PROP, ["id"]),
+    _fn_schema(
+        "search_recommendations",
+        "Search recommendations in the user's scope by text, department name, or status.",
+        {
+            "query": {"type": "string"},
+            "department": {"type": "string"},
+            "status": {"type": "string"},
+        },
+    ),
+    _fn_schema(
+        "get_department_statistics",
+        "Counts for a department in the user's scope.",
+        {"department": {"type": "string"}},
+    ),
+    _fn_schema("get_overdue_recommendations", "List overdue recommendations in scope."),
+    _fn_schema("get_recurring_findings", "List recurring findings in scope."),
+    _fn_schema("get_action_plan_status", "Action plan and steps for one recommendation.", REC_ID_PROP, ["id"]),
+    _fn_schema("get_evidence_status", "Evidence and latest verification for one recommendation.", REC_ID_PROP, ["id"]),
+    _fn_schema("get_audit_history", "Recent audit trail actions for one recommendation.", REC_ID_PROP, ["id"]),
+    _fn_schema("get_followup_reports", "Recent municipality follow-up reports. Employees are not authorized."),
+    _fn_schema("get_approaching_deadlines", "Recommendations with target dates in the next 14 days."),
+    _fn_schema("get_insufficient_verification", "Recommendations previously returned as insufficient evidence."),
+    _fn_schema("why_high_risk", "Recorded risk plus delay-risk factors for one recommendation.", REC_ID_PROP, ["id"]),
+    _fn_schema("get_report", "Audit report facts in the user's report scope.", {"id": {"type": "integer"}}, ["id"]),
+    _fn_schema("search_reports", "Search audit reports in the user's scope.", {"query": {"type": "string"}}),
+]
 
 
-def _followup_rec_ids(message: str, history: list[dict]) -> list[int]:
-    text = (message or "").strip()
-    if not text or REC_ID.search(text) or not FOLLOWUP_RE.search(text):
-        return []
-    for item in reversed(history or []):
-        if item.get("role") != "assistant":
-            continue
-        ids = [int(x) for x in REC_ID.findall(item.get("content") or "")]
-        if ids:
-            return ids[:1]
-    return []
-
-
-def _unique_calls(calls: list[tuple[str, dict]]) -> list[tuple[str, dict]]:
-    seen, unique = set(), []
-    for name, args in calls:
-        key = (name, json.dumps(args, sort_keys=True))
-        if key not in seen:
-            seen.add(key)
-            unique.append((name, args))
-    return unique
-
-
-def _route_tools(parsed: dict, message: str) -> list[tuple[str, dict]]:
-    text = message or ""
-    low = text.lower()
-    kinds = parsed["kinds"]
-    rec_ids = list(parsed["rec_ids"])
-    calls = [("get_portfolio", {})]
-
-    if rec_ids:
-        rid = rec_ids[0]
-        calls.append(("get_recommendation", {"id": rid}))
-        if "high_risk" in kinds or "why" in kinds or re.search(r"خطر|risk", low):
-            calls.append(("why_high_risk", {"id": rid}))
-        if re.search(r"خطة|plan", low):
-            calls.append(("get_action_plan_status", {"id": rid}))
-        if re.search(r"دليل|evidence", low):
-            calls.append(("get_evidence_status", {"id": rid}))
-        if re.search(r"سجل|history|trail", low):
-            calls.append(("get_audit_history", {"id": rid}))
-
-    if "overdue" in kinds:
-        calls.append(("get_overdue_recommendations", {}))
-    if "recurring" in kinds:
-        calls.append(("get_recurring_findings", {}))
-    if "deadlines" in kinds:
-        calls.append(("get_approaching_deadlines", {}))
-    if "insufficient" in kinds:
-        calls.append(("get_insufficient_verification", {}))
-    if "followup" in kinds:
-        calls.append(("get_followup_reports", {}))
-    if "departments" in kinds:
-        calls.append(("get_department_statistics", {}))
-
-    dept = None
-    m = re.search(r"(المشتريات|المالية|الهندس\w*|procurement|finance|engineering)", low)
-    if m:
-        dept = m.group(1)
-        parsed["department"] = dept
-        calls.append(("get_department_statistics", {"department": dept}))
-
-    query = parsed["name_query"] or parsed["topic_query"]
-    if query or "list" in kinds:
-        calls.append(("search_recommendations", {"query": query or "", "department": "", "status": ""}))
-
-    return _unique_calls(calls)
-
-
-def _collect_allowed_ids(tool_results: dict) -> set[int]:
-    ids = set()
-
-    def walk(node):
-        if isinstance(node, dict):
-            if "id" in node and isinstance(node["id"], int):
-                ids.add(node["id"])
-            for v in node.values():
-                walk(v)
-        elif isinstance(node, list):
-            for item in node:
-                walk(item)
-
-    walk(tool_results)
-    return ids
-
-
-def _search_matches(results: dict) -> list:
-    raw = results.get("search_recommendations")
-    if isinstance(raw, dict):
-        matches = raw.get("matches") or []
-        return matches if isinstance(matches, list) else []
-    if isinstance(raw, list):
-        return raw
-    return []
-
-
-def _fmt_items(items: list, ar: bool, limit=8) -> str:
-    lang = "ar" if ar else "en"
-    bits = []
-    for item in (items or []):
-        label = item.get("title") or (item.get("text") or "")[:70]
-        ref = item.get("reference") or f"REC-{item.get('id')}"
-        st = status_label(item.get("status") or "", lang) if item.get("status") else ""
-        core = f"{ref} — {label}" if label else str(ref)
-        if st:
-            core = f"{core} ({st})"
-        bits.append(core)
-    if not bits:
-        return "لا يوجد" if ar else "none"
-    return "؛ ".join(bits[:limit]) if ar else "; ".join(bits[:limit])
-
-
-def _with_advisory(text: str, ar: bool) -> str:
-    note = ADVISORY_AR if ar else ADVISORY_EN
-    blob = (text or "").strip()
-    if not blob:
-        return note
-    if note in blob or "استشارية" in blob or "advisory" in blob.lower():
-        return blob
-    return blob + "\n" + note
-
-
-def _capabilities(ar: bool) -> str:
-    return CAPABILITIES_AR if ar else CAPABILITIES_EN
-
-
-def _result_bucket(results: dict, portfolio: dict, key: str, fallback_tool: str = ""):
-    bucket = portfolio.get(key) if isinstance(portfolio.get(key), dict) else None
-    if bucket is None and fallback_tool:
-        raw = results.get(fallback_tool)
-        if isinstance(raw, list):
-            bucket = {"count": len(raw), "items": raw}
-    return bucket or {}
-
-
-def _why_overdue_lines(items: list, ar: bool) -> str:
-    lines = []
-    lang = "ar" if ar else "en"
-    for item in (items or [])[:6]:
-        ref = item.get("reference") or f"REC-{item.get('id')}"
-        reasons = []
-        days = item.get("days_overdue") or 0
-        if days:
-            reasons.append(
-                f"تجاوز الموعد المستهدف منذ {days} يوماً ({item.get('target_date')})"
-                if ar
-                else f"{days} day(s) past the target date ({item.get('target_date')})"
-            )
-        elif item.get("target_date"):
-             reasons.append(
-                f"الموعد المستهدف {item.get('target_date')}"
-                if ar
-                else f"target date {item.get('target_date')}"
-            )
-        if not item.get("has_plan"):
-            reasons.append("لا توجد خطة عمل معتمدة" if ar else "no approved action plan")
-        nxt = next_action(item.get("status") or "", lang)
-        if nxt:
-            reasons.append(("الإجراء التالي: " if ar else "next: ") + nxt)
-        if reasons:
-            lines.append(f"{ref}: " + ("؛ ".join(reasons) if ar else "; ".join(reasons)))
-    return "\n".join(lines)
-
-
-def _overview_line(portfolio: dict, ar: bool) -> str:
-    total = portfolio.get("total") or 0
-    overdue_n = (portfolio.get("overdue") or {}).get("count") or 0
-    verify_n = (portfolio.get("awaiting_verification") or {}).get("count") or 0
-    high_n = (portfolio.get("high_risk_open") or {}).get("count") or 0
-    if ar:
-        return (
-            f"ضمن صلاحياتك حالياً {total} توصية: المتأخرة {overdue_n}، "
-            f"بانتظار التحقق {verify_n}، عالية الخطورة {high_n}."
-        )
-    return (
-        f"In your scope there are currently {total} recommendations: {overdue_n} overdue, "
-        f"{verify_n} awaiting verification, {high_n} high risk."
-    )
-
-
-def _local_answer(message: str, results: dict, language: str, parsed: dict | None = None) -> str:
-    ar = language != "en"
-    parsed = parsed or _parse_query(message)
-    kinds = parsed["kinds"]
-    parts = []
-    portfolio = results.get("get_portfolio") if isinstance(results.get("get_portfolio"), dict) else {}
-    hits = _search_matches(results)
-    query = parsed.get("name_query") or parsed.get("topic_query") or ""
-
-    if "injection" in kinds:
-        parts.append(
-            "طلبك يحتوي عبارات تتجاوز صلاحيات المساعد. سأجيب فقط من بيانات النظام المصرّح بها."
-            if ar
-            else "The request includes instruction-override language. Answers use only authorized system data."
-        )
-
-    greeting_only = kinds <= {"greeting", "injection"} and "greeting" in kinds
-    help_only = "help" in kinds and not (kinds & {"overdue", "high_risk", "verification", "recurring", "deadlines", "departments", "search", "rec", "overview", "list"})
-    if greeting_only:
-        parts.append(
-            "أهلاً، أنا مساعد التدقيق. " + _capabilities(True)
-            if ar
-            else "Hello, I am the audit assistant. " + _capabilities(False)
-        )
-    elif help_only:
-        parts.append(_capabilities(ar))
-
-    if query and "search" in kinds:
-        if hits:
-            parts.append(
-                f"نعم، وُجدت {len(hits)} توصية مطابقة لـ «{query}»: {_fmt_items(hits, ar)}."
-                if ar
-                else f"Yes, {len(hits)} recommendation(s) match “{query}”: {_fmt_items(hits, ar)}."
-            )
-        else:
-            parts.append(
-                f"لم أجد توصية تطابق «{query}». {_capabilities(True)}"
-                if ar
-                else f"No recommendation matches “{query}”. {_capabilities(False)}"
-            )
-
-    rec = results.get("get_recommendation")
-    if isinstance(rec, dict) and rec.get("error"):
-        parts.append(
-            "هذه التوصية غير موجودة ضمن صلاحياتك."
-            if ar
-            else "That recommendation is not in your access scope."
-        )
-    elif isinstance(rec, dict) and rec.get("reference"):
-        title = rec.get("title") or ""
-        st = status_label(rec.get("status") or "", language)
-        rk = risk_label(rec.get("risk_level") or "", language)
-        title_bit = f" بعنوان «{title}»" if title and ar else (f" titled “{title}”" if title else "")
-        parts.append(
-            f"{rec['reference']}{title_bit} حالتها {st} وخطورتها المسجّلة {rk} في دائرة {rec.get('department')}."
-            if ar
-            else f"{rec['reference']}{title_bit} is in status {st} with recorded risk {rk} in {rec.get('department')}."
-        )
-        nxt = next_action(rec.get("status") or "", language)
-        if nxt:
-            parts.append(("الإجراء التالي: " if ar else "Next action: ") + nxt)
-
-    why = results.get("why_high_risk")
-    if isinstance(why, dict) and why.get("delay_estimate"):
-        est = why["delay_estimate"]
-        if est.get("wording"):
-            parts.append(est["wording"])
-        if est.get("factors"):
-            parts.append(("العوامل: " if ar else "Factors: ") + "؛ ".join(est["factors"][:5]))
-
-    overdue = _result_bucket(results, portfolio, "overdue", "get_overdue_recommendations")
-    if "overdue" in kinds:
-        count = overdue.get("count") or 0
-        items = overdue.get("items") or []
-        if count:
-            parts.append(
-                f"عدد التوصيات المتأخرة ضمن صلاحياتك: {count}. منها: {_fmt_items(items, ar)}."
-                if ar
-                else f"{count} overdue recommendation(s) in your scope, including: {_fmt_items(items, ar)}."
-            )
-            if "why" in kinds:
-                explained = _why_overdue_lines(items, ar)
-                if explained:
-                    parts.append(("سبب التأخير: " if ar else "Why they are late:\n") + explained)
-        elif "why" in kinds:
-            approaching = (portfolio.get("approaching_deadline") or {}).get("count") or 0
-            extra = ""
-            if approaching:
-                extra = (
-                    f" هناك {approaching} توصية تقترب من موعدها خلال 14 يوماً."
-                    if ar
-                    else f" {approaching} recommendation(s) approach a deadline within 14 days."
-                )
-            parts.append(
-                "لا توجد توصيات متأخرة عن موعدها المستهدف حالياً. "
-                "يُحسب التأخير بعد اعتماد خطة عمل ومرور ذلك الموعد."
-                + extra
-                if ar
-                else "No recommendations are past their target date. Delay is counted after an action plan exists and that date has passed."
-                + extra
-            )
-        else:
-            parts.append("لا توجد توصيات متأخرة ضمن نطاق صلاحياتك." if ar else "No overdue recommendations in your scope.")
-
-    if "verification" in kinds and "rec" not in kinds:
-        bucket = portfolio.get("awaiting_verification") or {}
-        count = bucket.get("count") or 0
-        items = bucket.get("items") or []
-        if count:
-            parts.append(
-                f"التوصيات التي تحتاج تحقق حالياً: {count}. هي: {_fmt_items(items, ar)}."
-                if ar
-                else f"{count} recommendation(s) currently await verification: {_fmt_items(items, ar)}."
-            )
-        else:
-            parts.append(
-                "لا توجد توصيات بانتظار التحقق حالياً ضمن صلاحياتك."
-                if ar
-                else "No recommendations currently await verification in your scope."
-            )
-
-    if "insufficient" in kinds:
-        bucket = portfolio.get("insufficient_evidence") or {}
-        items = results.get("get_insufficient_verification") if isinstance(results.get("get_insufficient_verification"), list) else bucket.get("items") or []
-        count = bucket.get("count") if bucket else len(items)
-        listed = _fmt_items(items, ar)
-        parts.append(
-            f"توصيات بتحقق أدلة غير كافٍ: {count or 0}." + (f" {listed}" if listed and listed != "لا يوجد" else "")
-            if ar
-            else f"Recommendations with insufficient verification: {count or 0}." + (f" {listed}" if listed and listed != "none" else "")
-        )
-
-    if "high_risk" in kinds and "rec" not in kinds:
-        bucket = portfolio.get("high_risk_open") or {}
-        count = bucket.get("count") or 0
-        items = bucket.get("items") or []
-        if count:
-            parts.append(
-                f"التوصيات المفتوحة عالية الخطورة: {count}. {_fmt_items(items, ar)}"
-                if ar
-                else f"Open high-risk recommendations: {count}. {_fmt_items(items, ar)}"
-            )
-        else:
-            parts.append(
-                "لا توجد توصيات مفتوحة عالية الخطورة ضمن صلاحياتك."
-                if ar
-                else "No open high-risk recommendations in your scope."
-            )
-
-    if "recurring" in kinds:
-        bucket = portfolio.get("recurring") or {}
-        count = bucket.get("count") or 0
-        items = bucket.get("items") or []
-        parts.append(
-            f"عدد التكرارات المرصودة ضمن نطاقك: {count}." + (f" {_fmt_items(items, ar)}" if count else "")
-            if ar
-            else f"Recurring findings in your scope: {count}." + (f" {_fmt_items(items, ar)}" if count else "")
-        )
-
-    if "deadlines" in kinds:
-        bucket = portfolio.get("approaching_deadline") or {}
-        count = bucket.get("count") or 0
-        items = bucket.get("items") or []
-        parts.append(
-            f"توصيات تقترب من موعدها خلال 14 يوماً: {count}." + (f" {_fmt_items(items, ar)}" if count else "")
-            if ar
-            else f"Recommendations approaching deadline within 14 days: {count}." + (f" {_fmt_items(items, ar)}" if count else "")
-        )
-
-    if "departments" in kinds:
-        rows = portfolio.get("department_overdue") or []
-        stats = results.get("get_department_statistics")
-        if rows:
-            listed = "؛ ".join(f"{row.get('department')} ({row.get('count')})" for row in rows[:6])
-            parts.append(
-                f"أعلى تأخير حسب الدائرة: {listed}."
-                if ar
-                else f"Highest delays by department: {listed}."
-            )
-        else:
-            parts.append("لا يوجد تأخير موزّع على الدوائر حالياً." if ar else "No department overdue concentration currently.")
-        if isinstance(stats, dict) and parsed.get("department") and stats.get("total") is not None:
-            parts.append(
-                f"إحصاء الدائرة «{stats.get('department')}»: الإجمالي {stats.get('total')}، المفتوحة {stats.get('open')}، المتأخرة {stats.get('overdue')}."
-                if ar
-                else f"Department “{stats.get('department')}”: total {stats.get('total')}, open {stats.get('open')}, overdue {stats.get('overdue')}."
-            )
-
-    followup = results.get("get_followup_reports")
-    if isinstance(followup, list) and "followup" in kinds:
-        parts.append(
-            f"تقارير المتابعة المتاحة: {len(followup)}."
-            if ar
-            else f"Follow-up reports available: {len(followup)}."
-        )
-    elif isinstance(followup, dict) and followup.get("error"):
-        parts.append("تقارير المتابعة غير متاحة لهذا الدور." if ar else "Follow-up reports are not available for this role.")
-
-    if "list" in kinds:
-        total = portfolio.get("total") or 0
-        listed = _fmt_items(hits, ar)
-        if listed and listed not in ("لا يوجد", "none"):
-            parts.append(
-                f"ضمن صلاحياتك {total} توصية. منها: {listed}."
-                if ar
-                else f"You have {total} recommendations in scope, including: {listed}."
-            )
-        else:
-            parts.append(_overview_line(portfolio, ar) if portfolio else "")
-
-    if "overview" in kinds and portfolio:
-        parts.append(_overview_line(portfolio, ar))
-
-    if "unclear" in kinds and not parts:
-        parts.append(
-            "لم أفهم السؤال. " + _capabilities(True)
-            if ar
-            else "I did not understand that question. " + _capabilities(False)
-        )
-
-    if not parts:
-        parts.append(
-            "لم أفهم السؤال. " + _capabilities(True)
-            if ar
-            else "I did not understand that question. " + _capabilities(False)
-        )
-
-    return _with_advisory("\n".join(p for p in parts if p), ar)
-
-
-def _should_use_llm(candidate: str, tool_results: dict, name_q: str, kinds: set) -> bool:
-    if not (candidate or "").strip():
-        return False
-    allowed = _collect_allowed_ids(tool_results)
-    if any(int(token) not in allowed for token in REC_ID.findall(candidate)):
-        return False
-    hits = _search_matches(tool_results)
-    refs = [item.get("reference") for item in hits if item.get("reference")]
-    asked_search = "search" in kinds or bool(name_q)
-    if asked_search and refs and not any(ref in candidate for ref in refs):
-        return False
-    talks_about_name = bool(
-        re.search(r"بهذا الاسم|بالاسم أو النص|with this name|matches the name", candidate, re.I)
-    )
-    if talks_about_name and not name_q:
-        return False
-    if GENERIC_DUMP.search(candidate) and not (kinds & {"overview", "list"}):
-        return False
-    return True
-
-
-def normalize_text(text: str) -> str:
-    if not text:
-        return ""
-    val = text.lower().strip()
-    # Remove Arabic diacritics
-    val = re.sub(r"[\u064B-\u0652]", "", val)
-    # Normalize Alef variations
-    val = re.sub(r"[إأآ]", "ا", val)
-    # Normalize Teh Marbuta
-    val = re.sub(r"ة\b", "ه", val)
-    # Normalize Alef Maksura
-    val = re.sub(r"ى\b", "ي", val)
-    # Remove punctuation
-    val = re.sub(r"[.,\/#!$%\^&\*;:{}=\-_`~()؟?!\'\"]", " ", val)
-    # Collapse whitespace
-    val = " ".join(val.split())
-    return val
+def execute_tool(user, name: str, args: dict):
+    fn = TOOLS.get(name)
+    if not fn:
+        return {"error": "invalid_tool_or_args", "name": name}
+    try:
+        if not isinstance(args, dict):
+            args = {}
+        return fn(user, args)
+    except (TypeError, ValueError, KeyError):
+        return {"error": "invalid_tool_or_args", "name": name}
+    except Exception:
+        logger.warning("ai_tool_failed name=%s", name)
+        return {"error": "tool_failed", "name": name}
 
 
 def get_or_create_conversation(user) -> AIConversation:
@@ -978,6 +456,37 @@ def clear_conversation(user):
     AIConversation.objects.filter(user=user, municipality=user.municipality).delete()
 
 
+def _page_context_note(context: dict | None) -> str:
+    if not context:
+        return ""
+    bits = []
+    rec_id = context.get("recommendation_id")
+    report_id = context.get("report_id")
+    dept_id = context.get("department_id")
+    route = context.get("route")
+    if rec_id:
+        bits.append(f"The UI is viewing recommendation id {int(rec_id)}.")
+    if report_id:
+        bits.append(f"The UI is viewing report id {int(report_id)}.")
+    if dept_id:
+        bits.append(f"The UI is viewing department id {int(dept_id)}.")
+    if route:
+        bits.append(f"Current route: {str(route)[:120]}.")
+    return " ".join(bits)
+
+
+def _history_payload(convo) -> list[dict]:
+    return [
+        {
+            "role": m.role,
+            "content": m.content,
+            "created_at": m.created_at.isoformat(),
+            "metadata": m.metadata,
+        }
+        for m in convo.messages.order_by("created_at")[:40]
+    ]
+
+
 def run_assistant(user, message: str, language: str = "ar", conversation_id: int | None = None, context: dict | None = None) -> dict:
     lang = language_of(language)
     ar = lang != "en"
@@ -990,355 +499,111 @@ def run_assistant(user, message: str, language: str = "ar", conversation_id: int
     else:
         convo = get_or_create_conversation(user)
 
-    # 1. Initialize persistent system memory message (Task memory stores)
     memory_msg = convo.messages.filter(role=AIMessage.Role.SYSTEM).first()
     if not memory_msg:
-        memory_msg = AIMessage.objects.create(
+        AIMessage.objects.create(
             conversation=convo,
             role=AIMessage.Role.SYSTEM,
             content="Persistent conversation memory",
-            metadata={
-                "summary": "",
-                "referenced_rec_ids": [],
-                "referenced_report_ids": [],
-                "referenced_department": None,
-                "current_language": lang,
-                "unresolved_questions": [],
-                "current_filters": {}
-            }
+            metadata={"current_language": lang},
         )
 
-    memory = memory_msg.metadata or {}
-
-    # 2. Scoped bounded memory
-    prior = list(convo.messages.order_by("-created_at")[:20])
-    prior.reverse()
-    history_prior = []
-    for m in prior:
-        if m.role == AIMessage.Role.SYSTEM:
-            continue
-        history_prior.append({
-            "role": m.role,
-            "content": m.content[:800],
-            "metadata": m.metadata
-        })
-
-    # 3. Normalized Repetition and Semantic Variation Checks
-    norm_msg = normalize_text(message)
-    is_what_changed = any(x in norm_msg for x in ("تغير", "تغيير", "what changed", "any change", "updates", "تحديث"))
-    is_tell_more = any(x in norm_msg for x in ("زياده", "اكثر", "tell me more", "more details", "تفاصيل", "توسع"))
-    is_repeat_request = any(x in norm_msg for x in ("نفس المعلومات", "رجع نفس", "same info", "repeat", "نفس الجواب"))
-
-    last_user_norm = None
-    last_assistant_msg = None
-    for m in reversed(history_prior):
-        if m["role"] == "user" and not last_user_norm:
-            last_user_norm = normalize_text(m["content"])
-        elif m["role"] == "assistant" and not last_assistant_msg:
-            last_assistant_msg = m["content"]
-
-    is_repetition = False
-    if last_user_norm and norm_msg == last_user_norm:
-        is_repetition = True
-    if is_repeat_request:
-        is_repetition = True
-
-    # Check if database has changed since last conversation update
-    data_changed = False
-    if convo.updated_at:
-        changed_count = _qs(user).filter(updated_at__gt=convo.updated_at).count()
-        if changed_count > 0:
-            data_changed = True
-
-    # 4. Handle repetitions and semantic queries
-    if is_repetition and not data_changed and not is_tell_more and not is_what_changed:
-        rep_answer = (
-            "لقد عرضت هذه المعلومات للتو ولم تتغير البيانات في النظام. هل هناك تفاصيل محددة ترغب في استكشافها؟"
-            if ar else
-            "I have already displayed this information and the system data has not changed. Is there a specific detail you want to explore?"
-        )
-        meta = provider_meta()
-        AIMessage.objects.create(conversation=convo, role=AIMessage.Role.USER, content=message[:4000])
-        AIMessage.objects.create(
-            conversation=convo,
-            role=AIMessage.Role.ASSISTANT,
-            content=rep_answer,
-            metadata={
-                "tools": [],
-                "provider": meta["provider"],
-                "model": meta["model"],
-                "intent": ["repetition"],
-            }
-        )
-        convo.save(update_fields=["updated_at"])
-        history = [
-            {"role": m.role, "content": m.content, "created_at": m.created_at.isoformat(), "metadata": m.metadata}
-            for m in convo.messages.order_by("created_at")[:40]
-        ]
-        return {
-            "conversation_id": convo.id,
-            "answer": rep_answer,
-            "tools": [],
-            "tool_results": {},
-            "provider": meta["provider"],
-            "model": meta["model"],
-            "intent": ["repetition"],
-            "advisory": True,
-            "messages": history,
-        }
-
-    # Save user message
     AIMessage.objects.create(conversation=convo, role=AIMessage.Role.USER, content=message[:4000])
 
-    # Intent routing and contextual resolution
-    parsed = _parse_query(message)
-
-    # Detect genuinely unclear / gibberish input:
-    # If the only inferred intent is 'search' but there is nothing meaningful to search for
-    # (no name_query, no rec_ids, and no Arabic content / useful English keyword),
-    # then the input is ambiguous and requires clarification.
-    if parsed["kinds"] == {"search"} and not parsed.get("name_query") and not parsed.get("rec_ids"):
-        has_arabic = bool(re.search(r'[\u0600-\u06FF]', message))
-        has_useful_token = bool(re.search(r'\b(recommend|report|overdue|risk|task|department|summary|status|find|list|show|get|help)\b', message, re.I))
-        if not has_arabic and not has_useful_token:
-            parsed["kinds"] = {"unclear"}
-
-    # Intent-based repetition check: if asking for same metric/intent and data has not changed
-    last_intent = None
-    for m in reversed(history_prior):
-        if m["role"] == "assistant" and m.get("metadata") and m["metadata"].get("intent"):
-            last_intent = m["metadata"]["intent"]
-            break
-
-    if last_intent and parsed["kinds"] == set(last_intent) and not data_changed and (parsed["kinds"] & {"overdue", "high_risk", "verification", "recurring", "deadlines", "departments", "overview", "list"}):
-        is_repetition = True
-
-    # Context injected from page parameters or persistent memory
-    if context:
-        if context.get("recommendation_id") and not parsed.get("rec_ids") and any(x in message for x in ("لخص", "هذه", "this", "summary", "summarize", "it", "them")):
-            parsed["rec_ids"] = [int(context["recommendation_id"])]
-            parsed["kinds"].add("rec")
-            parsed["kinds"].discard("unclear")
-        if context.get("department_id") and not parsed.get("department"):
-            from apps.organizations.models import Department
-            d = Department.objects.filter(pk=context["department_id"]).first()
-            if d:
-                parsed["department"] = d.name
-
-    # Persistent long-term memory resolution for "لخصها", "أي واحدة", etc.
-    if not parsed.get("rec_ids"):
-        follow_ids = _followup_rec_ids(message, history_prior)
-        if follow_ids:
-            parsed["rec_ids"] = follow_ids
-            parsed["kinds"].add("rec")
-            parsed["kinds"].discard("unclear")
-        elif memory.get("referenced_rec_ids") and any(x in norm_msg for x in ("لخص", "اخص", "اخطر", "هذه", "تفاصيل", "اي واحدة", "that one", "summary", "summarize", "it", "them", "which one", "worst", "highest", "risk")):
-            parsed["rec_ids"] = list(memory["referenced_rec_ids"][:5])
-            parsed["kinds"].add("rec")
-            parsed["kinds"].discard("unclear")
-
-    # Intent confidence and low-confidence clarification fallback
-    intent_confidence = 1.0
-    needs_clarification = False
-    if "unclear" in parsed["kinds"]:
-        intent_confidence = 0.3
-        needs_clarification = True
-
-    if needs_clarification:
-        clarification_answer = (
-            "لم أستطع تحديد موضوع استفسارك بدقة. هل تقصد البحث عن توصية معينة، أم استعراض التوصيات المتأخرة أو عالية الخطورة؟"
-            if ar else
-            "I could not pinpoint the topic of your query. Did you mean to search for a specific recommendation, or view overdue or high-risk items?"
-        )
-        meta = provider_meta()
-        AIMessage.objects.create(
-            conversation=convo,
-            role=AIMessage.Role.ASSISTANT,
-            content=clarification_answer,
-            metadata={
-                "tools": [],
-                "provider": meta["provider"],
-                "model": meta["model"],
-                "intent": ["clarification"],
-            }
-        )
-        convo.save(update_fields=["updated_at"])
-        history = [
-            {"role": m.role, "content": m.content, "created_at": m.created_at.isoformat(), "metadata": m.metadata}
-            for m in convo.messages.order_by("created_at")[:40]
-        ]
-        return {
-            "conversation_id": convo.id,
-            "answer": clarification_answer,
-            "tools": [],
-            "tool_results": {},
-            "provider": meta["provider"],
-            "model": meta["model"],
-            "intent": ["clarification"],
-            "advisory": True,
-            "messages": history,
-        }
-
-    # Greetings and help handling separately
-    if "greeting" in parsed["kinds"] or "help" in parsed["kinds"]:
-        if "greeting" in parsed["kinds"]:
-            answer = (
-                "أهلًا بك! أنا مساعد التدقيق الذكي. يمكنني مساعدتك في استعراض التوصيات والتقارير والمهام ومستويات الخطورة. كيف يمكنني مساعدتك اليوم؟"
-                if ar else
-                "Hello! I am your audit intelligence assistant. I can help you review recommendations, reports, tasks, and risk levels. How can I help you today?"
-            )
-        else:
-            answer = (
-                "يمكنني مساعدتك في: البحث عن التوصيات والتقارير، معرفة التوصيات المتأخرة وسبب التأخير، استعراض المواعيد النهائية، تحليل أدلة الإغلاق، ومتابعة الموافقات المطلوبة."
-                if ar else
-                "I can assist you with: searching recommendations and reports, listing overdue items and their causes, tracking upcoming deadlines, analyzing closure evidence, and reviewing council approvals."
-            )
-        meta = provider_meta()
-        AIMessage.objects.create(
-            conversation=convo,
-            role=AIMessage.Role.ASSISTANT,
-            content=answer,
-            metadata={
-                "tools": [],
-                "provider": meta["provider"],
-                "model": meta["model"],
-                "intent": list(parsed["kinds"]),
-            }
-        )
-        convo.save(update_fields=["updated_at"])
-        history = [
-            {"role": m.role, "content": m.content, "created_at": m.created_at.isoformat(), "metadata": m.metadata}
-            for m in convo.messages.order_by("created_at")[:40]
-        ]
-        return {
-            "conversation_id": convo.id,
-            "answer": answer,
-            "tools": [],
-            "tool_results": {},
-            "provider": meta["provider"],
-            "model": meta["model"],
-            "intent": list(parsed["kinds"]),
-            "advisory": True,
-            "messages": history,
-        }
-
-    # "What changed" / "tell me more" contextual helpers
-    if is_what_changed:
-        if not data_changed:
-            answer = (
-                "لم يطرأ أي تغيير على التوصيات أو حالتها منذ آخر استفسار."
-                if ar else
-                "No changes have occurred to the recommendations or their statuses since the last query."
-            )
-        else:
-            changed_recs = _qs(user).filter(updated_at__gt=convo.updated_at)[:5]
-            recs_fmt = _fmt_items([_brief(r) for r in changed_recs], ar)
-            answer = (
-                f"تم تحديث التوصيات التالية مؤخراً: {recs_fmt}."
-                if ar else
-                f"The following recommendations were updated recently: {recs_fmt}."
-            )
-        meta = provider_meta()
-        AIMessage.objects.create(conversation=convo, role=AIMessage.Role.ASSISTANT, content=answer, metadata={"tools": [], "provider": meta["provider"], "model": meta["model"], "intent": ["what_changed"]})
-        convo.save(update_fields=["updated_at"])
-        history = [
-            {"role": m.role, "content": m.content, "created_at": m.created_at.isoformat(), "metadata": m.metadata}
-            for m in convo.messages.order_by("created_at")[:40]
-        ]
-        return {
-            "conversation_id": convo.id,
-            "answer": answer,
-            "tools": [],
-            "tool_results": {},
-            "provider": meta["provider"],
-            "model": meta["model"],
-            "intent": ["what_changed"],
-            "advisory": True,
-            "messages": history,
-        }
-
-    # Scoped entity retrieval
-    calls = _route_tools(parsed, message)
-    tool_results = {}
-    for name, args in calls:
-        fn = TOOLS.get(name)
-        if not fn:
-            continue
-        try:
-            tool_results[name] = fn(user, args)
-        except Exception:
-            tool_results[name] = {"error": "tool_failed"}
-
-    local = _local_answer(message, tool_results, lang, parsed)
-
-    # Render structured prompt
-    prompt = render_prompt(
+    system = render_prompt(
         "assistant_v1.txt",
         language="Modern Standard Arabic" if ar else "English",
-        intent=",".join(sorted(parsed["kinds"])) or "unclear",
-        conversation_json=json.dumps(history_prior, ensure_ascii=False)[:4000] or "[]",
-        trusted_json=json.dumps(tool_results, ensure_ascii=False)[:12000],
-        user_message=scrub_text(message, 1500),
+        role=user.role,
+        page_context=_page_context_note(context) or "None.",
     )
-    llm_out = generate_structured(
-        prompt,
-        fallback={"answer": local, "used_tools": list(tool_results.keys())},
+    prior = list(
+        convo.messages.exclude(role=AIMessage.Role.SYSTEM).order_by("-created_at")[:HISTORY_MESSAGE_CAP]
     )
+    prior.reverse()
+    messages = [{"role": "system", "content": system}]
+    for item in prior:
+        if item.role in (AIMessage.Role.USER, AIMessage.Role.ASSISTANT):
+            messages.append({"role": item.role, "content": (item.content or "")[:4000]})
 
-    answer = local
-    name_q = parsed.get("name_query") or ""
-    if isinstance(llm_out.get("answer"), str) and llm_out["answer"].strip():
-        candidate = llm_out["answer"].strip()
-        if _should_use_llm(candidate, tool_results, name_q, parsed["kinds"]):
-            answer = _with_advisory(candidate[:4000], ar)
+    used_tools: list[str] = []
+    tool_results: dict = {}
+    max_iter = int(getattr(settings, "AI_MAX_TOOL_ITERATIONS", 6) or 6)
+    answer = ""
+    chat_llm = get_chat_llm()
 
-    # Update persistent memory metadata
-    new_rec_ids = list(memory.get("referenced_rec_ids") or [])
-    for r_id in parsed.get("rec_ids") or []:
-        if r_id not in new_rec_ids:
-            new_rec_ids.append(r_id)
-    memory["referenced_rec_ids"] = new_rec_ids[-20:]
-    if parsed.get("department"):
-        memory["referenced_department"] = parsed["department"]
-    memory["last_intent"] = list(parsed["kinds"])
-    memory["last_answer_snippet"] = answer[:200]
-    
-    # Persistent compact summary logs
-    prev_summary = memory.get("summary") or ""
-    new_log = f"U: {message[:60]}. A: {answer[:60]}."
-    if prev_summary:
-        memory["summary"] = f"{prev_summary} | {new_log}"[:800]
-    else:
-        memory["summary"] = new_log[:800]
+    try:
+        for _ in range(max_iter):
+            result = chat_llm.chat(messages, tools=TOOL_SCHEMAS)
+            tool_calls = result.get("tool_calls") or []
+            if tool_calls:
+                messages.append(
+                    {
+                        "role": "assistant",
+                        "content": result.get("content") or "",
+                        "tool_calls": tool_calls,
+                    }
+                )
+                for call in tool_calls:
+                    fn = call.get("function") or {}
+                    name = fn.get("name") or ""
+                    raw_args = fn.get("arguments") or "{}"
+                    try:
+                        args = json.loads(raw_args) if isinstance(raw_args, str) else (raw_args or {})
+                    except json.JSONDecodeError:
+                        args = {}
+                    if not isinstance(args, dict):
+                        args = {}
+                    payload = execute_tool(user, name, args)
+                    used_tools.append(name)
+                    tool_results[name] = payload
+                    dumped = json.dumps(payload, ensure_ascii=False, default=str)
+                    if len(dumped) > TOOL_RESULT_CHAR_CAP:
+                        dumped = dumped[:TOOL_RESULT_CHAR_CAP] + "...[truncated]"
+                    messages.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": call.get("id") or "call",
+                            "content": dumped,
+                        }
+                    )
+                continue
+            answer = (result.get("content") or "").strip()
+            break
+        else:
+            logger.error("ai_assistant_tool_loop_exhausted")
+            raise AIUnavailable(USER_SAFE_UNAVAILABLE)
+        if not answer:
+            logger.error("ai_assistant_empty_answer")
+            raise AIUnavailable(USER_SAFE_UNAVAILABLE)
+    except AIUnavailable:
+        raise
+    except Exception:
+        logger.exception("ai_assistant_chat_failed")
+        raise AIUnavailable(USER_SAFE_UNAVAILABLE)
 
-    memory_msg.metadata = memory
-    memory_msg.save(update_fields=["metadata"])
+    advisory = ADVISORY_AR if ar else ADVISORY_EN
+    if advisory not in answer:
+        answer = f"{answer}\n\n{advisory}"
 
-    meta = provider_meta()
     AIMessage.objects.create(
         conversation=convo,
         role=AIMessage.Role.ASSISTANT,
-        content=answer,
+        content=answer[:8000],
         metadata={
-            "tools": list(tool_results.keys()),
-            "provider": meta["provider"],
-            "model": meta["model"],
-            "intent": sorted(parsed["kinds"]),
+            "tools": used_tools,
+            "provider": chat_llm.name,
+            "model": chat_llm.model,
         },
     )
     convo.save(update_fields=["updated_at"])
-    history = [
-        {"role": m.role, "content": m.content, "created_at": m.created_at.isoformat(), "metadata": m.metadata}
-        for m in convo.messages.order_by("created_at")[:40]
-    ]
     return {
         "conversation_id": convo.id,
         "answer": answer,
-        "tools": list(tool_results.keys()),
+        "tools": used_tools,
         "tool_results": tool_results,
-        "provider": meta["provider"],
-        "model": meta["model"],
-        "intent": sorted(parsed["kinds"]),
+        "provider": chat_llm.name,
+        "model": chat_llm.model,
+        "intent": used_tools or ["chat"],
         "advisory": True,
-        "messages": history,
+        "messages": _history_payload(convo),
     }
