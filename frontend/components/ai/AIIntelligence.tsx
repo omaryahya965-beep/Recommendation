@@ -120,14 +120,19 @@ export function AIIntelligence({
       ) : null}
 
       {data?.narratives?.length ? (
-        <ul className="mt-5 space-y-2.5 border-t border-ai/15 pt-5 text-[13.5px] leading-relaxed text-ink font-medium">
-          {data.narratives.map((line) => (
-            <li key={line} className="flex gap-2 bg-ai-light/20 rounded-xl p-3 border border-ai/5 shadow-sm">
-              <span className="mt-2.5 size-2 shrink-0 rounded-full bg-ai animate-pulse" aria-hidden />
-              {line}
-            </li>
-          ))}
-        </ul>
+        <div className="mt-5 border-t border-ai/15 pt-4">
+          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {data.narratives.map((line) => (
+              <li
+                key={line}
+                className="flex items-start gap-2.5 rounded-lg border border-ai/10 bg-ai-light/25 px-3 py-2.5 text-[13px] font-medium leading-snug text-ink"
+              >
+                <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-ai" aria-hidden />
+                {line}
+              </li>
+            ))}
+          </ul>
+        </div>
       ) : null}
     </AIPanel>
   );
