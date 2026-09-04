@@ -82,7 +82,7 @@ export function LoginHero() {
 
         {/* ── Desktop municipality branding badge (top-start) ── */}
         <div className="absolute start-5 top-4 z-20 hidden lg:flex xl:start-7 xl:top-5">
-          <div className="flex items-center gap-2 rounded-xl bg-white px-3 py-2 shadow-md ring-1 ring-black/10">
+          <div className="flex items-center gap-2.5 rounded-2xl bg-white/95 px-3.5 py-2 shadow-lg backdrop-blur-sm ring-1 ring-black/5">
             <MunicipalityMark size="sm" layout="horizontal" showTagline />
           </div>
         </div>

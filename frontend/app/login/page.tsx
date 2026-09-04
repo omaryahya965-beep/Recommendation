@@ -17,6 +17,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { CitySkyline } from "@/components/login/CitySkyline";
 import { LoginHero } from "@/components/login/LoginHero";
 import { LoginToolbar } from "@/components/login/LoginToolbar";
+import { MunicipalityMark } from "@/components/login/MunicipalityMark";
 import { MunicipalLogo } from "@/components/brand/MunicipalLogo";
 import { ErrorBanner } from "@/components/ui/Base";
 import { login, ROLE_HOME } from "@/lib/api";
@@ -159,21 +160,7 @@ export default function LoginPage() {
               <div className="login-card w-full max-w-[30rem] rounded-[1.15rem] px-6 py-6 sm:px-8 sm:py-7">
 
                 {/* Card header: emblem + bilingual name */}
-                <div className="flex flex-col items-center gap-1.5 text-center">
-                  <div className="rounded-[1.25rem] bg-[#183B4E] p-1.5 shadow-md ring-1 ring-black/10">
-                    <MunicipalLogo size="lg" inverted />
-                  </div>
-                  <p className="mt-1.5 text-[17px] font-bold leading-tight text-[var(--login-navy)]">
-                    {T.login.municipalityName}
-                  </p>
-                  <p
-                    className="text-[10.5px] font-semibold text-[var(--login-muted)]"
-                    dir="ltr"
-                    style={{ letterSpacing: "0.05em" }}
-                  >
-                    AL-BIREH MUNICIPALITY
-                  </p>
-                </div>
+                <MunicipalityMark size="lg" layout="stacked" showTagline />
 
                 {/* Welcome heading */}
                 <div className="mt-5 flex flex-col items-center text-center">
@@ -470,18 +457,15 @@ export default function LoginPage() {
           </div>
 
           {/* ── Footer ── */}
-          <div className="px-4 pb-3 pt-1 text-center text-[11px] leading-5 text-[var(--login-muted)] lg:px-10">
-            <p className="font-semibold">
-              © 2024 {T.login.footerOwner}
-              <span className="mx-1.5 opacity-30">|</span>
-              {T.login.footerPlatform}
-              <span className="mx-1.5 opacity-30">|</span>
-              {T.login.versionLabel}
-            </p>
-            <p className="mt-0.5 font-medium">
-              {T.login.mayorLabel}: {T.login.mayorName}
-            </p>
-          </div>
+          <footer className="flex flex-wrap items-center justify-between gap-2 px-6 pb-3 pt-1 text-[11px] font-medium text-[var(--login-muted)] lg:px-10">
+            <p>© 2024 {T.login.footerOwner}</p>
+            <div className="flex items-center gap-2">
+              <span>{T.login.mayorLabel}: {T.login.mayorName}</span>
+              <span className="opacity-30">•</span>
+              <span>{T.login.footerPlatform}</span>
+            </div>
+            <p>{T.login.versionLabel}</p>
+          </footer>
         </section>
       </div>
     </main>

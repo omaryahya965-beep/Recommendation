@@ -1,8 +1,7 @@
 "use client";
 
-import { MunicipalLogo } from "@/components/brand/MunicipalLogo";
+import { AlBirehSeal } from "@/components/brand/AlBirehSeal";
 import { cn } from "@/lib/cn";
-import { T, useI18n } from "@/lib/i18n";
 
 export function MunicipalityMark({
   inverted = false,
@@ -12,46 +11,55 @@ export function MunicipalityMark({
   className,
 }: {
   inverted?: boolean;
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "xl";
   layout?: "horizontal" | "stacked";
   showTagline?: boolean;
   className?: string;
 }) {
-  useI18n();
+  const isStacked = layout === "stacked";
+
   const titleClass =
-    size === "lg"
-      ? "text-[1.05rem] font-semibold leading-tight"
+    size === "xl" || size === "lg"
+      ? "text-[18px] sm:text-[20px] font-extrabold leading-tight tracking-tight"
       : size === "sm"
-        ? "text-[14px] font-semibold leading-tight"
-        : "text-[15px] font-semibold leading-tight";
-  const tagClass =
-    size === "sm" ? "text-[11px] leading-snug" : "text-[12px] leading-snug";
+        ? "text-[14px] font-bold leading-tight"
+        : "text-[16px] font-bold leading-tight";
+
+  const subClass =
+    size === "xl" || size === "lg"
+      ? "text-[11px] sm:text-[12px] font-semibold tracking-wider uppercase leading-tight mt-0.5"
+      : size === "sm"
+        ? "text-[9.5px] font-semibold tracking-wider uppercase leading-tight mt-0.5"
+        : "text-[10.5px] font-semibold tracking-wider uppercase leading-tight mt-0.5";
 
   return (
     <div
       className={cn(
-        layout === "stacked"
-          ? "flex flex-col items-center"
-          : "flex items-center gap-3",
+        isStacked
+          ? "flex flex-col items-center text-center"
+          : "flex items-center gap-3 text-start",
         className
       )}
     >
-      <div
-        className={cn(
-          "flex shrink-0",
-          layout === "stacked" && "mb-2.5",
-          !inverted && "rounded-[1.35rem] bg-[#183B4E] p-1 shadow-md ring-1 ring-black/10"
-        )}
-      >
-        <MunicipalLogo className="w-fit shrink-0" size={size === "sm" ? "md" : "lg"} inverted />
-      </div>
-      <div className={cn(layout === "horizontal" ? "text-start" : "text-center")}>
-        <p className={cn(titleClass, inverted ? "text-white" : "text-[var(--login-text,#102F40)]")}>
-          {T.login.municipalityName}
+      <AlBirehSeal size={size} />
+      <div className={cn(isStacked ? "mt-2.5 text-center" : "text-start")}>
+        <p
+          className={cn(
+            titleClass,
+            inverted ? "text-white" : "text-[var(--login-navy,#102F40)]"
+          )}
+        >
+          بلدية البيرة
         </p>
         {showTagline ? (
-          <p className={cn(tagClass, "mt-0.5", inverted ? "text-white/85" : "text-[var(--login-muted,#647784)]")}>
-            {T.login.municipalityTagline}
+          <p
+            dir="ltr"
+            className={cn(
+              subClass,
+              inverted ? "text-white/80" : "text-[var(--login-muted,#647784)]"
+            )}
+          >
+            AL-BIREH MUNICIPALITY
           </p>
         ) : null}
       </div>
