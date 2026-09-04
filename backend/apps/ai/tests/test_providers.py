@@ -4,8 +4,9 @@ from unittest.mock import patch
 from django.test import override_settings
 from rest_framework.test import APIClient
 
-from apps.ai.exceptions import AIValidationError
+from apps.ai.exceptions import AIUnavailable, AIValidationError
 from apps.ai.models import AIAnalysis
+from apps.ai.providers import get_chat_llm
 from apps.ai.providers.llm import LocalLLMProvider
 from apps.ai.services.common import generate_structured, parse_json_object
 from apps.workflow.tests import make_world
@@ -84,3 +85,16 @@ class HealthAndDisabledTests(TestCase):
         self.assertEqual(res.status_code, 201)
         blocked = self.client.post(f"/api/ai/recommendations/{self.rec.id}/analyze/")
         self.assertEqual(blocked.status_code, 503)
+
+
+class ChatProviderTests(TestCase):
+    @override_settings(AI_PROVIDER="local", AI_API_KEY="sk-test", AI_MODEL="gpt-4o-mini")
+    def test_assistant_uses_openai_when_key_is_set(self):
+        llm = get_chat_llm()
+        self.assertEqual(llm.name, "openai")
+        self.assertEqual(llm.model, "gpt-4o-mini")
+
+    @override_settings(AI_PROVIDER="openai", AI_API_KEY="")
+    def test_assistant_requires_api_key(self):
+        with self.assertRaises(AIUnavailable):
+            get_chat_llm()

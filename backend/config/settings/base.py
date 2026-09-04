@@ -16,6 +16,18 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 load_dotenv(BASE_DIR / ".env")
 
+
+def _env_str(*names: str, default: str = "") -> str:
+    for name in names:
+        raw = os.environ.get(name)
+        if raw is None:
+            continue
+        value = str(raw).strip().strip('"').strip("'")
+        if value:
+            return value
+    return default
+
+
 SECRET_KEY = os.environ.get("SECRET_KEY", "dev-only-insecure-key-change-in-production")
 
 DEBUG = os.environ.get("DEBUG", "False") == "True"
@@ -176,12 +188,13 @@ SIMILARITY_THRESHOLD = float(os.environ.get("SIMILARITY_THRESHOLD", "0.85"))
 # Provider: "local" uses deterministic, data-driven heuristics (no API key).
 # "openai" uses an OpenAI-compatible Chat Completions API when AI_API_KEY is set.
 # If the remote provider fails, services fall back to the local analyzer.
-AI_ENABLED = os.environ.get("AI_ENABLED", "true").lower() in ("1", "true", "yes")
-AI_PROVIDER = os.environ.get("AI_PROVIDER", "local").strip().lower()
-AI_MODEL = os.environ.get("AI_MODEL", "heuristic-v1")
-AI_EMBEDDING_MODEL = os.environ.get("AI_EMBEDDING_MODEL", "")
-AI_API_KEY = os.environ.get("AI_API_KEY", "")
-AI_BASE_URL = os.environ.get("AI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
+AI_ENABLED = _env_str("AI_ENABLED", default="true").lower() in ("1", "true", "yes")
+AI_PROVIDER = _env_str("AI_PROVIDER", default="local").lower()
+AI_MODEL = _env_str("AI_MODEL", default="heuristic-v1")
+AI_EMBEDDING_MODEL = _env_str("AI_EMBEDDING_MODEL")
+# OPENAI_API_KEY is accepted so a Vercel/OpenAI paste still reaches Django.
+AI_API_KEY = _env_str("AI_API_KEY", "OPENAI_API_KEY")
+AI_BASE_URL = _env_str("AI_BASE_URL", default="https://api.openai.com/v1").rstrip("/")
 AI_SIMILARITY_THRESHOLD = float(
     os.environ.get("AI_SIMILARITY_THRESHOLD", os.environ.get("SIMILARITY_THRESHOLD", "0.80"))
 )

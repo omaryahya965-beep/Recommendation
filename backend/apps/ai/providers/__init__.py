@@ -35,11 +35,11 @@ def get_llm_provider() -> LLMProvider:
 
 
 def get_chat_llm() -> OpenAILLMProvider:
-    """Assistant path only: never fall back to the local heuristic provider."""
-    name = (settings.AI_PROVIDER or "local").lower()
-    if name != "openai":
-        logger.error("ai_chat_provider_not_openai provider=%s", name)
-        raise AIUnavailable(USER_SAFE_UNAVAILABLE)
+    """Assistant path only: never fall back to the local heuristic provider.
+
+    A configured API key is enough even if AI_PROVIDER was left at the
+    default ``local`` (common on Vercel when only the key was added).
+    """
     if not (settings.AI_API_KEY or "").strip():
         logger.error("ai_chat_missing_api_key")
         raise AIUnavailable(USER_SAFE_UNAVAILABLE)
