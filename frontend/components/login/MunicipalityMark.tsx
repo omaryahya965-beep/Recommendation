@@ -46,7 +46,7 @@ export function MunicipalityMark({
         <p
           className={cn(
             titleClass,
-            inverted ? "text-white" : "text-[var(--login-navy,#102F40)]"
+            inverted ? "text-[var(--login-hero-text,#ffffff)]" : "text-[var(--login-navy,#102F40)]"
           )}
         >
           بلدية البيرة
@@ -56,7 +56,7 @@ export function MunicipalityMark({
             dir="ltr"
             className={cn(
               subClass,
-              inverted ? "text-white/80" : "text-[var(--login-muted,#647784)]"
+              inverted ? "text-[var(--login-hero-text-sub,rgba(255,255,255,0.8))]" : "text-[var(--login-muted,#647784)]"
             )}
           >
             AL-BIREH MUNICIPALITY

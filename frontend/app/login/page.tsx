@@ -2,8 +2,6 @@
 
 import {
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   Eye,
   EyeOff,
   Loader2,
@@ -123,15 +121,15 @@ export default function LoginPage() {
     : T.login.showPassword;
 
   return (
-    <main className="login-shell relative flex h-screen w-screen min-h-0 min-w-0 overflow-hidden">
+    <main className="login-shell relative flex min-h-[100dvh] w-full lg:h-screen lg:w-screen lg:flex-row lg:overflow-hidden">
       <div
-        className="flex h-full w-full min-h-0 min-w-0 flex-col lg:flex-row overflow-hidden"
+        className="flex h-auto w-full flex-col lg:h-full lg:flex-row bg-transparent"
         dir="ltr"
       >
         {/* ════════════════════════════════════════
             LEFT HERO PANEL (50%)
         ════════════════════════════════════════ */}
-        <div className="relative min-w-0 h-full lg:w-1/2 lg:shrink-0 overflow-hidden">
+        <div className="relative w-full lg:h-full lg:w-1/2 lg:flex-none lg:overflow-hidden login-hero-panel">
           <LoginHero />
         </div>
 
@@ -141,16 +139,16 @@ export default function LoginPage() {
         <section
           dir={dir}
           aria-labelledby="login-heading"
-          className="login-bg relative flex h-full min-h-0 min-w-0 flex-1 flex-col justify-between overflow-hidden lg:w-1/2"
+          className="login-bg login-split relative flex w-full flex-1 flex-col justify-between py-2 lg:py-0 lg:h-full lg:w-1/2 lg:flex-none lg:overflow-hidden login-form-panel"
         >
-          {/* ── Toolbar: language + theme (desktop) ── */}
-          <div className="flex shrink-0 justify-end px-6 pt-3 sm:px-8 lg:px-10">
+          {/* ── Toolbar: language + theme ── */}
+          <div className="flex shrink-0 justify-end px-5 pt-1 sm:px-8 lg:px-10 lg:pt-3">
             <LoginToolbar />
           </div>
 
           {/* ── Center Area: Login Card ── */}
-          <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-4 py-1 sm:px-6 lg:px-8 overflow-hidden">
-            <div className="login-card w-full max-w-[27.5rem] rounded-[1.2rem] bg-white px-5 py-5 sm:px-7 sm:py-6 shadow-xl border border-gray-100/80">
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-4 py-1 sm:px-6 lg:px-8 overflow-y-auto lg:overflow-hidden">
+            <div className="login-card w-full max-w-[27.5rem] rounded-[1.2rem] px-5 py-5 sm:px-7 sm:py-6">
 
               {/* Card header: emblem + bilingual name */}
               <MunicipalityMark size="md" layout="stacked" showTagline />
@@ -159,23 +157,23 @@ export default function LoginPage() {
               <div className="mt-3 flex flex-col items-center text-center">
                 <h1
                   id="login-heading"
-                  className="text-[1.25rem] font-extrabold leading-tight text-[var(--login-navy)] sm:text-[1.35rem]"
+                  className="text-[clamp(1.25rem,2.5vw,1.45rem)] font-extrabold leading-tight text-[var(--login-navy)]"
                 >
                   {T.login.welcome}
                 </h1>
-                <p className="mt-1 text-[12px] leading-snug text-[var(--login-muted)]">
+                <p className="mt-1 text-[0.75rem] leading-snug text-[var(--login-muted)]">
                   {T.login.loginHint}
                 </p>
               </div>
 
               {/* Diamond divider */}
               <div
-                className="mt-3 flex items-center gap-3"
+                className="mt-4 mb-2 flex items-center gap-3"
                 aria-hidden
               >
-                <span className="h-px flex-1 bg-[var(--login-border)]" />
+                <span className="h-px flex-1 bg-[var(--login-divider)]" />
                 <span className="login-diamond" />
-                <span className="h-px flex-1 bg-[var(--login-border)]" />
+                <span className="h-px flex-1 bg-[var(--login-divider)]" />
               </div>
 
               {/* ── FORM ── */}
@@ -202,7 +200,7 @@ export default function LoginPage() {
                   <div>
                     <label
                       htmlFor="login-username"
-                      className="text-[12px] font-bold text-[var(--login-navy)]"
+                      className="text-[0.75rem] font-bold text-[var(--login-navy)]"
                     >
                       {T.login.username}
                     </label>
@@ -241,7 +239,7 @@ export default function LoginPage() {
                     {usernameError ? (
                       <p
                         id={usernameErrorId}
-                        className="mt-1 text-[11px] font-bold text-danger"
+                        className="mt-1 text-[0.6875rem] font-bold text-danger"
                         role="alert"
                       >
                         {usernameError}
@@ -253,7 +251,7 @@ export default function LoginPage() {
                   <div>
                     <label
                       htmlFor="login-password"
-                      className="text-[12px] font-bold text-[var(--login-navy)]"
+                      className="text-[0.75rem] font-bold text-[var(--login-navy)]"
                     >
                       {T.login.password}
                     </label>
@@ -306,7 +304,7 @@ export default function LoginPage() {
                     {passwordError ? (
                       <p
                         id={passwordErrorId}
-                        className="mt-1 text-[11px] font-bold text-danger"
+                        className="mt-1 text-[0.6875rem] font-bold text-danger"
                         role="alert"
                       >
                         {passwordError}
@@ -315,7 +313,7 @@ export default function LoginPage() {
                   </div>
 
                   {/* Options row: remember me + forgot password */}
-                  <div className="mt-1 flex items-center justify-between text-[12px]">
+                  <div className="mt-3 flex items-center justify-between text-[0.75rem] px-1">
                     <a
                       href="#forgot"
                       onClick={(e) => {
@@ -332,7 +330,7 @@ export default function LoginPage() {
                         type="checkbox"
                         checked={remember}
                         onChange={(e) => setRemember(e.target.checked)}
-                        className="size-3.5 rounded border-gray-300 text-[var(--login-accent)] focus:ring-[var(--login-accent)]"
+                        className="size-3.5 rounded border-[var(--login-border)] bg-[var(--login-field)] text-[var(--login-accent)] focus:ring-[var(--login-accent)]"
                       />
                     </label>
                   </div>
@@ -341,7 +339,7 @@ export default function LoginPage() {
                   <button
                     type="submit"
                     disabled={busy}
-                    className="login-btn mt-2.5 flex h-10 w-full items-center justify-center gap-2 rounded-xl text-[13.5px] font-bold shadow-md transition-all active:scale-[0.99] disabled:opacity-50"
+                    className="login-btn mt-5 mb-2 flex h-11 w-full items-center justify-center gap-2 rounded-xl text-[clamp(0.8125rem,2vw,0.84375rem)] font-bold shadow-md transition-all active:scale-[0.99] disabled:opacity-50"
                   >
                     {busy ? (
                       <Loader2
@@ -359,11 +357,11 @@ export default function LoginPage() {
               </form>
 
               {/* Demo roles toggle section */}
-              <div className="mt-2.5 pt-2 border-t border-gray-100">
+              <div className="mt-2.5 pt-2 border-t border-[var(--login-border)]">
                 <button
                   type="button"
                   onClick={() => setShowDemo((v) => !v)}
-                  className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-[var(--login-navy)] hover:bg-gray-50 transition-colors"
+                  className="login-demo-btn flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-[0.75rem] font-semibold transition-colors"
                 >
                   <span className="flex items-center gap-1.5">
                     <Users className="size-3.5 text-[var(--login-accent)]" />
@@ -385,13 +383,13 @@ export default function LoginPage() {
                           type="button"
                           disabled={busy}
                           onClick={() => pickDemo(account)}
-                          className="flex h-full min-h-[2.75rem] w-full flex-col items-center justify-center rounded-lg border border-[var(--login-border)] bg-[var(--login-card)] px-2 py-1.5 text-center shadow-xs transition-all hover:border-[var(--login-accent)]/40 hover:bg-[#eef4f2] disabled:opacity-50"
+                          className="login-demo-btn flex h-full min-h-[2.75rem] w-full flex-col items-center justify-center rounded-lg px-2 py-1.5 text-center shadow-xs transition-all disabled:opacity-50"
                         >
-                          <span className="text-[11px] font-bold leading-tight text-[var(--login-navy)]">
+                          <span className="text-[0.6875rem] font-bold leading-tight text-[var(--login-label)]">
                             {ROLE_LABELS[account.role]}
                           </span>
                           <span
-                            className="text-[9.5px] font-mono font-medium text-[var(--login-muted)]"
+                            className="text-[0.59375rem] font-mono font-medium text-[var(--login-muted)]"
                             dir="ltr"
                           >
                             {busy && activeDemo === account.username
@@ -406,12 +404,13 @@ export default function LoginPage() {
               </div>
 
               {/* Secure access note */}
-              <p className="mt-2 flex items-center justify-center gap-1.5 text-center text-[11px] font-semibold text-[var(--login-muted)]">
+              <p className="mt-2 flex items-center justify-center gap-1.5 text-center text-[0.6875rem] font-semibold text-[var(--login-muted)]">
                 <Lock className="size-3 shrink-0" aria-hidden />
                 {T.login.secure}
               </p>
             </div>
           </div>
+
 
           {/* ── Bottom Section: City skyline & Footer ── */}
           <div className="flex shrink-0 flex-col justify-end">
@@ -419,7 +418,7 @@ export default function LoginPage() {
               <CitySkyline className="w-full h-10 sm:h-12" />
             </div>
 
-            <footer className="flex flex-wrap items-center justify-between gap-2 px-6 pb-2.5 pt-1 text-[10.5px] font-medium text-[var(--login-muted)] lg:px-10 border-t border-gray-100/50">
+            <footer className="flex flex-wrap items-center justify-between gap-2 px-6 pb-2.5 pt-1 text-[0.65625rem] font-medium text-[var(--login-footer)] lg:px-10 border-t border-[var(--login-border)]">
               <p>© 2024 {T.login.footerOwner}</p>
               <div className="flex items-center gap-2">
                 <span>{T.login.mayorLabel}: {T.login.mayorName}</span>

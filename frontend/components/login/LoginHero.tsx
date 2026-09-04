@@ -1,36 +1,12 @@
 "use client";
 
-import { BarChart3, ShieldCheck, Users } from "lucide-react";
 import Image from "next/image";
 
 import { LoginToolbar } from "@/components/login/LoginToolbar";
 import { MunicipalityMark } from "@/components/login/MunicipalityMark";
 import { T, useI18n } from "@/lib/i18n";
-
-const TEAL = "#0F4F49";
-
-/* Feature cards — RTL display order matches reference:
-   ShieldCheck (right) | BarChart3 (center) | Users (left)  */
-const FEATURE_CARDS = [
-  {
-    icon: ShieldCheck,
-    titleKey: "transparencyTitle",
-    subKey: "transparencySub",
-    hintKey: "transparencyHint",
-  },
-  {
-    icon: BarChart3,
-    titleKey: "efficiencyTitle",
-    subKey: "efficiencySub",
-    hintKey: "efficiencyHint",
-  },
-  {
-    icon: Users,
-    titleKey: "responsibilityTitle",
-    subKey: "responsibilitySub",
-    hintKey: "responsibilityHint",
-  },
-] as const;
+import { FeatureCards } from "./FeatureCards";
+import { ShieldCheck, BarChart3, Users } from "lucide-react";
 
 export function LoginHero() {
   const { dir } = useI18n();
@@ -38,23 +14,14 @@ export function LoginHero() {
   return (
     <aside
       aria-label={T.login.heroTitle}
-      className="relative isolate flex h-[11rem] shrink-0 flex-col overflow-hidden bg-[#0F4F49] sm:h-[13.5rem] lg:absolute lg:inset-0 lg:h-full lg:w-full"
+      className="relative isolate flex h-auto min-h-0 shrink-0 flex-col overflow-hidden lg:absolute lg:inset-0 lg:h-full lg:w-full transition-colors duration-250 ease-in-out"
+      style={{ backgroundColor: "var(--login-hero-bg)" }}
     >
-      {/* ── Mobile: toolbar + branding overlay ── */}
-      <div className="absolute inset-x-0 top-0 z-30 flex items-center justify-between px-4 py-3 sm:px-5 lg:hidden">
-        <MunicipalityMark
-          inverted
-          size="sm"
-          showTagline={false}
-          className="min-w-0"
-        />
-        <LoginToolbar inverted />
-      </div>
 
-      {/* ── Building photograph ── */}
+
+      {/* ── Building photograph (PART 3) ── */}
       <div
-        className="relative shrink-0 overflow-hidden"
-        style={{ height: "52%" }}
+        className="relative shrink-0 overflow-hidden h-[38dvh] min-h-[18rem] w-full lg:flex-none lg:h-[48%]"
       >
         <Image
           src="/images/al-bireh-city-hall.jpg"
@@ -63,109 +30,181 @@ export function LoginHero() {
           priority
           unoptimized
           sizes="(min-width: 1024px) 50vw, 100vw"
-          className="object-cover object-[center_35%]"
+          className="object-cover object-[center_28%]"
         />
-        {/* Top gradient — ensures badge is legible */}
+        
+        {/* ── Mobile Static Text Layout (Inside Image) ── */}
+        <div className="absolute inset-0 bg-black/20 lg:hidden pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black/90 lg:hidden pointer-events-none" />
+        
+        <div className="absolute inset-0 z-20 flex flex-col justify-between pt-3 pb-4 px-4 lg:hidden">
+          {/* Top: Main Title */}
+          <div className="flex flex-col items-center text-center mt-0">
+            <h3 
+              className="text-[1.25rem] font-extrabold drop-shadow-lg leading-tight mb-1"
+              style={{ color: "var(--login-hero-text)" }}
+            >
+              {T.login.heroTitle}
+            </h3>
+            <p 
+              className="text-[0.75rem] font-semibold drop-shadow-md"
+              style={{ color: "var(--login-hero-text-sub)" }}
+            >
+              {T.login.heroSubtitle}
+            </p>
+          </div>
+          
+          {/* Bottom: Description + Horizontal Features */}
+          <div className="flex flex-col items-center text-center">
+            <p 
+              className="text-[0.7rem] font-normal leading-relaxed mb-4 max-w-[95%] drop-shadow-md"
+              style={{ color: "var(--login-hero-text-muted)" }}
+            >
+              {T.login.heroSupporting}
+            </p>
+            
+            <div className="flex flex-row justify-between items-center w-full">
+              {[
+                { icon: ShieldCheck, title: T.login.values.transparencyTitle },
+                { icon: BarChart3, title: T.login.values.efficiencyTitle },
+                { icon: Users, title: T.login.values.responsibilityTitle }
+              ].map((feature, i) => (
+                <div key={i} className={`flex-1 flex flex-col items-center justify-center gap-1.5 ${i !== 2 ? 'border-e border-white/20' : ''} px-1`}>
+                  <feature.icon 
+                    className="size-[1.1rem] drop-shadow-md" 
+                    style={{ color: "var(--login-hero-text)" }}
+                  />
+                  <span 
+                    className="text-[0.65rem] font-bold text-center leading-tight drop-shadow-md"
+                    style={{ color: "var(--login-hero-text)" }}
+                  >
+                    {feature.title}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        
+        {/* Top gradient — ensures badge legibility on desktop */}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[#062b3d]/50 to-transparent"
-        />
-        {/* Bottom subtle gradient */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#0F4F49]/80 to-transparent"
+          className="pointer-events-none absolute inset-x-0 top-0 h-24 transition-colors duration-250 ease-in-out"
+          style={{ background: "linear-gradient(to bottom, var(--login-hero-gradient), transparent)" }}
         />
 
         {/* ── Desktop municipality branding badge (top-left) ── */}
         <div className="absolute start-5 top-4 z-20 hidden lg:flex xl:start-7 xl:top-5">
-          <div className="flex items-center gap-2.5 rounded-2xl bg-white/95 px-4 py-2.5 shadow-lg backdrop-blur-md ring-1 ring-black/5">
+          <div 
+            className="flex items-center gap-2.5 rounded-2xl px-4 py-2.5 shadow-lg backdrop-blur-md transition-colors duration-250 ease-in-out"
+            style={{ 
+              backgroundColor: "var(--login-logo-bg)",
+              boxShadow: "0 0 0 1px var(--login-logo-ring), 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)"
+            }}
+          >
             <MunicipalityMark size="sm" layout="horizontal" showTagline />
           </div>
         </div>
       </div>
 
-      {/* ── Organic curved SVG transition (desktop only) ── */}
+      {/* ── Organic curved SVG transition (Desktop Only) ── */}
       <div
         aria-hidden
-        className="-mt-14 relative z-10 hidden shrink-0 lg:block"
+        className="-mt-8 sm:-mt-12 lg:-mt-20 relative z-10 shrink-0 pointer-events-none hidden lg:block"
       >
         <svg
-          viewBox="0 0 600 70"
+          viewBox="0 0 600 100"
           preserveAspectRatio="none"
-          style={{ height: "70px", width: "100%", display: "block" }}
+          style={{ height: "100px", width: "100%", display: "block" }}
           xmlns="http://www.w3.org/2000/svg"
         >
-          {/* Smooth organic curve sweeping from left across center to right */}
+          {/* Main teal wave fill */}
           <path
-            d="M 0,55 C 180,5 380,75 600,40 L 600,70 L 0,70 Z"
-            fill={TEAL}
+            d="M 0,45 C 200,100 400,10 600,55 L 600,100 L 0,100 Z"
+            style={{ fill: "var(--login-hero-bg)", transition: "fill 250ms ease-in-out" }}
           />
+          {/* Accent line along the curve boundary */}
           <path
-            d="M 0,55 C 180,5 380,75 600,40"
+            d="M 0,45 C 200,100 400,10 600,55"
             fill="none"
-            stroke="rgba(255,255,255,0.22)"
-            strokeWidth="1.5"
+            stroke="var(--login-hero-icon-border)"
+            strokeWidth="2"
+            style={{ transition: "stroke 250ms ease-in-out" }}
           />
         </svg>
       </div>
 
-      {/* ── Teal information section (desktop only) ── */}
+      {/* ── Teal information section (Desktop Only) ── */}
       <div
         dir={dir}
-        className="relative z-10 hidden min-h-0 flex-1 flex-col items-center justify-between px-6 pb-6 pt-0 lg:flex xl:px-10 xl:pb-8"
-        style={{ background: TEAL }}
+        className="relative z-10 hidden lg:flex min-h-0 flex-1 flex-col items-center justify-between px-4 pb-6 pt-2 lg:px-6 lg:pb-4 xl:px-10 xl:pb-6 transition-colors duration-250 ease-in-out"
+        style={{ backgroundColor: "var(--login-hero-bg)" }}
       >
-        {/* Platform branding copy */}
-        <div className="flex flex-col items-center text-center">
-          <h2 className="text-[1.5rem] font-extrabold leading-tight text-white xl:text-[1.75rem]">
+        {/* Organic 3-Leaf Stem Watermark on bottom-left background */}
+        <svg
+          aria-hidden
+          viewBox="0 0 160 160"
+          className="pointer-events-none absolute start-3 bottom-6 size-44 opacity-[0.12] select-none"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M 10,150 C 30,100 80,50 140,20"
+            style={{ stroke: "var(--login-hero-text)", transition: "stroke 250ms ease-in-out" }}
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          />
+          <path
+            d="M 140,20 C 110,35 90,65 110,85 C 130,65 145,45 140,20 Z"
+            style={{ stroke: "var(--login-hero-text)", transition: "stroke 250ms ease-in-out" }}
+            strokeWidth="1.8"
+            fill="none"
+          />
+          <path
+            d="M 75,85 C 45,75 30,95 45,115 C 65,105 75,95 75,85 Z"
+            style={{ stroke: "var(--login-hero-text)", transition: "stroke 250ms ease-in-out" }}
+            strokeWidth="1.8"
+            fill="none"
+          />
+          <path
+            d="M 40,120 C 15,120 10,140 25,150 C 40,145 45,135 40,120 Z"
+            style={{ stroke: "var(--login-hero-text)", transition: "stroke 250ms ease-in-out" }}
+            strokeWidth="1.8"
+            fill="none"
+          />
+        </svg>
+
+        {/* ── Platform branding copy (PART 1) ── */}
+        <div className="relative z-10 flex w-full max-w-[42rem] flex-col items-center text-center transition-colors duration-250 ease-in-out">
+          {/* 1. HERO TITLE: dominant heading (38-44px desktop, font 700-800, line-height 1.3) */}
+          <h2 
+            className="text-[clamp(1.4rem,2.5vw,2.4rem)] font-extrabold leading-[1.3] tracking-normal whitespace-nowrap transition-colors duration-250 ease-in-out"
+            style={{ color: "var(--login-hero-text)" }}
+          >
             {T.login.heroTitle}
           </h2>
-          <p className="mt-1.5 text-[0.9rem] font-medium leading-6 text-white/90 xl:text-[1rem]">
+
+          {/* 2. HERO SUBTITLE: secondary (20-23px, font 500-600, line-height 1.5, soft white, mt 10-14px) */}
+          <p 
+            className="mt-2 text-[clamp(0.9rem,1.1vw,1.2rem)] font-semibold leading-[1.5] transition-colors duration-250 ease-in-out"
+            style={{ color: "var(--login-hero-text-sub)" }}
+          >
             {T.login.heroSubtitle}
           </p>
-          <p className="mt-2 max-w-[32rem] text-center text-[0.8rem] font-normal leading-[1.65] text-white/65 xl:text-[0.85rem]">
+
+          {/* 3. HERO DESCRIPTION: (15-17px, line-height 1.8-2, font 400, max-w 650px, mt 18-24px) */}
+          <p 
+            className="mt-3 max-w-[36rem] text-center text-[clamp(0.8rem,0.85vw,0.95rem)] font-normal leading-[1.8] transition-colors duration-250 ease-in-out"
+            style={{ color: "var(--login-hero-text-muted)" }}
+          >
             {T.login.heroSupporting}
           </p>
         </div>
 
-        {/* Feature cards */}
-        <ul className="mt-3 grid w-full max-w-[35rem] grid-cols-3 gap-3 xl:mt-4 xl:gap-3.5">
-          {FEATURE_CARDS.map((card) => {
-            const Icon = card.icon;
-            return (
-              <li
-                key={card.titleKey}
-                className="flex flex-col items-center gap-1.5 rounded-2xl border border-white/[0.16] bg-white/[0.08] px-3 py-3 text-center transition-transform duration-200 hover:bg-white/[0.12] xl:py-3.5"
-              >
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white shadow-inner">
-                  <Icon
-                    className="size-5 text-white/95"
-                    strokeWidth={1.75}
-                    aria-hidden
-                  />
-                </span>
-                <p className="text-[0.82rem] font-bold leading-tight text-white xl:text-[0.86rem]">
-                  {T.login.values[card.titleKey]}{" "}
-                  {T.login.values[card.subKey]}
-                </p>
-                <p className="text-[0.7rem] leading-snug text-white/65 xl:text-[0.74rem]">
-                  {T.login.values[card.hintKey]}
-                </p>
-              </li>
-            );
-          })}
-        </ul>
+        {/* ── Feature cards (all screens) ── */}
+        <FeatureCards className="mt-8 lg:mt-10 xl:mt-12" />
       </div>
 
-      {/* ── Mobile: simplified platform title overlay ── */}
-      <div
-        dir={dir}
-        className="absolute inset-x-0 bottom-0 z-20 flex flex-col items-center px-4 pb-3 text-center lg:hidden"
-      >
-        <p className="text-[1.15rem] font-bold leading-tight text-white sm:text-[1.3rem]">
-          {T.login.heroTitle}
-        </p>
-      </div>
     </aside>
   );
 }
