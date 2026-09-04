@@ -38,20 +38,14 @@ export function LoginHero() {
         <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black/90 lg:hidden pointer-events-none" />
         
         <div className="absolute inset-0 z-20 flex flex-col justify-between pt-3 pb-4 px-4 lg:hidden">
-          {/* Top: Main Title */}
-          <div className="flex flex-col items-center text-center mt-0">
+          {/* Top: Main Title (moved down to replace subtitle position) */}
+          <div className="flex flex-col items-center text-center mt-7">
             <h3 
-              className="text-[1.25rem] font-extrabold drop-shadow-lg leading-tight mb-1"
+              className="text-[1.25rem] font-extrabold drop-shadow-lg leading-tight"
               style={{ color: "var(--login-hero-text)" }}
             >
               {T.login.heroTitle}
             </h3>
-            <p 
-              className="text-[0.75rem] font-semibold drop-shadow-md"
-              style={{ color: "var(--login-hero-text-sub)" }}
-            >
-              {T.login.heroSubtitle}
-            </p>
           </div>
           
           {/* Bottom: Description + Horizontal Features */}
