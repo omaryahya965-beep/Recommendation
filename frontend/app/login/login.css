@@ -73,6 +73,16 @@
   outline: none;
 }
 
+/* ── Submit button ── */
+.login-btn {
+  background: var(--login-btn);
+  color: #ffffff;
+  transition: background 0.18s, transform 0.1s, box-shadow 0.18s;
+}
+.login-btn:hover {
+  background: var(--login-btn-hover);
+}
+
 /* ── Diamond divider ── */
 .login-diamond {
   display: inline-block;
