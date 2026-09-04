@@ -1,19 +1,27 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   Login page design tokens & component styles
+   Primary palette: Teal #176B63 / Dark-Teal #0F4F49 / Navy #183B4E
+   Background: #F5F8F7 (subtle off-white — keeps the right panel calm)
+───────────────────────────────────────────────────────────────────────── */
+
 .login-shell {
-  --login-navy: #062b3d;
-  --login-deep: #07354a;
-  --login-accent: #08b8b0;
-  --login-btn: #087f78;
-  --login-btn-hover: #066860;
-  --login-bg: #ffffff;
+  --login-navy: #183b4e;
+  --login-deep: #0f4f49;
+  --login-accent: #176b63;
+  --login-accent-bright: #08b8b0;
+  --login-btn: #176b63;
+  --login-btn-hover: #0f4f49;
+  --login-bg: #f5f8f7;
   --login-card: #ffffff;
-  --login-text: #0f172a;
-  --login-muted: #64748b;
-  --login-border: #e2e8f0;
-  --login-field: #f8fafc;
-  --login-shadow: none;
+  --login-text: #14201e;
+  --login-muted: #6e7c78;
+  --login-border: #d3ddd9;
+  --login-field: #f8faf9;
+  --login-shadow: 0 4px 28px rgb(20 32 30 / 0.07), 0 1px 4px rgb(20 32 30 / 0.04);
   background: var(--login-bg);
 }
 
+/* ── Typography reset for the login shell ── */
 .login-shell,
 .login-shell h1,
 .login-shell h2,
@@ -31,59 +39,70 @@
   color: inherit;
 }
 
+/* ── Right-panel background ── */
 .login-bg {
   background: var(--login-bg);
 }
 
+/* ── Login card ── */
 .login-card {
   background: var(--login-card);
   border: 1px solid var(--login-border);
-  box-shadow: none;
+  box-shadow: var(--login-shadow);
 }
 
+/* ── Input fields ── */
 .login-field {
   background: var(--login-field);
   border: 1px solid var(--login-border);
   color: var(--login-text);
-  font-size: 15px;
+  font-size: 14.5px;
   font-weight: 500;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
 }
 
 .login-field::placeholder {
   color: #94a3b8;
+  font-weight: 400;
 }
 
 .login-field:focus {
   border-color: var(--login-accent);
   background: #ffffff;
-  box-shadow: 0 0 0 3px rgb(8 184 176 / 0.15);
+  box-shadow: 0 0 0 3px rgb(23 107 99 / 0.14);
   outline: none;
 }
 
-[data-theme="dark"] .login-shell {
-  --login-bg: #0b1319;
-  --login-card: #141f29;
-  --login-text: #f8fafc;
-  --login-muted: #cbd5e1;
-  --login-border: rgba(255, 255, 255, 0.18);
-  --login-field: #1c2a36;
-  --login-shadow: none;
+/* ── Diamond divider ── */
+.login-diamond {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  background: var(--login-accent);
+  transform: rotate(45deg);
 }
 
-[data-theme="dark"] .login-field {
-  background: var(--login-field);
+/* ── Skyline watermark container ── */
+.login-skyline {
+  pointer-events: none;
+  overflow: hidden;
+  line-height: 0;
+  /* Very subtle — almost invisible */
+  opacity: 0.06;
 }
 
-[data-theme="dark"] .login-field::placeholder {
-  color: #64748b;
+/* ── Toolbar visibility helpers ── */
+.login-toolbar-desktop {
+  display: none;
+}
+@media (min-width: 1024px) {
+  .login-toolbar-desktop {
+    display: flex;
+  }
 }
 
-[data-theme="dark"] .login-field:focus {
-  background: #192633;
-  box-shadow: 0 0 0 3px rgb(8 184 176 / 0.2);
-}
-
+/* ── Responsive viewport clamping ── */
 @media (max-height: 50.5rem) {
   .login-fit-lg {
     display: none;
@@ -94,4 +113,33 @@
   .login-fit-sm {
     display: none;
   }
+}
+
+/* ── Dark mode overrides ── */
+[data-theme="dark"] .login-shell {
+  --login-bg: #0b1319;
+  --login-card: #141f29;
+  --login-text: #f4f8f7;
+  --login-muted: #94a3a9;
+  --login-border: rgba(255, 255, 255, 0.13);
+  --login-field: #1c2a36;
+  --login-shadow: 0 6px 32px rgb(0 0 0 / 0.35), 0 1px 4px rgb(0 0 0 / 0.2);
+  --login-navy: #c5dbe4;
+}
+
+[data-theme="dark"] .login-bg {
+  background: var(--login-bg);
+}
+
+[data-theme="dark"] .login-field {
+  background: var(--login-field);
+}
+
+[data-theme="dark"] .login-field::placeholder {
+  color: #4d5f65;
+}
+
+[data-theme="dark"] .login-field:focus {
+  background: #192633;
+  box-shadow: 0 0 0 3px rgb(23 107 99 / 0.22);
 }

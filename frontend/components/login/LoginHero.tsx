@@ -7,7 +7,15 @@ import { LoginToolbar } from "@/components/login/LoginToolbar";
 import { MunicipalityMark } from "@/components/login/MunicipalityMark";
 import { T, useI18n } from "@/lib/i18n";
 
-const VALUES = [
+/* ─────────────────────────────────────────────────────────
+   Brand color for the lower hero/info section.
+   #0F4F49 = Dark Teal (matches design system primary-dark)
+───────────────────────────────────────────────────────── */
+const TEAL = "#0F4F49";
+
+/* Feature cards — RTL display order matches reference:
+   ShieldCheck (right) | BarChart3 (center) | Users (left)  */
+const FEATURE_CARDS = [
   {
     icon: ShieldCheck,
     titleKey: "transparencyTitle",
@@ -32,18 +40,26 @@ export function LoginHero() {
   const { dir } = useI18n();
 
   return (
-    <aside className="relative isolate flex h-[10.5rem] shrink-0 flex-col overflow-hidden bg-[#062b3d] [@media(max-height:42rem)]:h-[8rem] sm:h-[12.5rem] lg:absolute lg:inset-0 lg:h-full">
-      <header className="relative z-20 hidden shrink-0 items-center px-8 py-5 lg:flex xl:px-12">
-        <MunicipalityMark inverted size="sm" />
-        <p
-          dir={dir}
-          className="pointer-events-none absolute inset-x-8 text-center text-[1.85rem] font-bold leading-snug text-white xl:text-[2.1rem]"
-        >
-          {T.login.heroTitle}
-        </p>
-      </header>
+    <aside
+      aria-label={T.login.heroTitle}
+      className="relative isolate flex h-[11rem] shrink-0 flex-col overflow-hidden bg-[#0F4F49] sm:h-[13.5rem] lg:absolute lg:inset-0 lg:h-full"
+    >
+      {/* ── Mobile: toolbar + branding overlay ── */}
+      <div className="absolute inset-x-0 top-0 z-30 flex items-center justify-between px-4 py-3 sm:px-5 lg:hidden">
+        <MunicipalityMark
+          inverted
+          size="sm"
+          showTagline={false}
+          className="min-w-0"
+        />
+        <LoginToolbar inverted />
+      </div>
 
-      <div className="relative min-h-0 flex-1">
+      {/* ── Building photograph ── */}
+      <div
+        className="relative shrink-0 overflow-hidden"
+        style={{ height: "56%" }}
+      >
         <Image
           src="/images/al-bireh-city-hall.jpg"
           alt={T.login.cityHallAlt}
@@ -51,58 +67,106 @@ export function LoginHero() {
           priority
           unoptimized
           sizes="(min-width: 1024px) 50vw, 100vw"
-          className="object-cover object-center"
+          className="object-cover object-[center_35%]"
         />
+        {/* Top gradient — ensures badge is legible */}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-[#062b3d] to-transparent lg:h-8"
+          className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[#062b3d]/55 to-transparent"
         />
+        {/* Bottom gradient — bridges into teal section */}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-[42%] bg-gradient-to-t from-[#062b3d] via-[#062b3d]/55 to-transparent"
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-[45%] bg-gradient-to-t from-[#0F4F49] via-[#0F4F49]/50 to-transparent"
         />
 
-        <div className="absolute inset-0 z-20 flex flex-col px-4 pb-5 pt-[max(0.7rem,env(safe-area-inset-top))] lg:hidden">
-          <div className="flex items-center justify-between gap-3">
-            <MunicipalityMark inverted size="sm" showTagline={false} className="min-w-0" />
-            <LoginToolbar inverted />
-          </div>
-          <div dir={dir} className="mt-auto flex flex-col items-center px-2 text-center">
-            <p className="text-[1.4rem] font-bold leading-snug text-white sm:text-[1.6rem]">
-              {T.login.heroTitle}
-            </p>
-            <p className="mt-2 max-w-[22rem] text-[13px] font-medium leading-6 text-white/90">
-              {T.login.heroSubtitle}
-            </p>
+        {/* ── Desktop municipality branding badge (top-start) ── */}
+        <div className="absolute start-5 top-4 z-20 hidden lg:flex xl:start-7 xl:top-5">
+          <div className="flex items-center gap-2 rounded-xl bg-white px-3 py-2 shadow-md ring-1 ring-black/10">
+            <MunicipalityMark size="sm" layout="horizontal" showTagline />
           </div>
         </div>
       </div>
 
-      <div dir={dir} className="relative z-20 hidden shrink-0 flex-col items-center px-8 pb-8 pt-1 lg:flex xl:px-12 xl:pb-10">
-        <p className="max-w-[38rem] text-center text-[1.2rem] font-medium leading-8 text-white xl:text-[1.3rem] xl:leading-9">
-          {T.login.heroSubtitle}
-        </p>
-        <p className="mt-2.5 max-w-[36rem] text-center text-[0.98rem] font-normal leading-7 text-white/80 xl:text-[1.05rem]">
-          {T.login.heroSupporting}
-        </p>
-        <ul className="mt-8 grid w-full grid-cols-3 gap-4 xl:mt-9 xl:gap-6">
-          {VALUES.map((item) => {
-            const Icon = item.icon;
+      {/* ── Large organic curved SVG transition (desktop only) ── */}
+      <div
+        aria-hidden
+        className="-mt-14 relative z-10 hidden shrink-0 lg:block"
+      >
+        <svg
+          viewBox="0 0 600 68"
+          preserveAspectRatio="none"
+          style={{ height: "68px", width: "100%", display: "block" }}
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          {/* Main teal arch — sweeps up from both sides to center peak */}
+          <path d="M0,68 Q300,0 600,68 L600,68 L0,68 Z" fill={TEAL} />
+          {/* Subtle white accent line following the arch */}
+          <path
+            d="M0,68 Q300,0 600,68"
+            fill="none"
+            stroke="rgba(255,255,255,0.28)"
+            strokeWidth="1.5"
+          />
+        </svg>
+      </div>
+
+      {/* ── Teal information section (desktop only) ── */}
+      <div
+        dir={dir}
+        className="relative z-10 hidden min-h-0 flex-1 flex-col items-center justify-between px-6 pb-6 pt-1 lg:flex xl:px-10 xl:pb-8"
+        style={{ background: TEAL }}
+      >
+        {/* Platform branding copy */}
+        <div className="flex flex-col items-center text-center">
+          <h2 className="text-[1.45rem] font-bold leading-tight text-white xl:text-[1.65rem]">
+            {T.login.heroTitle}
+          </h2>
+          <p className="mt-1.5 text-[0.88rem] font-medium leading-6 text-white/85 xl:text-[0.95rem]">
+            {T.login.heroSubtitle}
+          </p>
+          <p className="mt-2 max-w-[32rem] text-center text-[0.8rem] font-normal leading-[1.7] text-white/60 xl:text-[0.85rem]">
+            {T.login.heroSupporting}
+          </p>
+        </div>
+
+        {/* Feature cards */}
+        <ul className="mt-4 grid w-full grid-cols-3 gap-3 xl:mt-5 xl:gap-4">
+          {FEATURE_CARDS.map((card) => {
+            const Icon = card.icon;
             return (
-              <li key={item.titleKey} className="flex flex-col items-center gap-2.5 text-center">
-                <span className="flex size-14 items-center justify-center rounded-full border border-[#08B8B0]/80">
-                  <Icon className="size-6 text-[#08B8B0]" strokeWidth={1.6} aria-hidden />
+              <li
+                key={card.titleKey}
+                className="flex flex-col items-center gap-2 rounded-2xl border border-white/[0.14] bg-white/[0.09] px-3 py-3.5 text-center xl:py-4"
+              >
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-full border border-white/[0.22] bg-white/[0.1]">
+                  <Icon
+                    className="size-[1.1rem] text-white/90"
+                    strokeWidth={1.6}
+                    aria-hidden
+                  />
                 </span>
-                <p className="text-[0.95rem] font-semibold leading-6 text-white xl:text-[1.05rem]">
-                  {T.login.values[item.titleKey]} {T.login.values[item.subKey]}
+                <p className="text-[0.8rem] font-semibold leading-snug text-white xl:text-[0.85rem]">
+                  {T.login.values[card.titleKey]}{" "}
+                  {T.login.values[card.subKey]}
                 </p>
-                <p className="max-w-[12rem] text-[12px] font-medium leading-5 text-white/60 xl:text-[13px]">
-                  {T.login.values[item.hintKey]}
+                <p className="max-w-[10rem] text-[0.7rem] leading-[1.55] text-white/60 xl:text-[0.75rem]">
+                  {T.login.values[card.hintKey]}
                 </p>
               </li>
             );
           })}
         </ul>
+      </div>
+
+      {/* ── Mobile: simplified platform title overlay ── */}
+      <div
+        dir={dir}
+        className="absolute inset-x-0 bottom-0 z-20 flex flex-col items-center px-4 pb-3 text-center lg:hidden"
+      >
+        <p className="text-[1.15rem] font-bold leading-tight text-white sm:text-[1.3rem]">
+          {T.login.heroTitle}
+        </p>
       </div>
     </aside>
   );
