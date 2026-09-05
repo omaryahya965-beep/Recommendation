@@ -9,11 +9,9 @@ import { ActionNow } from "@/components/home/ActionNow";
 import { ExecutionNow } from "@/components/home/ExecutionNow";
 import { HomeHero } from "@/components/home/HomeHero";
 import { PriorityMetrics } from "@/components/home/PriorityMetrics";
-import { TodayAgenda } from "@/components/home/TodayAgenda";
 import { ErrorBanner } from "@/components/ui/Base";
 import { DashboardSkeleton } from "@/components/ui/EmptyState";
 import { api } from "@/lib/api";
-import { uniqueRecommendations } from "@/lib/home";
 import { T, useI18n } from "@/lib/i18n";
 import type { DashboardData } from "@/lib/types";
 
@@ -79,14 +77,7 @@ export default function DepartmentDashboard() {
         showDepartment={false}
       />
 
-      <div className="grid items-stretch gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-        <TodayAgenda
-          items={uniqueRecommendations(sources, inExecution)}
-          detailHref={(item) => `${BASE}/${item.id}`}
-          showDepartment={false}
-        />
-        <RecentActivity detailBase={BASE} compact />
-      </div>
+      <RecentActivity detailBase={BASE} compact />
     </div>
   );
 }

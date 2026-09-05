@@ -9,7 +9,6 @@ import { EmployeeEvidence, EmployeePlans } from "@/components/dashboard/Employee
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { ActionNow } from "@/components/home/ActionNow";
 import { HomeHero } from "@/components/home/HomeHero";
-import { TodayAgenda } from "@/components/home/TodayAgenda";
 import { ErrorBanner } from "@/components/ui/Base";
 import { DashboardSkeleton } from "@/components/ui/EmptyState";
 import { RecordId } from "@/components/ui/Ledger";
@@ -17,7 +16,6 @@ import { OverdueBadge } from "@/components/ui/OverdueBadge";
 import { RiskBadge } from "@/components/ui/RiskBadge";
 import { api } from "@/lib/api";
 import { caseTitle } from "@/lib/finding";
-import { uniqueRecommendations } from "@/lib/home";
 import { T, useI18n } from "@/lib/i18n";
 import type { DashboardData } from "@/lib/types";
 import { STATUS_NEXT_ACTION } from "@/lib/workflow";
@@ -89,10 +87,7 @@ export default function MyTasksPage() {
         hint={T.dashboard.myActionsHint}
       />
 
-      <div className="grid items-stretch gap-4 xl:grid-cols-2">
-        <TodayAgenda items={uniqueRecommendations(sources, tasks)} detailHref={(item) => `${HOME}/${item.id}`} />
-        <RecentActivity detailBase={HOME} compact />
-      </div>
+      <RecentActivity detailBase={HOME} compact />
 
       <div className="grid items-stretch gap-4 xl:grid-cols-2">
         <EmployeePlans items={tasks} detailBase={HOME} />

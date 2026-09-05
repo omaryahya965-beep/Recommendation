@@ -3,16 +3,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { ClipboardList, FilePlus2, FileText } from "lucide-react";
 
-import { approachingSource, queueLabel, type ActionSource } from "@/components/dashboard/AttentionBoard";
+import { queueLabel, type ActionSource } from "@/components/dashboard/AttentionBoard";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { ActionNow } from "@/components/home/ActionNow";
 import { HomeHero } from "@/components/home/HomeHero";
 import { PriorityMetrics } from "@/components/home/PriorityMetrics";
-import { TodayAgenda } from "@/components/home/TodayAgenda";
 import { ErrorBanner } from "@/components/ui/Base";
 import { DashboardSkeleton } from "@/components/ui/EmptyState";
 import { api } from "@/lib/api";
-import { uniqueRecommendations } from "@/lib/home";
 import { T, useI18n } from "@/lib/i18n";
 import type { DashboardData } from "@/lib/types";
 
@@ -41,8 +39,6 @@ export default function AuditDashboard() {
     block: data.action_center[queue.key],
     href: queue.href,
   }));
-  const approaching = approachingSource(sources, BASE);
-
   return (
     <div className="animate-fade-in min-w-0 space-y-5">
       <HomeHero
@@ -77,11 +73,6 @@ export default function AuditDashboard() {
         />
         <RecentActivity detailBase={BASE} moreHref="/audit/notifications" />
       </div>
-
-      <TodayAgenda
-        items={uniqueRecommendations(approaching ? [...sources, approaching] : sources)}
-        detailHref={(item) => `${BASE}/${item.id}`}
-      />
     </div>
   );
 }

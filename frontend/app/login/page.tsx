@@ -419,7 +419,7 @@ export default function LoginPage() {
             </div>
 
             <footer className="flex flex-wrap items-center justify-between gap-2 px-6 pb-2.5 pt-1 text-[0.65625rem] font-medium text-[var(--login-footer)] lg:px-10 border-t border-[var(--login-border)]">
-              <p>© 2024 {T.login.footerOwner}</p>
+              <p>© 2026 {T.login.footerOwner}</p>
               <div className="flex items-center gap-2">
                 <span>{T.login.mayorLabel}: {T.login.mayorName}</span>
                 <span className="opacity-30">•</span>

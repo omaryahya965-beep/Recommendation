@@ -8,15 +8,13 @@ import { type ActionSource } from "@/components/dashboard/AttentionBoard";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { ActionNow } from "@/components/home/ActionNow";
 import { HomeHero } from "@/components/home/HomeHero";
-import { TodayAgenda } from "@/components/home/TodayAgenda";
 import { RecommendationTable } from "@/components/RecommendationTable";
 import { Button, Callout, ErrorBanner, Field, TextArea } from "@/components/ui/Base";
 import { DashboardSkeleton, EmptyState } from "@/components/ui/EmptyState";
 import { Section } from "@/components/ui/Section";
 import { api, errorMessage } from "@/lib/api";
-import { uniqueRecommendations } from "@/lib/home";
 import { ENGAGEMENT_LABELS, T, useI18n } from "@/lib/i18n";
-import type { AuditReport, DashboardData, RecommendationListItem } from "@/lib/types";
+import type { AuditReport, DashboardData } from "@/lib/types";
 
 const BASE = "/council/recommendations";
 
@@ -98,7 +96,6 @@ export default function PendingApprovalsPage() {
   if (isError) return <ErrorBanner message={T.common.error} onRetry={() => refetch()} />;
 
   const pendingReports = data ?? [];
-  const closures = (dashboard?.action_center.closures_pending?.items ?? []) as RecommendationListItem[];
   const sources: ActionSource[] = dashboard?.action_center.closures_pending
     ? [
         {
@@ -147,10 +144,7 @@ export default function PendingApprovalsPage() {
         hint={T.dashboard.closureQueueHint}
       />
 
-      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-        <TodayAgenda items={uniqueRecommendations(sources, closures)} detailHref={(item) => `${BASE}/${item.id}`} />
-        <RecentActivity detailBase={BASE} />
-      </div>
+      <RecentActivity detailBase={BASE} />
     </div>
   );
 }

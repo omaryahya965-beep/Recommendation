@@ -38,19 +38,19 @@ export function LoginHero() {
         <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black/90 lg:hidden pointer-events-none" />
         
         <div className="absolute inset-0 z-20 flex flex-col justify-between pt-3 pb-4 px-4 lg:hidden">
-          {/* Top: Main Title */}
+          {/* Top: platform name sits in the former slogan slot */}
           <div className="flex flex-col items-center text-center mt-0">
-            <h3 
-              className="text-[1.25rem] font-extrabold drop-shadow-lg leading-tight mb-1"
-              style={{ color: "var(--login-hero-text)" }}
+            <h3
+              className="invisible mb-1 text-[1.25rem] font-extrabold leading-tight select-none"
+              aria-hidden
             >
               {T.login.heroTitle}
             </h3>
-            <p 
+            <p
               className="text-[0.75rem] font-semibold drop-shadow-md"
               style={{ color: "var(--login-hero-text-sub)" }}
             >
-              {T.login.heroSubtitle}
+              {T.login.heroTitle}
             </p>
           </div>
           
