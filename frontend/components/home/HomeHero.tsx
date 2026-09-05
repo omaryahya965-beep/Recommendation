@@ -46,7 +46,7 @@ export function HomeHero({
   }, []);
 
   return (
-    <section className="relative overflow-hidden rounded-2xl border border-line bg-[#062b3d] min-h-[13.5rem] shadow-sm md:min-h-[19rem] lg:min-h-[21rem]">
+    <section className="relative overflow-hidden section-elevated bg-[#062b3d] min-h-[15rem] md:min-h-[21rem] lg:min-h-[23rem]">
       <Image
         src="/images/al-bireh-city-hall.jpg"
         alt={T.login.cityHallAlt}
@@ -58,21 +58,21 @@ export function HomeHero({
       />
       <div
         aria-hidden
-        className="absolute inset-0 bg-gradient-to-t from-[#062b3d]/90 via-[#062b3d]/35 to-[#062b3d]/10"
+        className="absolute inset-0 bg-gradient-to-t from-[#062b3d] via-[#062b3d]/60 to-[#062b3d]/5"
       />
       <div
         aria-hidden
-        className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-[#062b3d]/65 to-transparent md:h-24"
+        className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[#062b3d]/80 via-[#062b3d]/40 to-transparent md:h-32"
       />
 
-      <div className="relative z-10 flex h-full min-h-[13.5rem] flex-col justify-end gap-2 px-3 py-4 md:min-h-[19rem] md:gap-5 md:px-10 md:py-10 lg:min-h-[21rem]">
-        <div className="absolute inset-x-3 top-3 flex items-start justify-between gap-3 md:inset-x-10 md:top-6">
+      <div className="relative z-10 flex h-full min-h-[15rem] flex-col justify-end gap-2 px-4 py-5 md:min-h-[21rem] md:gap-5 md:px-10 md:py-10 lg:min-h-[23rem]">
+        <div className="absolute inset-x-4 top-4 flex items-start justify-between gap-3 md:inset-x-10 md:top-6">
           <div className="flex min-w-0 flex-wrap items-center gap-2 md:gap-3">
             <p className="text-[14px] font-medium text-white drop-shadow-md">
               {greeting()}
               {name ? <span>{locale === "ar" ? "، " : ", "}<span className="font-bold">{name}</span></span> : null}
             </p>
-            <span className="rounded-full bg-white/20 px-3 py-1 text-[12px] font-bold text-white ring-1 ring-white/30">
+            <span className="rounded-full bg-white/25 px-3 py-1 text-[12px] font-bold text-white shadow-[0_0_12px_rgba(255,255,255,0.15)] ring-1 ring-white/40 backdrop-blur-md">
               {ROLE_LABELS[role]}
             </span>
           </div>
@@ -102,8 +102,8 @@ export function HomeHero({
                   className={cn(
                     "inline-flex min-h-11 min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1.5 py-2 text-center text-[11px] font-bold leading-tight sm:min-h-12 sm:w-auto sm:flex-row sm:gap-2.5 sm:px-5 sm:py-2.5 sm:text-[14px] transition-all duration-200 active:scale-95",
                     action.primary
-                      ? "bg-white text-inverse hover:bg-white/90 shadow-md"
-                      : "bg-white/10 text-white hover:bg-white/20 backdrop-blur-md ring-1 ring-white/30"
+                      ? "bg-white text-inverse hover:bg-white/90 shadow-[0_4px_16px_rgba(0,0,0,0.15)]"
+                      : "bg-white/15 text-white hover:bg-white/25 backdrop-blur-lg ring-1 ring-white/30 shadow-[0_4px_16px_rgba(0,0,0,0.1)]"
                   )}
                 >
                   <Icon className="size-4 shrink-0 sm:size-4.5" />

@@ -21,19 +21,19 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center rounded-xl border border-line border-dashed bg-surface text-center transition-all",
-        compact ? "px-6 py-8" : "px-8 py-14",
+        "flex flex-col items-center justify-center rounded-2xl border border-line/70 border-dashed bg-surface text-center transition-all",
+        compact ? "px-6 py-10" : "px-8 py-16",
         className
       )}
     >
       {icon ? (
-        <div className="relative mb-5 flex size-14 items-center justify-center rounded-full bg-primary-light text-primary-dark">
-          <div className="absolute inset-0 rounded-full bg-primary/10 animate-pulse" />
+        <div className="relative mb-5 flex size-14 items-center justify-center rounded-full bg-primary-light/50 text-primary-dark">
+          <div className="absolute inset-0 rounded-full bg-primary/8 animate-[pulse_3s_ease-in-out_infinite]" />
           <span className="relative">{icon}</span>
         </div>
       ) : null}
       <h3 className="font-heading text-base font-bold text-navy">{title ?? T.empty.insufficient}</h3>
-      {description ? <p className="mt-2 max-w-md text-[13.5px] leading-relaxed text-ink-soft">{description}</p> : null}
+      {description ? <p className="mt-2.5 max-w-md text-[13.5px] leading-relaxed text-muted">{description}</p> : null}
       {actions ? <div className="mt-6 flex items-center justify-center gap-3">{actions}</div> : null}
     </div>
   );
@@ -79,15 +79,15 @@ export function DashboardSkeleton() {
       </div>
       
       <div className="flex gap-4 h-24">
-        <Skeleton className="flex-1 rounded-xl" />
-        <Skeleton className="flex-1 rounded-xl" />
-        <Skeleton className="flex-1 rounded-xl" />
-        <Skeleton className="flex-1 rounded-xl" />
+        <Skeleton className="flex-1 rounded-2xl" />
+        <Skeleton className="flex-1 rounded-2xl" />
+        <Skeleton className="flex-1 rounded-2xl" />
+        <Skeleton className="flex-1 rounded-2xl" />
       </div>
 
       <div className="grid items-start gap-6 lg:grid-cols-[1fr_22rem]">
-        <Skeleton className="h-[30rem] rounded-xl" />
-        <Skeleton className="h-[30rem] rounded-xl" />
+        <Skeleton className="h-[30rem] rounded-2xl" />
+        <Skeleton className="h-[30rem] rounded-2xl" />
       </div>
     </div>
   );

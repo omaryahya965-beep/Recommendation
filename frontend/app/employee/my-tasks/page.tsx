@@ -49,7 +49,7 @@ export default function MyTasksPage() {
   const nextAction = next ? STATUS_NEXT_ACTION[next.item.status] : null;
 
   return (
-    <div className="animate-fade-in space-y-4">
+    <div className="animate-fade-in space-y-5">
       <HomeHero
         role="employee"
         title={T.dashboard.employeeTitle}
@@ -58,23 +58,26 @@ export default function MyTasksPage() {
       />
 
       {next ? (
-        <section className="rounded-2xl border border-inverse bg-inverse p-5 text-on-inverse shadow-sm">
-          <p className="text-[13px] font-bold text-white/70">{T.workflow.actNow}</p>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <RecordId id={next.item.id} />
-            <RiskBadge level={next.item.risk_level} />
-            <OverdueBadge targetDate={next.item.target_date} overdue={next.item.overdue} />
+        <section className="section-elevated border-transparent bg-gradient-to-br from-inverse via-inverse to-[#1a4b66] p-5 md:p-6 text-on-inverse shadow-[0_8px_32px_rgba(24,59,78,0.25)] relative overflow-hidden">
+          <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.03)_50%,transparent_75%)] bg-[length:250%_250%] animate-[shimmer_8s_linear_infinite]" aria-hidden />
+          <div className="relative z-10">
+            <p className="text-[13px] font-bold text-white/70 uppercase tracking-wide">{T.workflow.actNow}</p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <RecordId id={next.item.id} />
+              <RiskBadge level={next.item.risk_level} />
+              <OverdueBadge targetDate={next.item.target_date} overdue={next.item.overdue} />
+            </div>
+            <h2 className="mt-4 font-heading text-[1.375rem] font-bold leading-snug drop-shadow-sm">
+              {nextAction?.action ?? T.dashboard.open}
+            </h2>
+            <p className="mt-2 text-[15px] leading-relaxed text-white/90">{caseTitle(next.item.text, 140)}</p>
+            <Link
+              href={`${HOME}/${next.item.id}`}
+              className="mt-5 flex min-h-12 w-full sm:w-auto sm:px-8 sm:inline-flex items-center justify-center rounded-lg bg-white text-[15px] font-bold text-inverse shadow-md transition-all hover:bg-white/90 hover:shadow-lg active:scale-95"
+            >
+              {T.dashboard.open}
+            </Link>
           </div>
-          <h2 className="mt-3 font-heading text-[1.25rem] font-bold leading-snug">
-            {nextAction?.action ?? T.dashboard.open}
-          </h2>
-          <p className="mt-2 text-[15px] leading-relaxed text-white/90">{caseTitle(next.item.text, 140)}</p>
-          <Link
-            href={`${HOME}/${next.item.id}`}
-            className="mt-4 flex min-h-12 w-full items-center justify-center rounded-lg bg-white text-[15px] font-bold text-inverse"
-          >
-            {T.dashboard.open}
-          </Link>
         </section>
       ) : null}
 

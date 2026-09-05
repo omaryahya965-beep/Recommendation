@@ -61,14 +61,14 @@ export function ActionNow({
       }
     >
       {live.length ? (
-        <div className="flex min-w-0 gap-2 overflow-x-auto overscroll-x-contain border-b border-line bg-subtle/50 px-4 py-3 md:flex-wrap md:overflow-visible">
+        <div className="flex min-w-0 gap-2 overflow-x-auto overscroll-x-contain border-b border-line/60 bg-subtle/30 px-4 py-3 md:flex-wrap md:overflow-visible">
           <button
             type="button"
             onClick={() => setQueue(null)}
             aria-pressed={queue === null}
             className={cn(
-              "min-h-11 shrink-0 whitespace-nowrap rounded-full px-4 text-[13px] font-bold transition-all duration-200",
-              queue === null ? "bg-inverse text-on-inverse shadow-sm" : "bg-surface text-ink-soft ring-1 ring-line hover:bg-surface hover:text-ink"
+              "min-h-11 shrink-0 whitespace-nowrap rounded-full px-5 text-[13px] font-bold transition-all duration-200 backdrop-blur-sm",
+              queue === null ? "bg-inverse text-on-inverse shadow-sm" : "bg-surface/80 text-ink-soft ring-1 ring-line hover:bg-surface hover:text-ink hover:shadow-sm"
             )}
           >
             {T.reports.filterAll}
@@ -80,8 +80,8 @@ export function ActionNow({
               onClick={() => setQueue((prev) => (prev === source.key ? null : source.key))}
               aria-pressed={queue === source.key}
               className={cn(
-                "inline-flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-4 text-[13px] font-bold transition-all duration-200",
-                queue === source.key ? "bg-inverse text-on-inverse shadow-sm" : "bg-surface text-ink-soft ring-1 ring-line hover:bg-surface hover:text-ink"
+                "inline-flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-5 text-[13px] font-bold transition-all duration-200 backdrop-blur-sm",
+                queue === source.key ? "bg-inverse text-on-inverse shadow-sm" : "bg-surface/80 text-ink-soft ring-1 ring-line hover:bg-surface hover:text-ink hover:shadow-sm"
               )}
             >
               {queueLabel(source.key)}
@@ -95,12 +95,12 @@ export function ActionNow({
 
       {visible.length ? (
         <>
-          <ul className="min-h-0 flex-1 divide-y divide-line">
+          <ul className="min-h-0 flex-1 divide-y divide-line/60 divider-soft">
             {visible.map(({ item, reason }) => {
               const next = STATUS_NEXT_ACTION[item.status];
               const stage = stageForStatus(item.status);
               return (
-                <li key={item.id} className="relative overflow-hidden border-s-4 border-s-transparent bg-surface px-3 py-3 md:px-5 md:py-5">
+                <li key={item.id} className="list-accent-bar group relative overflow-hidden bg-surface px-4 py-4 md:px-6 md:py-5 transition-colors hover:bg-subtle/30">
                   <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
@@ -111,11 +111,11 @@ export function ActionNow({
                       <p className="mt-2 text-[14px] font-bold text-primary-dark">{next?.action ?? T.dashboard.open}</p>
                       <Link
                         href={`${detailBase}/${item.id}`}
-                        className="mt-1 block font-heading text-[16px] font-semibold leading-snug text-navy"
+                        className="mt-1 block font-heading text-[16px] font-semibold leading-snug text-navy group-hover:text-primary transition-colors"
                       >
                         {caseTitle(item.text, 110)}
                       </Link>
-                      <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2 text-[13px] text-ink-soft">
+                      <div className="mt-2.5 flex min-w-0 flex-wrap items-center gap-2 text-[13px] text-ink-soft">
                         <span className="font-medium">{showDepartment ? item.department_name : item.responsible_employee ?? T.team.unassigned}</span>
                         {showDepartment && item.responsible_employee ? <span className="text-muted/50">•</span> : null}
                         {showDepartment && item.responsible_employee ? <span>{item.responsible_employee}</span> : null}
@@ -129,7 +129,7 @@ export function ActionNow({
                       <RiskBadge level={item.risk_level} />
                       <Link
                         href={`${detailBase}/${item.id}`}
-                        className="inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-surface px-4 py-2 text-[14px] font-bold text-navy ring-1 ring-line"
+                        className="inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-surface px-4 py-2 text-[14px] font-bold text-navy ring-1 ring-line shadow-sm hover:bg-primary hover:text-white hover:ring-primary transition-all active:scale-95"
                       >
                         {T.dashboard.open}
                         <DirForward className="size-4" />

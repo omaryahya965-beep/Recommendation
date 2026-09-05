@@ -47,17 +47,17 @@ function AgendaGroup({
 
   return (
     <section>
-      <h3 className="flex items-center gap-2 px-4 py-2 text-[12px] font-semibold text-navy">
+      <h3 className="flex items-center gap-2 px-5 py-2.5 text-[12px] font-bold uppercase tracking-wider text-navy bg-subtle/20">
         <span className={`size-1.5 rounded-full ${mark}`} aria-hidden />
         {title}
-        <span className="font-mono font-normal text-muted" dir="ltr">
+        <span className="font-mono font-medium text-muted" dir="ltr">
           {items.length}
         </span>
       </h3>
-      <ul className="divide-y divide-line border-t border-line">
+      <ul className="divide-y divide-line/60 divider-soft">
         {items.slice(0, 6).map((item) => (
-          <li key={item.id}>
-            <Link href={detailHref(item)} className="block px-4 py-2.5 transition-colors hover:bg-subtle/70">
+          <li key={item.id} className="list-accent-bar relative">
+            <Link href={detailHref(item)} className="block px-5 py-3.5 transition-colors hover:bg-subtle/30">
               <div className="flex flex-wrap items-center gap-2">
                 <RecordId id={item.id} />
                 <span className={cn("rounded-md px-1.5 py-0.5 text-[11px] font-medium", dueTone(item))}>
@@ -99,12 +99,12 @@ export function TodayAgenda({
       title={T.dashboard.todayAgenda}
       hint={T.dashboard.todayAgendaHint}
       actions={
-        <div className="flex min-w-[3.5rem] flex-col items-center rounded-(--radius-field) border border-line bg-subtle px-2 py-1 text-center">
-          <p className="text-[10px] font-medium text-muted">{parts.weekday}</p>
-          <p className="font-heading text-lg font-bold leading-none text-navy" dir="ltr">
+        <div className="flex min-w-[3.75rem] flex-col items-center rounded-xl border border-line/70 bg-surface px-2 py-1.5 text-center shadow-sm">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-primary-dark/70">{parts.weekday}</p>
+          <p className="font-heading text-[22px] font-bold leading-none text-navy" dir="ltr">
             {parts.day}
           </p>
-          <p className="mt-0.5 text-[10px] text-ink-soft">{parts.month}</p>
+          <p className="mt-0.5 text-[10px] font-medium text-muted">{parts.month}</p>
         </div>
       }
     >

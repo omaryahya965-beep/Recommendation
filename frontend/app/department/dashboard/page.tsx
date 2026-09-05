@@ -44,7 +44,7 @@ export default function DepartmentDashboard() {
   const inExecution = data.in_execution?.items ?? [];
 
   return (
-    <div className="animate-fade-in space-y-4">
+    <div className="animate-fade-in space-y-5">
       <HomeHero
         role="department_head"
         title={T.dashboard.departmentTitle}

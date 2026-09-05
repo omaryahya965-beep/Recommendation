@@ -62,12 +62,12 @@ export function RecentActivity({
   const moreTo = moreHref ?? notificationsHref(detailBase);
 
   return (
-    <section className="flex h-full min-w-0 flex-col overflow-hidden rounded-xl border border-line bg-surface shadow-sm transition-shadow hover:shadow-md">
-      <header className="border-b border-line px-5 py-4 flex items-center gap-3">
-        <div className="h-4 w-1 shrink-0 rounded-full bg-primary" aria-hidden />
+    <section className="section-elevated flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-line bg-surface">
+      <header className="border-b border-line/70 px-4 py-3.5 md:px-6 md:py-5 flex items-center gap-3">
+        <div className="h-5 w-[3px] shrink-0 rounded-full bg-primary" aria-hidden />
         <div className="min-w-0">
-          <h2 className="font-heading text-[16px] font-bold text-navy">{T.analytics.activity}</h2>
-          <p className="mt-1 text-[13px] text-ink-soft">{T.analytics.activityHint}</p>
+          <h2 className="font-heading text-[17px] font-bold text-navy">{T.analytics.activity}</h2>
+          <p className="mt-1.5 text-[13px] text-muted">{T.analytics.activityHint}</p>
         </div>
       </header>
 
@@ -79,14 +79,14 @@ export function RecentActivity({
               const last = index === items.length - 1;
 
               return (
-                <li key={item.id} className={cn("group relative flex gap-4 transition-all duration-200 rounded-xl", compact ? "pb-4" : "p-3 hover:bg-subtle/50", !item.is_read && !compact && "bg-primary-light/10")}>
+                <li key={item.id} className={cn("group relative flex gap-4 transition-colors duration-200 rounded-xl", compact ? "pb-4" : "p-3 hover:bg-subtle/40", !item.is_read && !compact && "bg-primary-light/10 list-accent-bar overflow-hidden")}>
                   {compact && !last ? (
                     <span aria-hidden className="absolute top-8 bottom-0 start-[0.875rem] w-px bg-line/80" />
                   ) : null}
 
                   <span
                     className={cn(
-                      "relative z-10 flex size-7 shrink-0 items-center justify-center rounded-full ring-2 shadow-sm transition-transform duration-200 group-hover:scale-110",
+                      "relative z-10 flex size-7 shrink-0 items-center justify-center rounded-full ring-2 ring-offset-2 ring-offset-surface shadow-sm transition-transform duration-200 group-hover:scale-110",
                       marker.ring
                     )}
                   >

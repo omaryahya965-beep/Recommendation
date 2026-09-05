@@ -44,7 +44,7 @@ export default function AuditDashboard() {
   const approaching = approachingSource(sources, BASE);
 
   return (
-    <div className="animate-fade-in min-w-0 space-y-4">
+    <div className="animate-fade-in min-w-0 space-y-5">
       <HomeHero
         role="audit"
         title={T.dashboard.auditTitle}

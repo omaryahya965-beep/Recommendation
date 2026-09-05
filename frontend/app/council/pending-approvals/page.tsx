@@ -110,7 +110,7 @@ export default function PendingApprovalsPage() {
     : [];
 
   return (
-    <div className="animate-fade-in space-y-4">
+    <div className="animate-fade-in space-y-5">
       <HomeHero
         role="council"
         title={T.dashboard.councilTitle}

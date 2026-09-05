@@ -36,10 +36,10 @@ export function RecurrenceWatch({
       }
     >
       {items.length ? (
-        <ul className="divide-y divide-line">
+        <ul className="divide-y divide-line/60 divider-soft">
           {items.slice(0, 6).map((item) => (
-            <li key={item.id} className="group relative overflow-hidden bg-surface px-5 py-5 transition-all duration-200 hover:bg-subtle/40">
-              <div className="absolute start-0 top-0 bottom-0 w-1 bg-warning scale-y-0 opacity-0 group-hover:scale-y-100 group-hover:opacity-100 transition-all duration-300" aria-hidden />
+            <li key={item.id} className="group relative overflow-hidden bg-surface px-5 py-5 transition-colors hover:bg-subtle/30">
+              <div className="absolute start-0 top-0 bottom-0 w-[3px] bg-warning scale-y-0 opacity-0 group-hover:scale-y-100 group-hover:opacity-100 transition-all duration-250 ease-out" aria-hidden />
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-3">
@@ -49,17 +49,17 @@ export function RecurrenceWatch({
                       {T.actionCenter.possible_recurrences}
                     </span>
                   </div>
-                  <Link href={detailHref(item)} className="mt-3 block font-heading text-[15px] font-semibold leading-snug text-navy hover:text-primary transition-colors">
+                  <Link href={detailHref(item)} className="mt-3 block font-heading text-[16px] font-semibold leading-snug text-navy group-hover:text-primary transition-colors">
                     {caseTitle(item.text, 100)}
                   </Link>
                   <p className="mt-2.5 text-[13px] font-medium text-ink-soft">{item.department_name}</p>
                 </div>
                 <Link
                   href={detailHref(item)}
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-surface px-3 py-1.5 text-[12px] font-bold text-navy ring-1 ring-line hover:bg-navy hover:text-white hover:ring-navy transition-all shadow-sm"
+                  className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-surface px-4 py-2 text-[14px] font-bold text-navy ring-1 ring-line shadow-sm hover:bg-primary hover:text-white hover:ring-primary transition-all active:scale-95"
                 >
                   {T.dashboard.open}
-                  <DirForward className="size-3.5" />
+                  <DirForward className="size-4" />
                 </Link>
               </div>
             </li>

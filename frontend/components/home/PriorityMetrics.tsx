@@ -19,24 +19,27 @@ export function PriorityMetrics({
   if (!items.length) return null;
 
   return (
-    <ul className="flex min-w-0 gap-2 overflow-x-auto overscroll-x-contain pb-0.5 sm:grid sm:grid-cols-3 sm:overflow-visible md:grid-cols-5">
+    <ul className="snap-scroll-x flex min-w-0 gap-3 overflow-x-auto overscroll-x-contain pb-2 sm:grid sm:grid-cols-3 sm:overflow-visible md:grid-cols-5">
       {items.map((item) => (
-        <li key={item.label} className="w-[9.75rem] shrink-0 sm:w-auto sm:min-w-0">
+        <li key={item.label} className="w-[10.5rem] shrink-0 sm:w-auto sm:min-w-0">
           <Link
             href={item.href}
             className={cn(
-              "flex h-full min-h-16 min-w-0 flex-col justify-center rounded-xl border border-line bg-surface px-3 py-3 sm:px-4",
-              item.tone === "danger" && item.value ? "border-danger/40 bg-danger-light" : null,
-              item.tone === "warning" && item.value ? "border-warning/40 bg-warning-light" : null,
+              "kpi-lift flex h-full min-h-20 min-w-0 flex-col justify-center rounded-xl border border-line bg-surface px-4 py-3.5 shadow-sm",
+              item.tone === "danger" && item.value ? "bg-gradient-to-br from-danger-light via-surface to-surface border-danger/20 kpi-accent-danger kpi-active" : null,
+              item.tone === "warning" && item.value ? "bg-gradient-to-br from-warning-light via-surface to-surface border-warning/20 kpi-accent-warning" : null,
+              item.tone === "primary" ? "kpi-accent-primary" : "kpi-accent-muted",
+              item.tone === "danger" && item.value === 0 ? "kpi-accent-muted bg-surface border-line" : null,
+              item.tone === "warning" && item.value === 0 ? "kpi-accent-muted bg-surface border-line" : null
             )}
           >
-            <p className="text-[13px] font-semibold leading-snug text-muted break-words">{item.label}</p>
+            <p className="text-[12px] font-bold uppercase tracking-wider text-muted break-words">{item.label}</p>
             <p
               className={cn(
-                "mt-1 font-heading text-[1.5rem] font-bold tabular-nums leading-none",
+                "mt-2 font-heading text-[2rem] font-bold tabular-nums leading-none",
                 item.tone === "danger" && item.value ? "text-danger-dark" : null,
                 item.tone === "warning" && item.value ? "text-warning-dark" : null,
-                (!item.tone || item.tone === "muted" || item.tone === "primary") && "text-navy",
+                (!item.tone || item.tone === "muted" || item.tone === "primary" || item.value === 0) && "text-navy",
               )}
               dir="ltr"
             >
