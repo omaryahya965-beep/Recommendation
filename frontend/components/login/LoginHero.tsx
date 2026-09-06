@@ -47,7 +47,7 @@ export function LoginHero() {
               {T.login.heroTitle}
             </h3>
             <p
-              className="text-[0.75rem] font-semibold drop-shadow-md"
+              className="text-[1.25rem] font-bold drop-shadow-md"
               style={{ color: "var(--login-hero-text-sub)" }}
             >
               {T.login.heroTitle}
