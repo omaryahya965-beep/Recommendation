@@ -6,7 +6,7 @@ local government units (municipalities). Arabic-first, fully RTL.
 ## Stack
 
 - **Backend**: Django 5 + DRF + SimpleJWT + PostgreSQL. Same code runs on
-  local Postgres and Neon — only `DATABASE_URL` changes (`backend/.env`).
+  local Postgres and on Neon in production.
 - **Frontend**: Next.js (App Router, TypeScript) + Tailwind v4 + TanStack
   Query. Design system documented in `frontend/DESIGN.md`.
 - **AI similarity**: pluggable embedding backend (pure-Python Arabic n-gram
@@ -77,16 +77,9 @@ venv\Scripts\python manage.py test apps          # unit + API tests
 venv\Scripts\python scripts\e2e_scenario.py      # live HTTP end-to-end (server must run)
 ```
 
-## Deploying the database to Neon
+## Deployment
 
-Set in `backend/.env` (or the platform env):
+The database runs on Neon (serverless PostgreSQL) in production, with the
+app deployed on Vercel.
 
-```
-DATABASE_URL=postgres://<user>:<password>@<host>.neon.tech/audit_tracker?sslmode=require
-DB_SSL_REQUIRE=True
-```
-
-Run `manage.py migrate` against the direct (non-pooler) Neon connection
-string, then point the app at the pooled string. No code changes.
-
-Full Vercel + Neon runbook (two projects, env vars, cron, media): **[DEPLOY.md](DEPLOY.md)**.
+Full Vercel + Neon runbook (two projects, cron, media): **[DEPLOY.md](DEPLOY.md)**.
