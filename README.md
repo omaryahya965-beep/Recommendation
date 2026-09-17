@@ -3,6 +3,10 @@
 Web platform for tracking implementation of internal audit recommendations in
 local government units (municipalities). Arabic-first, fully RTL.
 
+## Live
+
+- **Website:** https://recommendation-frontend-theta.vercel.app/
+
 ## Stack
 
 - **Backend**: Django 5 + DRF + SimpleJWT + PostgreSQL. Same code runs on
