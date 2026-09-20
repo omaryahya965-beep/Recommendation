@@ -45,29 +45,44 @@ class CloudinaryUrlShapeTests(SimpleTestCase):
 
 
 class EvidenceFileUrlTests(SimpleTestCase):
-    def test_absolute_cloudinary_url_is_not_prefixed_with_api_host(self):
-        request = RequestFactory().get("/")
-        obj = type("E", (), {})()
-        obj.file = type(
-            "F",
-            (),
-            {
-                "url": "https://res.cloudinary.com/demo/raw/upload/v1/evidence/deposit-slip.pdf"
-            },
-        )()
-        url = EvidenceSerializer(context={"request": request}).get_file_url(obj)
-        self.assertEqual(
-            url,
-            "https://res.cloudinary.com/demo/raw/upload/v1/evidence/deposit-slip.pdf",
-        )
+    """`file_url` must be the access-controlled endpoint, never the store URL.
 
-    def test_relative_media_url_is_absolutized_for_local_dev(self):
-        request = RequestFactory().get("/")
+    Evidence is confidential. Serialising the raw Cloudinary/media URL makes
+    the file readable by anyone who gets the link, with no check that they may
+    see the case; the download route re-checks scoping and logs the access.
+    """
+
+    def _evidence(self, storage_url):
         obj = type("E", (), {})()
-        obj.file = type("F", (), {"url": "/media/evidence/deposit-slip.pdf"})()
+        obj.pk = 42
+        obj.file = type("F", (), {"url": storage_url})()
+        return obj
+
+    def test_file_url_points_at_the_authorized_download_endpoint(self):
+        request = RequestFactory().get("/")
+        obj = self._evidence(
+            "https://res.cloudinary.com/demo/raw/upload/v1/evidence/deposit-slip.pdf"
+        )
         url = EvidenceSerializer(context={"request": request}).get_file_url(obj)
-        self.assertTrue(url.endswith("/media/evidence/deposit-slip.pdf"))
-        self.assertTrue(url.startswith("http://"))
+        self.assertTrue(url.endswith("/api/evidence/42/download/"))
+
+    def test_storage_url_is_never_exposed_to_the_client(self):
+        request = RequestFactory().get("/")
+        for storage_url in (
+            "https://res.cloudinary.com/demo/raw/upload/v1/evidence/deposit-slip.pdf",
+            "/media/evidence/deposit-slip.pdf",
+        ):
+            url = EvidenceSerializer(context={"request": request}).get_file_url(
+                self._evidence(storage_url)
+            )
+            self.assertNotIn("cloudinary", url)
+            self.assertNotIn("deposit-slip", url)
+
+    def test_missing_file_has_no_url(self):
+        obj = type("E", (), {})()
+        obj.pk = 7
+        obj.file = None
+        self.assertIsNone(EvidenceSerializer().get_file_url(obj))
 
 
 class UploadValidationStillAppliesTests(SimpleTestCase):

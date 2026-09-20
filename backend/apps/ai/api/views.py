@@ -8,7 +8,14 @@ from rest_framework.views import APIView
 from rest_framework.throttling import SimpleRateThrottle
 
 class AIUserRateThrottle(SimpleRateThrottle):
-    rate = '30/min'
+    """Per-user limit on AI endpoints.
+
+    The rate comes from DEFAULT_THROTTLE_RATES['ai'] rather than being hard
+    coded, and the counters live in the shared cache, so the limit holds
+    across serverless instances instead of resetting per cold start.
+    """
+
+    scope = "ai"
 
     def get_cache_key(self, request, view):
         if request.user.is_authenticated:

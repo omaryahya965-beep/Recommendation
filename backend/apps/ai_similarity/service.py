@@ -122,39 +122,76 @@ def ensure_embedding(recommendation):
 def find_similar(recommendation, top_k=3, min_score=0.0, user=None):
     """Top-k most similar prior recommendations in the same municipality.
 
-    Near-identical texts are collapsed so the UI does not list the same
-    finding twice. Weak scores below `min_score` are dropped.
+    Candidate selection used to hydrate the first 300 rows of the default
+    ordering, which is `-priority_score`. That is unrelated to similarity, so
+    a genuine repeat finding with a low priority score could sit at position
+    301 and never be compared at all.
+
+    Instead the scan reads only `(id, embedding, embedding_model)` as raw
+    tuples. Skipping model instantiation and the related-object joins makes
+    each candidate cheap enough to compare the whole municipality, and only
+    the handful of winners are loaded as full objects.
+
+    Rows whose embedding is missing or was produced by a different model are
+    repaired lazily, but at most `MAX_BACKFILL_PER_CALL` per request so a cold
+    dataset degrades gradually instead of turning one read into thousands of
+    writes. `backfill_embeddings` fixes the rest offline.
     """
+    from apps.ai.similarity_config import MAX_BACKFILL_PER_CALL
     from apps.audits.finding import semantic_payload
     from apps.audits.models import Recommendation
     from apps.core.permissions import scope_recommendations
 
     vector = ensure_embedding(recommendation)
-    candidates = (
-        Recommendation.objects.filter(
-            report__municipality=recommendation.report.municipality
-        )
-        .exclude(pk=recommendation.pk)
-    )
+    expected_model = recommendation.embedding_model
+
+    candidates = Recommendation.objects.filter(
+        report__municipality=recommendation.report.municipality
+    ).exclude(pk=recommendation.pk)
     if user is not None:
         candidates = scope_recommendations(candidates, user)
-    candidates = candidates.select_related("report", "action_plan")
-    scored = []
-    for rec in candidates[:300]:
-        other = rec.embedding
-        if not other or rec.embedding_model != recommendation.embedding_model:
-            other = ensure_embedding(rec)
-        if rec.embedding_model != recommendation.embedding_model or not other:
+
+    scored: list[tuple[int, float]] = []
+    stale: list[int] = []
+    for rec_id, embedding, model_id in candidates.values_list(
+        "id", "embedding", "embedding_model"
+    ).iterator(chunk_size=1000):
+        if not embedding or model_id != expected_model:
+            stale.append(rec_id)
             continue
-        score = cosine(vector, rec.embedding)
-        if score < min_score:
-            continue
-        scored.append((rec, score))
+        score = cosine(vector, embedding)
+        if score >= min_score:
+            scored.append((rec_id, score))
+
+    for rec in Recommendation.objects.filter(
+        pk__in=stale[:MAX_BACKFILL_PER_CALL]
+    ):
+        embedding = ensure_embedding(rec)
+        if embedding and rec.embedding_model == expected_model:
+            score = cosine(vector, embedding)
+            if score >= min_score:
+                scored.append((rec.id, score))
+
     scored.sort(key=lambda pair: pair[1], reverse=True)
+
+    # Load only the shortlist as real objects. Over-fetch a little because
+    # near-identical texts are collapsed immediately below.
+    shortlist = [rec_id for rec_id, _ in scored[: max(top_k * 4, 12)]]
+    if not shortlist:
+        return []
+    by_id = {
+        rec.id: rec
+        for rec in Recommendation.objects.filter(pk__in=shortlist).select_related(
+            "report__department", "action_plan"
+        )
+    }
 
     unique = []
     seen = set()
-    for rec, score in scored:
+    for rec_id, score in scored:
+        rec = by_id.get(rec_id)
+        if rec is None:
+            continue
         key = _normalize(semantic_payload(rec.text, rec.root_cause))[:480]
         if not key or key in seen:
             continue
@@ -167,12 +204,18 @@ def find_similar(recommendation, top_k=3, min_score=0.0, user=None):
 
 def flag_if_recurring(recommendation, user=None):
     """Called on creation. Flags a possible recurrence for HUMAN confirmation;
-    never makes the final call itself."""
-    matches = find_similar(recommendation, top_k=1)
+    never makes the final call itself.
+
+    Uses the shared AUTO_FLAG_MIN_SCORE so the flag written here cannot
+    disagree with the label the similarity panel shows for the same match.
+    """
+    from apps.ai.similarity_config import AUTO_FLAG_MIN_SCORE, CANDIDATE_MIN_SCORE
+
+    matches = find_similar(recommendation, top_k=1, min_score=CANDIDATE_MIN_SCORE)
     if not matches:
         return None
     best, score = matches[0]
-    if score >= settings.SIMILARITY_THRESHOLD:
+    if score >= AUTO_FLAG_MIN_SCORE:
         recommendation.is_recurring = True
         recommendation.similar_recommendation = best
         recommendation.similarity_score = round(score, 4)

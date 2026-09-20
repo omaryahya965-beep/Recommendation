@@ -1,10 +1,16 @@
+import csv
+import logging
+
 from django.contrib.auth import get_user_model
 from django.db.models import Count
+from django.http import StreamingHttpResponse
+from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from apps.core.exceptions import WorkflowError
@@ -27,6 +33,7 @@ from apps.workflow.serializers import (
     VerifyInputSerializer,
 )
 
+from .filters import RecommendationFilterSet
 from .models import AuditReport, Recommendation
 from .serializers import (
     AuditReportDetailSerializer,
@@ -34,9 +41,17 @@ from .serializers import (
     RecommendationCreateSerializer,
     RecommendationDetailSerializer,
     RecommendationListSerializer,
+    is_overdue,
 )
 
 User = get_user_model()
+
+
+class _EchoBuffer:
+    """csv.writer sink that returns each row instead of accumulating it."""
+
+    def write(self, value):
+        return value
 
 
 class PendingApprovalsView(APIView):
@@ -121,15 +136,11 @@ class RecommendationViewSet(viewsets.ModelViewSet):
 
     http_method_names = ["get", "post", "patch", "head", "options"]
     parser_classes = [JSONParser, MultiPartParser, FormParser]
-    filterset_fields = {
-        "status": ["exact", "in"],
-        "risk_level": ["exact"],
-        "report": ["exact"],
-        "report__department": ["exact"],
-        "is_recurring": ["exact"],
-    }
+    # Consumed by the throttled `export` action below.
+    throttle_scope = "export"
+    filterset_class = RecommendationFilterSet
     search_fields = ["text", "root_cause"]
-    ordering_fields = ["priority_score", "created_at", "risk_level"]
+    ordering_fields = ["priority_score", "created_at", "risk_level", "status"]
 
     def get_queryset(self):
         qs = Recommendation.objects.select_related(
@@ -168,20 +179,23 @@ class RecommendationViewSet(viewsets.ModelViewSet):
             recommendation=recommendation, report=recommendation.report,
             text=recommendation.text[:200],
         )
-        # Background-style AI similarity flagging (human confirmation required).
-        from apps.ai_similarity.service import flag_if_recurring
-        flag_if_recurring(recommendation, user=self.request.user)
-        # Optional AI analysis — must never block or fail recommendation creation.
+        # Recurrence flagging is local, deterministic and cheap, so it runs
+        # inline — but it is still advisory, so a failure must not cost the
+        # auditor their recommendation.
         try:
-            from django.conf import settings as django_settings
-            if django_settings.AI_ENABLED:
-                from apps.ai.services.recommendation_analyzer import analyze_recommendation
-                from apps.ai.services.similarity_service import similar_for
-                analyze_recommendation(recommendation, self.request.user)
-                similar_for(recommendation, self.request.user)
+            from apps.ai_similarity.service import flag_if_recurring
+
+            flag_if_recurring(recommendation, user=self.request.user)
         except Exception:
-            import logging
-            logging.getLogger("apps.ai").warning("ai_on_create_skipped", exc_info=True)
+            logging.getLogger("apps.ai").warning(
+                "recurrence_flagging_skipped rec=%s", recommendation.pk, exc_info=True
+            )
+        # LLM-backed quality analysis and match explanations deliberately do NOT
+        # run here. Each can spend up to AI_TIMEOUT_SECONDS talking to a remote
+        # provider, and two of them inside a create request risks exhausting the
+        # serverless function budget and failing a write the auditor already
+        # completed. They are computed on demand by the /api/ai/ endpoints,
+        # which cache their result, so nothing is lost by deferring them.
 
     def perform_update(self, serializer):
         if serializer.instance.status != Recommendation.Status.DRAFT:
@@ -365,6 +379,69 @@ class RecommendationViewSet(viewsets.ModelViewSet):
         )
         return self._detail(request, recommendation)
 
+    # -- Export -------------------------------------------------------------------
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="export",
+        throttle_classes=[ScopedRateThrottle],
+    )
+    def export(self, request):
+        """CSV of the COMPLETE filtered result set, not just the current page.
+
+        Runs through the same scoping, filter backends and search as the list
+        endpoint, so an export can never widen what the user is allowed to see.
+        Streams so a large municipality does not build the whole file in memory.
+        """
+        queryset = self.filter_queryset(self.get_queryset())
+
+        columns = [
+            ("reference", lambda r: f"REC-{r.id}"),
+            ("report", lambda r: r.report.title),
+            ("engagement_type", lambda r: r.report.get_engagement_type_display()),
+            ("department", lambda r: r.report.department.name),
+            ("text", lambda r: " ".join((r.text or "").split())),
+            ("root_cause", lambda r: " ".join((r.root_cause or "").split())),
+            ("risk_level", lambda r: r.get_risk_level_display()),
+            ("priority_score", lambda r: r.priority_score),
+            ("status", lambda r: r.get_status_display()),
+            ("resolution", lambda r: r.get_resolution_display() if r.resolution else ""),
+            ("is_recurring", lambda r: "yes" if r.is_recurring else "no"),
+            (
+                "recurrence_confirmed",
+                lambda r: "yes" if r.recurrence_confirmed else "no",
+            ),
+            (
+                "responsible_employee",
+                lambda r: getattr(
+                    getattr(r, "action_plan", None), "responsible_employee", None
+                )
+                and r.action_plan.responsible_employee.full_name_ar,
+            ),
+            (
+                "target_date",
+                lambda r: getattr(getattr(r, "action_plan", None), "target_date", "") or "",
+            ),
+            ("overdue", lambda r: "yes" if is_overdue(r) else "no"),
+            ("created_at", lambda r: r.created_at.date().isoformat()),
+            ("closed_at", lambda r: r.closed_at.date().isoformat() if r.closed_at else ""),
+        ]
+
+        def rows():
+            buffer = _EchoBuffer()
+            writer = csv.writer(buffer)
+            # BOM so Excel opens the Arabic columns as UTF-8 rather than mojibake.
+            yield "﻿"
+            yield writer.writerow([name for name, _ in columns])
+            for rec in queryset.iterator(chunk_size=500):
+                yield writer.writerow([accessor(rec) or "" for _, accessor in columns])
+
+        filename = f"recommendations-{timezone.localdate().isoformat()}.csv"
+        response = StreamingHttpResponse(rows(), content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        log_action(request.user, "recommendations_exported", count=queryset.count())
+        return response
+
     # -- Recurrence (human-in-the-loop) --------------------------------------------
     @action(detail=True, methods=["post"], url_path="confirm-recurrence")
     def confirm_recurrence(self, request, pk=None):
@@ -373,26 +450,10 @@ class RecommendationViewSet(viewsets.ModelViewSet):
         services.confirm_recurrence(recommendation, request.user, confirmed)
         return self._detail(request, recommendation)
 
-    @action(detail=True, methods=["post"], url_path="check-similar", permission_classes=[IsAudit])
-    def check_similar(self, request, pk=None):
-        from apps.ai.services.similarity_service import DISPLAY_MIN_SCORE
-        from apps.ai_similarity.service import find_similar
-        from apps.audits.finding import brief_excerpt, case_title
-        recommendation = self.get_object()
-        matches = find_similar(recommendation, top_k=3, min_score=DISPLAY_MIN_SCORE)
-        return Response({
-            "matches": [
-                {
-                    "id": rec.id,
-                    "title": case_title(rec.text),
-                    "text": brief_excerpt(rec.text),
-                    "report_title": rec.report.title,
-                    "status": rec.status,
-                    "score": round(score, 4),
-                }
-                for rec, score in matches
-            ]
-        })
+    # `check-similar` was removed here: it duplicated
+    # GET /api/ai/recommendations/{id}/similar/ with a second, slightly
+    # different scoring path and no caller in the frontend. One similarity
+    # surface means one set of thresholds and one explanation of a match.
 
     # -- Helpers ----------------------------------------------------------------
     def _resolve_plan_data(self, plan_input):

@@ -12,8 +12,14 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import User
-from apps.audits.models import AuditReport, Recommendation
+from apps.audits.models import (
+    OPEN_STATUSES,
+    OVERDUE_ACTIVE_STATUSES,
+    AuditReport,
+    Recommendation,
+)
 from apps.audits.serializers import RecommendationListSerializer
+from apps.core.analytics import build_analytics
 from apps.core.permissions import scope_recommendations
 
 class HealthView(View):
@@ -23,14 +29,29 @@ class HealthView(View):
         return JsonResponse({"ok": True})
 
 
+class AnalyticsView(APIView):
+    """Aggregated portfolio analytics, computed in SQL.
+
+    The browser used to page the whole register in to compute these numbers.
+    Scoping is identical to every other list endpoint.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        queryset = scope_recommendations(Recommendation.objects.all(), request.user)
+        try:
+            months = max(1, min(36, int(request.query_params.get("months", 12))))
+        except (TypeError, ValueError):
+            months = 12
+        return Response(build_analytics(queryset, months=months))
+
+
 S = Recommendation.Status
 
-ACTIVE_EXECUTION = (
-    S.IN_PROGRESS, S.RETURNED_INSUFFICIENT, S.PARTIAL, S.REOPENED,
-    S.PENDING_HEAD_REVIEW, S.SUBMITTED_FOR_VERIFICATION,
-    S.CLOSURE_REVIEW, S.PENDING_CLOSURE_COUNCIL,
-)
-OPEN_STATUSES = [s for s, _ in S.choices if s not in (S.CLOSED, S.DRAFT)]
+# Shared with the `overdue` API filter and the serializer badge so the
+# dashboard KPI, the filtered list and the row badge always agree.
+ACTIVE_EXECUTION = OVERDUE_ACTIVE_STATUSES
 
 
 def _serialize(queryset, request, limit=10):

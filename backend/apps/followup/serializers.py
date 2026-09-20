@@ -13,7 +13,7 @@ class FollowUpReportSerializer(serializers.ModelSerializer):
         fields = [
             "id", "municipality", "period_start", "period_end",
             "generated_by", "generated_by_detail", "snapshot",
-            "generated_file", "created_at",
+            "executive_summary", "language", "generated_file", "created_at",
         ]
         read_only_fields = fields
 

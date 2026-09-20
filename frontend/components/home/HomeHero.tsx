@@ -47,22 +47,25 @@ export function HomeHero({
 
   return (
     <section className="relative overflow-hidden section-elevated bg-[#062b3d] min-h-[15rem] md:min-h-[21rem] lg:min-h-[23rem]">
+      {/* Wide banner photo covering the whole card (decorative). */}
       <Image
-        src="/images/al-bireh-city-hall.jpg"
-        alt={T.login.cityHallAlt}
+        src="/images/al-bireh-hero.webp"
+        alt=""
+        aria-hidden
         fill
         priority
-        unoptimized
-        sizes="100vw"
-        className="object-cover object-[center_38%]"
+        sizes="(min-width: 1440px) 1376px, 100vw"
+        className="object-cover object-[center_30%] md:object-center"
+      />
+      {/* RTL overlay: strongest on the right (text side), softer toward the left;
+          darker on mobile so the white text stays readable. */}
+      <div
+        aria-hidden
+        className="absolute inset-0 bg-gradient-to-l from-[#062b3d]/90 via-[#062b3d]/55 to-[#062b3d]/10 max-md:via-[#062b3d]/60 max-md:to-[#062b3d]/35"
       />
       <div
         aria-hidden
-        className="absolute inset-0 bg-gradient-to-t from-[#062b3d] via-[#062b3d]/60 to-[#062b3d]/5"
-      />
-      <div
-        aria-hidden
-        className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[#062b3d]/80 via-[#062b3d]/40 to-transparent md:h-32"
+        className="absolute inset-0 bg-gradient-to-t from-[#062b3d]/55 via-transparent to-transparent"
       />
 
       <div className="relative z-10 flex h-full min-h-[15rem] flex-col justify-end gap-2 px-4 py-5 md:min-h-[21rem] md:gap-5 md:px-10 md:py-10 lg:min-h-[23rem]">
@@ -81,14 +84,14 @@ export function HomeHero({
           </p>
         </div>
 
-        <div className="max-w-4xl min-w-0">
-          <h1 className="font-heading text-[1.375rem] font-bold leading-tight text-white drop-shadow-md md:text-[1.75rem]">
+        <div className="max-w-4xl min-w-0 max-md:mb-4">
+          <h1 className="max-md:absolute max-md:inset-x-4 max-md:top-[3.5rem] font-heading text-[1.375rem] font-bold leading-tight text-white drop-shadow-md md:text-[1.75rem]">
             {title}
           </h1>
           <p className="mt-1 hidden text-[14px] font-medium text-white/80 md:mt-2 md:block" dir={locale === "ar" ? "rtl" : "ltr"}>
             {formatLongDate()}
           </p>
-          <p className="mt-1.5 max-w-2xl text-[13px] leading-snug text-white/90 md:mt-3 md:text-[15px] md:leading-relaxed">{subtitle}</p>
+          <p className="mt-1.5 hidden max-w-2xl text-[13px] md:block leading-snug text-white/90 md:mt-3 md:text-[15px] md:leading-relaxed">{subtitle}</p>
         </div>
 
         {actions.length ? (
@@ -100,13 +103,13 @@ export function HomeHero({
                   key={action.href + action.label}
                   href={action.href}
                   className={cn(
-                    "inline-flex min-h-11 min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1.5 py-2 text-center text-[11px] font-bold leading-tight sm:min-h-12 sm:w-auto sm:flex-row sm:gap-2.5 sm:px-5 sm:py-2.5 sm:text-[14px] transition-all duration-200 active:scale-95",
+                    "inline-flex min-h-9 min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-1.5 text-center text-[10px] font-bold leading-tight sm:min-h-12 sm:w-auto sm:flex-row sm:gap-2.5 sm:px-5 sm:py-2.5 sm:text-[14px] transition-all duration-200 active:scale-95",
                     action.primary
                       ? "bg-white text-inverse hover:bg-white/90 shadow-[0_4px_16px_rgba(0,0,0,0.15)]"
                       : "bg-white/15 text-white hover:bg-white/25 backdrop-blur-lg ring-1 ring-white/30 shadow-[0_4px_16px_rgba(0,0,0,0.1)]"
                   )}
                 >
-                  <Icon className="size-4 shrink-0 sm:size-4.5" />
+                  <Icon className="size-3.5 shrink-0 sm:size-4.5" />
                   <span className="min-w-0">{action.label}</span>
                 </Link>
               );

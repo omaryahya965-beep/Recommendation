@@ -7,13 +7,16 @@ from apps.ai.models import AIAnalysis
 from apps.ai.providers import provider_meta
 from apps.ai.services.case_copy import status_label
 from apps.ai.services.common import cached_analysis, content_hash, language_of, store_analysis
+from apps.ai.similarity_config import (
+    CANDIDATE_MIN_SCORE,
+    DISPLAY_LIMIT,
+    DISPLAY_MIN_SCORE,
+    LIKELY_RECURRING_MIN_SCORE,
+)
 from apps.ai_similarity.service import _normalize, ensure_embedding, find_similar
 from apps.audits.finding import brief_excerpt, case_title, semantic_payload, structural_tokens
 
-# Matches below this are noise (shared headings, generic verbs) — do not show them.
-DISPLAY_MIN_SCORE = 0.52
-DISPLAY_LIMIT = 3
-ANALYSIS_VERSION = "similar_v2"
+ANALYSIS_VERSION = "similar_v3"
 
 
 def _token_set(text: str) -> set[str]:
@@ -70,8 +73,11 @@ def explain_match(rec, other, score: float, language: str) -> dict:
             "تشابه دلالي في نص التوصية" if ar else "semantic similarity in recommendation text"
         )
 
-    threshold = settings.AI_SIMILARITY_THRESHOLD
-    likely = score >= threshold and (same_dept or bool(root_overlap) or len(overlap) >= 4)
+    # A high score alone is not enough to call something a repeat finding:
+    # audit template language scores well on its own. Require corroboration.
+    likely = score >= LIKELY_RECURRING_MIN_SCORE and (
+        same_dept or bool(root_overlap) or len(overlap) >= 4
+    )
     title = case_title(other.text) or brief_excerpt(other.text)
     return {
         "matched_id": other.id,
@@ -88,6 +94,8 @@ def explain_match(rec, other, score: float, language: str) -> dict:
         "suggested_recurring": "LIKELY_RECURRING" if likely else "POSSIBLY_RELATED",
         "human_confirmed": bool(rec.recurrence_confirmed and rec.similar_recommendation_id == other.id),
         "requires_human_confirmation": True,
+        # Recurrence is a workflow state, and only audit can set it.
+        "advisory": True,
     }
 
 
@@ -114,8 +122,9 @@ def similar_for(rec, user, language: str = "ar", top_k: int | None = None) -> AI
     output = {
         "matches": explained,
         "likely_recurring_count": len(likely),
-        "threshold": settings.AI_SIMILARITY_THRESHOLD,
+        "threshold": LIKELY_RECURRING_MIN_SCORE,
         "display_min_score": DISPLAY_MIN_SCORE,
+        "candidate_min_score": CANDIDATE_MIN_SCORE,
         "embedding_model": rec.embedding_model,
         "flagged_on_record": rec.is_recurring,
         "human_confirmed": rec.recurrence_confirmed,

@@ -9,7 +9,7 @@ import { RecordId } from "@/components/ui/Ledger";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { api } from "@/lib/api";
 import { formatDate } from "@/lib/format";
-import { ENGAGEMENT_LABELS, T, useI18n } from "@/lib/i18n";
+import { REPORT_TYPE_LABELS, T, useI18n } from "@/lib/i18n";
 import type { AuditReport, Paginated } from "@/lib/types";
 
 export default function ApprovedHistoryPage() {
@@ -49,7 +49,7 @@ export default function ApprovedHistoryPage() {
               <dl className="mt-4 grid gap-4 border-t border-line pt-4 sm:grid-cols-2 lg:grid-cols-4">
                 <DataField label={T.common.department}>{report.department_name}</DataField>
                 <DataField label={T.create.engagement}>
-                  {ENGAGEMENT_LABELS[report.engagement_type]}
+                  {REPORT_TYPE_LABELS[report.engagement_type]}
                 </DataField>
                 <DataField label={T.nav.recommendations}>
                   <span dir="ltr">{report.recommendations_count}</span>

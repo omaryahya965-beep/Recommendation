@@ -11,6 +11,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.core.cloudinary_storage import configure_cloudinary, resource_type_for_name
+from apps.core.uploads import allowed_formats_param, signed_upload_tags
 from config.settings.storage import cloudinary_enabled
 
 PURPOSES = {
@@ -38,21 +39,33 @@ def max_upload_bytes(*, direct_upload: bool) -> int:
     return limit
 
 
-def build_signed_upload_params(folder: str, timestamp: int) -> dict[str, str]:
+def build_signed_upload_params(
+    folder: str, timestamp: int, *, tags: str = "", allowed_formats: str = ""
+) -> dict[str, str]:
     """Fields the browser must POST to Cloudinary, as strings.
 
     ``cloudinary.utils.api_sign_request`` skips falsy values, so a Python
     ``overwrite=False`` is omitted from the hash while the form still sends
     ``overwrite=false``. Cloudinary then reports Invalid Signature. String
     ``"true"`` / ``"false"`` stay in both the hash and the POST body.
+
+    ``tags`` and ``allowed_formats`` are signed too, so the browser cannot
+    strip the ownership stamp or widen the accepted file types: changing
+    either one invalidates the signature. ``tags`` is what
+    ``apps.core.uploads.claim_uploaded_file`` later checks against the caller.
     """
-    return {
+    params = {
         "folder": folder,
         "overwrite": "false",
         "timestamp": str(timestamp),
         "unique_filename": "true",
         "use_filename": "true",
     }
+    if tags:
+        params["tags"] = tags
+    if allowed_formats:
+        params["allowed_formats"] = allowed_formats
+    return params
 
 
 def sign_upload_params(params: dict[str, str], api_secret: str) -> str:
@@ -62,6 +75,47 @@ def sign_upload_params(params: dict[str, str], api_secret: str) -> str:
         return cloudinary.utils.api_sign_request(params, api_secret, signature_version=1)
     except TypeError:
         return cloudinary.utils.api_sign_request(params, api_secret)
+
+
+class EvidenceDownloadView(APIView):
+    """Authorization-checked access to an evidence file.
+
+    Evidence is confidential audit material, so downloads go through the API:
+    the caller must be able to see the parent recommendation under the normal
+    row scoping, and every access is written to the audit trail. The storage
+    URL is never handed to a client that failed this check.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        from django.shortcuts import redirect
+
+        from apps.audits.models import Recommendation
+        from apps.core.models import log_action
+        from apps.core.permissions import scope_recommendations
+        from apps.workflow.models import Evidence
+
+        visible = scope_recommendations(
+            Recommendation.objects.all(), request.user
+        ).values_list("id", flat=True)
+        evidence = (
+            Evidence.objects.select_related("recommendation__report")
+            .filter(pk=pk, recommendation_id__in=visible)
+            .first()
+        )
+        if evidence is None or not evidence.file:
+            return Response({"detail": "Evidence not found."}, status=404)
+
+        log_action(
+            request.user,
+            "evidence_downloaded",
+            recommendation=evidence.recommendation,
+            report=evidence.recommendation.report,
+            evidence_id=evidence.id,
+            file_name=evidence.file.name,
+        )
+        return redirect(evidence.file.url)
 
 
 class MediaSignView(APIView):
@@ -81,7 +135,12 @@ class MediaSignView(APIView):
         folder_tpl = PURPOSES[purpose]
         folder = timezone.now().strftime(folder_tpl) if "%Y" in folder_tpl else folder_tpl
         timestamp = int(time.time())
-        params = build_signed_upload_params(folder, timestamp)
+        params = build_signed_upload_params(
+            folder,
+            timestamp,
+            tags=signed_upload_tags(request.user),
+            allowed_formats=allowed_formats_param(),
+        )
 
         configure_cloudinary(
             cloudinary_url=getattr(settings, "CLOUDINARY_URL", "") or os.environ.get("CLOUDINARY_URL", ""),

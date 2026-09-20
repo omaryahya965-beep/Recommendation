@@ -49,6 +49,9 @@ DJANGO_APPS = [
 THIRD_PARTY_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
+    # Makes logout and rotation actually revoke refresh tokens instead of
+    # relying on the browser to forget them.
+    "rest_framework_simplejwt.token_blacklist",
     "django_filters",
     "corsheaders",
     "drf_spectacular",
@@ -132,14 +135,52 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 25,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "apps.core.exceptions.api_exception_handler",
+    "DEFAULT_THROTTLE_RATES": {
+        # Credential stuffing guard on login/refresh, keyed by client IP.
+        "login": os.environ.get("THROTTLE_LOGIN", "10/min"),
+        # LLM calls cost money and time.
+        "ai": os.environ.get("THROTTLE_AI", "30/min"),
+        # Full-table CSV builds.
+        "export": os.environ.get("THROTTLE_EXPORT", "12/min"),
+    },
 }
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,
+    # Without this, a rotated refresh token stays valid for its full 7 days.
+    "BLACKLIST_AFTER_ROTATION": True,
     "AUTH_HEADER_TYPES": ("Bearer",),
+    # Reject a token whose user was deactivated, instead of trusting the claim.
+    "CHECK_REVOKE_TOKEN": False,
+    "USER_AUTHENTICATION_RULE": "apps.accounts.auth_rules.active_user_only",
 }
+
+# ---------------------------------------------------------------------------
+# Cache — also backs DRF throttling.
+# ---------------------------------------------------------------------------
+# On Vercel each request may hit a fresh instance, so the default in-memory
+# cache gives every instance its own counters and throttling stops being a real
+# limit. The database cache uses the Neon connection this project already has,
+# which makes the counters shared without adding Redis to the deployment.
+CACHE_TABLE = "core_cache"
+if os.environ.get("CACHE_BACKEND", "").strip() == "locmem":
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "raqeeb-local",
+        }
+    }
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+            "LOCATION": CACHE_TABLE,
+            "TIMEOUT": 300,
+            "OPTIONS": {"MAX_ENTRIES": 10000, "CULL_FREQUENCY": 3},
+        }
+    }
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "Audit Recommendations Follow-up API",

@@ -102,6 +102,20 @@ export const ENGAGEMENT_LABELS: Record<string, string> = {
   assurance: "Assurance",
 };
 
+/**
+ * Internal Audit works through two engagement types. Wording is chosen by
+ * context: the report document versus the engagement itself.
+ */
+export const REPORT_TYPE_LABELS: Record<string, string> = {
+  advisory: "Advisory report",
+  assurance: "Assurance report",
+};
+
+export const ENGAGEMENT_TYPE_LABELS: Record<string, string> = {
+  advisory: "Advisory engagement",
+  assurance: "Assurance engagement",
+};
+
 export const DECISION_LABELS: Record<string, string> = {
   agree: "Agree",
   disagree: "Disagree",
@@ -171,13 +185,13 @@ export const TRAIL_ACTION_LABELS: Record<string, string> = {
 };
 
 export const T = {
-  appName: "Internal Audit Platform",
-  appTagline: "Management and follow-up of audit recommendations",
+  appName: "RAQEEB",
+  appTagline: "Internal Audit Recommendation Follow-up Platform",
   login: {
     title: "Sign in",
-    platformTitle: "Internal Audit Platform",
-    platformTitleAccent: "for the Municipality",
-    platformSubtitle: "Access the Internal Audit Platform",
+    platformTitle: "RAQEEB",
+    platformTitleAccent: "Al-Bireh Municipality",
+    platformSubtitle: "Access the RAQEEB platform",
     username: "Username",
     password: "Password",
     usernamePlaceholder: "Enter username",
@@ -198,13 +212,13 @@ export const T = {
     demoEmployee: "Implementation officer — Finance",
     demoCouncil: "Municipal Council / Audit Committee",
     welcome: "Welcome",
-    welcomeLead: "Welcome to the Internal Audit platform",
+    welcomeLead: "Welcome to RAQEEB",
     welcomeHint: "Sign in with your institutional account to follow up and manage audit recommendations.",
-    productName: "Audit Trailblazer",
-    brandSubtitle: "Internal Audit recommendation management platform",
+    productName: "RAQEEB",
+    brandSubtitle: "Internal Audit Recommendation Follow-up Platform",
     heroKicker: "Al-Bireh Municipality",
-    heroTitle: "Internal Audit Platform",
-    heroSubtitle: "Good Governance.. Better Performance.. Greater Trust",
+    heroTitle: "RAQEEB",
+    heroSubtitle: "Internal Audit Recommendation Follow-up Platform",
     heroSlogan: "Together toward transparent and effective municipal administration",
     heroStatement: "Toward more transparent and effective internal audit",
     heroLine1: "Toward more transparent",
@@ -213,25 +227,25 @@ export const T = {
       "A digital platform to manage and follow up Internal Audit recommendations and enhance institutional transparency at Al-Bireh Municipality.",
     secure: "Secure login for authorized users",
     copyright: "All rights reserved - Al-Bireh Municipality",
-    logoTitle: "Internal Audit",
-    logoTagline: "Recommendation follow-up system",
+    logoTitle: "RAQEEB",
+    logoTagline: "Internal Audit Recommendation Follow-up Platform",
     hidePassword: "Hide password",
     showPassword: "Show password",
     cityHallAlt: "Al-Bireh Municipality City Hall",
     municipalityName: "Al-Bireh Municipality",
     municipalityTagline: "City of Al-Bireh",
-    heroTitleLead: "Internal",
-    heroTitleEmph: "Audit",
-    heroTitleTail: "Platform",
+    heroTitleLead: "The",
+    heroTitleEmph: "RAQEEB",
+    heroTitleTail: "follow-up platform",
     footerOwner: "Al-Bireh Municipality",
     mayorLabel: "Mayor",
     mayorName: "Eng. Munif Tareesh",
     ssoLabel: "Sign in with Municipality account",
     ssoUnavailable: "Municipality account sign-in is not enabled in this environment.",
-    loginHint: "Sign in to access the Internal Audit Platform",
+    loginHint: "Sign in to access RAQEEB",
     orDivider: "or",
     versionLabel: "Version 1.0",
-    footerPlatform: "Internal Audit Platform",
+    footerPlatform: "RAQEEB — Internal Audit Recommendation Follow-up Platform",
     values: {
       professionalism: "Professionalism",
       transparency: "Transparency",
@@ -371,7 +385,19 @@ export const T = {
     managedBody:
       "Reminders reach you as notifications based on the action-plan target date. Review them on the Notifications tab. Only Internal Audit can change the rules.",
   },
+  /** Full-page failure and not-found states. */
+  errors: {
+    title: "Something went wrong",
+    description: "The action could not be completed. You can retry or return to the home page.",
+    notFoundTitle: "Page not found",
+    notFoundDescription: "The link is incorrect, or the record is not available to your role.",
+  },
   common: {
+    backHome: "Back to home",
+    daysLeftOne: "1 day left",
+    daysLeftTwo: "2 days left",
+    daysLeftFew: "{n} days left",
+    daysLeftMany: "{n} days left",
     loading: "Loading…",
     error: "An error occurred while retrieving data",
     save: "Save",
@@ -518,7 +544,7 @@ export const T = {
     sparkle: "Advisory Analysis",
     suggestion: "AI Suggestion",
     prediction: "Automated Prediction",
-    notOfficial: "Advisory analysis — final decision remains human.",
+    notOfficial: "AI-assisted analysis — final decision remains human.",
   },
   workflow: {
     title: "Recommendation Path",
@@ -871,6 +897,7 @@ export const T = {
   create: {
     title: "New Audit Recommendation",
     intro: "Record the finding and recommendation within an existing audit report.",
+    stepOf: "Step {n} of {total}",
     stepContext: "Engagement details",
     stepFinding: "Audit Finding",
     stepRecommendation: "Recommendation",
@@ -1103,6 +1130,9 @@ export const T = {
     document: "Audit report document",
     riskSummary: "Risk distribution",
     reportTitle: "Report title",
+    reportType: "Report type",
+    typeAssuranceHint: "Independent evaluation of how well controls work and rules are followed.",
+    typeAdvisoryHint: "Guidance and recommendations to improve processes, without an assurance opinion.",
     createHint: "Fill in the report details only. After saving you choose whether to add a recommendation now or later.",
     createdTitle: "The report has been created",
     createdHint: "Do you want to add a recommendation to this report now? The report cannot be sent to the department without at least one recommendation.",
@@ -1154,7 +1184,7 @@ export const T = {
   /** Periodic follow-up reports */
   followup: {
     title: "Follow-up Reports",
-    subtitle: "Generate a follow-up for a from/to period. It stays for this visit only and clears when you leave.",
+    subtitle: "Preview a period, then save it as an archived report you can return to.",
     generate: "Generate a follow-up report for a period",
     from: "From",
     to: "To",
@@ -1167,6 +1197,12 @@ export const T = {
     empty: "There are no saved follow-up reports.",
     emptyHint: "Choose a period and generate the follow-up to see recommendations and their summary.",
     sessionOnly: "This follow-up is for this visit only. Leaving the page clears it; it is not saved.",
+    previewAction: "Preview period",
+    saveAction: "Save report",
+    previewNotice: "This is an unsaved preview. Choose Save report to freeze these figures into the archive.",
+    savedNotice: "Report saved. These figures are frozen and will not change later.",
+    frozen: "Frozen snapshot",
+    archive: "Saved reports",
     nextForFollowup: "Required for this follow-up",
   },
   /** Portfolio analytics derived from the recommendation register */

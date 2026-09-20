@@ -1,7 +1,7 @@
 "use client";
 
-import { useMutation } from "@tanstack/react-query";
-import { Sparkles } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Save, Sparkles } from "lucide-react";
 import { useState } from "react";
 
 import { FollowUpSessionCard } from "@/components/FollowUpList";
@@ -18,15 +18,35 @@ export default function AuditFollowUpsPage() {
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<FollowUpPreview | null>(null);
 
+  const queryClient = useQueryClient();
+  const [saved, setSaved] = useState(false);
+
+  // "generate" used to only compute a preview. The API now separates the two:
+  // /preview/ computes without saving, /generate/ stores a frozen report.
   const generate = useMutation({
     mutationFn: () =>
-      api<FollowUpPreview>("/api/followup-reports/generate/", {
+      api<FollowUpPreview>("/api/followup-reports/preview/", {
         method: "POST",
         body: { period_start: start, period_end: end, language: "ar" },
       }),
     onSuccess: (data) => {
       setError(null);
+      setSaved(false);
       setPreview(data);
+    },
+    onError: (err) => setError(errorMessage(err)),
+  });
+
+  const save = useMutation({
+    mutationFn: () =>
+      api("/api/followup-reports/generate/", {
+        method: "POST",
+        body: { period_start: start, period_end: end, language: "ar" },
+      }),
+    onSuccess: () => {
+      setError(null);
+      setSaved(true);
+      queryClient.invalidateQueries({ queryKey: ["followups"] });
     },
     onError: (err) => setError(errorMessage(err)),
   });
@@ -53,12 +73,16 @@ export default function AuditFollowUpsPage() {
             <Sparkles className="size-4" />
             {T.followup.generateAction}
           </Button>
+          <Button type="button" variant="secondary" onClick={() => save.mutate()} disabled={save.isPending || !preview || saved}>
+            <Save className="size-4" />
+            {T.followup.saveAction}
+          </Button>
         </form>
         <ErrorBanner message={error} />
       </Card>
 
       <Callout tone="neutral" className="shadow-sm">
-        {T.followup.sessionOnly}
+        {saved ? T.followup.savedNotice : T.followup.previewNotice}
       </Callout>
 
       {preview ? <FollowUpSessionCard preview={preview} /> : null}

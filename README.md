@@ -1,7 +1,28 @@
-# منظومة متابعة توصيات التدقيق الداخلي
+# رقيب | RAQEEB
 
-Web platform for tracking implementation of internal audit recommendations in
-local government units (municipalities). Arabic-first, fully RTL.
+**منصة متابعة توصيات الرقابة الداخلية — بلدية البيرة**
+*Internal Audit Recommendation Follow-up Platform — Al-Bireh Municipality*
+
+Arabic-first, fully RTL, with an English locale.
+
+> **Naming:** **RAQEEB / رقيب** is the application. **Al-Bireh Municipality /
+> بلدية البيرة** is the institution that owns it. The two are kept distinct
+> throughout the code — see `frontend/lib/brand.ts`, which is the single
+> source of truth for both.
+
+## Municipality logo
+
+The official artwork is **not** committed to this repository. Place the
+supplied file at:
+
+```
+frontend/public/images/al-bireh-logo.png
+```
+
+`MunicipalityLogo` renders it at its natural aspect ratio (height is set,
+width follows) and never recolors, crops or redraws it. Until the file is
+added, a neutral monogram is shown in its place — deliberately not an
+imitation of the seal.
 
 ## Live
 
@@ -16,6 +37,22 @@ local government units (municipalities). Arabic-first, fully RTL.
 - **AI similarity**: pluggable embedding backend (pure-Python Arabic n-gram
   hashing by default; `sentence-transformers` auto-used when installed) that
   flags possibly-recurring recommendations for human confirmation.
+
+## Engagement types
+
+Internal Audit works through two engagement types, stored on
+`AuditReport.engagement_type`:
+
+| Value | تقرير | Engagement |
+|-------|-------|------------|
+| `assurance` | تقرير تأكيدي | Assurance report |
+| `advisory` | تقرير استشاري | Advisory report |
+
+Wording is context-sensitive in the UI: `REPORT_TYPE_LABELS` for the document
+("تقرير تأكيدي"), `ENGAGEMENT_TYPE_LABELS` for the engagement itself
+("مهمة تأكيدية"). The type is filterable on both reports and recommendations
+(`?engagement_type=`) and is broken out in analytics and follow-up snapshots.
+It does **not** alter workflow semantics.
 
 ## Roles and flow (default policy)
 

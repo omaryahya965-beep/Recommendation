@@ -135,7 +135,15 @@ def transition(recommendation, to_status, user, action, system=False, **metadata
         )
 
     recommendation.status = to_status
-    recommendation.save(update_fields=["status", "updated_at"])
+    updated = ["status", "updated_at"]
+    # Every path into CLOSED runs through here, so closure is stamped exactly
+    # once and never has to be inferred from updated_at.
+    if to_status == S.CLOSED and recommendation.closed_at is None:
+        from django.utils import timezone
+
+        recommendation.closed_at = timezone.now()
+        updated.append("closed_at")
+    recommendation.save(update_fields=updated)
     log_action(
         user,
         action,

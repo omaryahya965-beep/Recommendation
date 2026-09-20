@@ -102,6 +102,22 @@ export const ENGAGEMENT_LABELS: Record<string, string> = {
   assurance: "تأكيدية",
 };
 
+/**
+ * Internal Audit works through two engagement types. Wording is chosen by
+ * context: "تقرير …" when referring to the document, "مهمة …" when referring
+ * to the engagement itself. ENGAGEMENT_LABELS keeps the bare adjective for
+ * compact places such as filter chips.
+ */
+export const REPORT_TYPE_LABELS: Record<string, string> = {
+  advisory: "تقرير استشاري",
+  assurance: "تقرير تأكيدي",
+};
+
+export const ENGAGEMENT_TYPE_LABELS: Record<string, string> = {
+  advisory: "مهمة استشارية",
+  assurance: "مهمة تأكيدية",
+};
+
 export const DECISION_LABELS: Record<string, string> = {
   agree: "موافقة",
   disagree: "عدم موافقة",
@@ -171,13 +187,13 @@ export const TRAIL_ACTION_LABELS: Record<string, string> = {
 };
 
 export const T = {
-  appName: "منصة الرقابة الداخلية",
-  appTagline: "نظام إدارة ومتابعة توصيات التدقيق",
+  appName: "رقيب",
+  appTagline: "منصة متابعة توصيات الرقابة الداخلية",
   login: {
     title: "تسجيل الدخول",
-    platformTitle: "منصة الرقابة الداخلية",
-    platformTitleAccent: "للبلدية",
-    platformSubtitle: "الوصول إلى منصة الرقابة الداخلية",
+    platformTitle: "رقيب",
+    platformTitleAccent: "بلدية البيرة",
+    platformSubtitle: "الوصول إلى منصة رقيب",
     username: "اسم المستخدم",
     password: "كلمة المرور",
     usernamePlaceholder: "أدخل اسم المستخدم",
@@ -198,39 +214,39 @@ export const T = {
     demoEmployee: "موظف تنفيذ — المالية",
     demoCouncil: "المجلس البلدي / لجنة التدقيق",
     welcome: "مرحبًا بك",
-    welcomeLead: "مرحبًا بك في منصة الرقابة الداخلية",
+    welcomeLead: "مرحبًا بك في منصة رقيب",
     welcomeHint: "سجّل الدخول باستخدام حسابك المؤسسي للمتابعة وإدارة التوصيات الرقابية.",
-    productName: "Audit Trailblazer",
-    brandSubtitle: "منصة إدارة ومتابعة توصيات الرقابة الداخلية",
+    productName: "رقيب",
+    brandSubtitle: "منصة متابعة توصيات الرقابة الداخلية",
     heroKicker: "بلدية البيرة",
-    heroTitle: "منصة الرقابة الداخلية",
-    heroSubtitle: "حوكمة رشيدة.. أداء أفضل.. ثقة أكبر",
+    heroTitle: "رقيب",
+    heroSubtitle: "منصة متابعة توصيات الرقابة الداخلية",
     heroSlogan: "معاً نحو إدارة بلدية شفافة وفعالة",
     heroStatement: "نحو رقابة داخلية أكثر شفافية وكفاءة",
     heroLine1: "نحو رقابة داخلية أكثر",
     heroLine2: "شفافية وكفاءة",
-    heroSupporting: "منصة رقمية لإدارة ومتابعة توصيات التدقيق الداخلي وتعزيز الشفافية المؤسسية في بلدية البيرة.",
+    heroSupporting: "منصة رقمية لإدارة ومتابعة توصيات الرقابة الداخلية وتعزيز الشفافية المؤسسية في بلدية البيرة.",
     secure: "دخول آمن للمستخدمين المخولين",
     copyright: "جميع الحقوق محفوظة - بلدية البيرة",
-    logoTitle: "الرقابة الداخلية",
-    logoTagline: "منظومة متابعة التوصيات",
+    logoTitle: "رقيب",
+    logoTagline: "منصة متابعة توصيات الرقابة الداخلية",
     hidePassword: "إخفاء كلمة المرور",
     showPassword: "إظهار كلمة المرور",
     cityHallAlt: "مبنى دار بلدية البيرة",
     municipalityName: "بلدية البيرة",
     municipalityTagline: "مدينة البيرة",
     heroTitleLead: "منصّة",
-    heroTitleEmph: "الرقابة",
-    heroTitleTail: "الداخلية",
+    heroTitleEmph: "رقيب",
+    heroTitleTail: "لمتابعة التوصيات",
     footerOwner: "بلدية البيرة",
     mayorLabel: "رئيس البلدية",
     mayorName: "المهندس منيف طريش",
     ssoLabel: "تسجيل الدخول عبر حساب البلدية",
     ssoUnavailable: "تسجيل الدخول عبر حساب البلدية غير مفعّل في هذه البيئة.",
-    loginHint: "سجّل الدخول للوصول إلى منصة الرقابة الداخلية",
+    loginHint: "سجّل الدخول للوصول إلى منصة رقيب",
     orDivider: "أو",
     versionLabel: "الإصدار 1.0",
-    footerPlatform: "منصة الرقابة الداخلية",
+    footerPlatform: "رقيب — منصة متابعة توصيات الرقابة الداخلية",
     values: {
       professionalism: "احترافية",
       transparency: "شفافية",
@@ -370,7 +386,19 @@ export const T = {
     managedBody:
       "تصلك التذكيرات كإشعارات حسب الموعد المستهدف في خطة العمل. راجعها من تبويب الإشعارات. تعديل القواعد متاح لدور الرقابة الداخلية فقط.",
   },
+  /** Full-page failure and not-found states. */
+  errors: {
+    title: "حدث خطأ غير متوقع",
+    description: "تعذّر إتمام العملية. يمكنك إعادة المحاولة أو العودة إلى الصفحة الرئيسية.",
+    notFoundTitle: "الصفحة غير موجودة",
+    notFoundDescription: "الرابط غير صحيح، أو أن السجل المطلوب غير متاح ضمن صلاحياتك.",
+  },
   common: {
+    backHome: "العودة إلى الرئيسية",
+    daysLeftOne: "متبقٍّ يوم واحد",
+    daysLeftTwo: "متبقٍّ يومان",
+    daysLeftFew: "متبقٍّ {n} أيام",
+    daysLeftMany: "متبقٍّ {n} يوماً",
     loading: "جارٍ التحميل…",
     error: "حدث خطأ أثناء جلب البيانات",
     save: "حفظ",
@@ -514,7 +542,7 @@ export const T = {
     sparkle: "تحليل ذكي",
     suggestion: "اقتراح AI",
     prediction: "توقع آلي",
-    notOfficial: "تحليل استشاري — القرار النهائي بشري",
+    notOfficial: "تحليل مساعد — القرار النهائي بشري",
   },
   workflow: {
     title: "مسار التوصية",
@@ -803,7 +831,7 @@ export const T = {
     verifiedLabel: "تم التحقق",
     detailTitle: "تفاصيل الدليل",
     purpose: "ما الهدف منه",
-    aiDisclaimer: "هذا تحليل استشاري وليس قرار تحقق رسمي.",
+    aiDisclaimer: "هذا تحليل مساعد وليس قرار تحقق رسمي.",
     stage: "المرحلة المرتبط بها",
     uploadNotVerify: "رفع الملف لا يعني التحقق. التحقق قرار رقابي مستقل.",
     byStep: "حسب المرحلة",
@@ -862,6 +890,7 @@ export const T = {
   create: {
     title: "توصية رقابية جديدة",
     intro: "سجّل الملاحظة والتوصية ضمن تقرير رقابي قائم.",
+    stepOf: "الخطوة {n} من {total}",
     stepContext: "بيانات التدقيق",
     stepFinding: "الملاحظة الرقابية",
     stepRecommendation: "التوصية",
@@ -900,7 +929,7 @@ export const T = {
     priorityScore: "درجة الأولوية",
     priorityHint: "قيمة رقمية من 0 إلى 100 تُستخدم في ترتيب التوصيات.",
     riskFieldsNote:
-      "المنظومة تعتمد مستوى خطورة ودرجة أولوية فقط. تقديرات الأثر والاحتمالية متاحة كتحليل استشاري من الذكاء الاصطناعي بعد الحفظ.",
+      "المنظومة تعتمد مستوى خطورة ودرجة أولوية فقط. تقديرات الأثر والاحتمالية متاحة كتحليل مساعد بالذكاء الاصطناعي بعد الحفظ.",
     reviewIntro: "راجع المعلومات قبل الحفظ. تأكد من صحة الملاحظة والتوصية والمسؤولية والموعد.",
     completeness: "هل المعلومات مكتملة؟",
     missingFields: "أقسام ناقصة",
@@ -986,7 +1015,7 @@ export const T = {
     noRiskData: "لا توجد بيانات كافية",
     highestPressure: "أعلى ضغط",
     officialRecord: "السجل الرسمي",
-    advisoryBelow: "ما يلي تحليل استشاري — لا يُعد قراراً رقابياً.",
+    advisoryBelow: "ما يلي تحليل مساعد — لا يُعد قراراً رقابياً.",
     auditHint: "أولويات الرقابة: الردود، الخطط، والتحقق.",
     departmentHint: "أولويات دائرتك: الردود، خطط التنفيذ، ومراجعة التنفيذ.",
     employeeHint: "خطواتك، مواعيدك، والأدلة المطلوبة منك.",
@@ -1091,6 +1120,9 @@ export const T = {
     document: "وثيقة التقرير الرقابي",
     riskSummary: "توزيع الخطورة",
     reportTitle: "عنوان التقرير",
+    reportType: "نوع التقرير",
+    typeAssuranceHint: "تقييم مستقل لمدى فعالية الضوابط والالتزام بالأنظمة والتعليمات.",
+    typeAdvisoryHint: "مشورة وتوصيات لتحسين العمليات، دون إبداء رأي تأكيدي.",
     createHint: "عبّئ بيانات التقرير هنا فقط. بعد الحفظ تختار إضافة توصية الآن أو لاحقاً.",
     createdTitle: "تم إنشاء التقرير",
     createdHint: "هل تريد إضافة توصية إلى هذا التقرير الآن؟ لا يمكن إرسال التقرير إلى الدائرة بدون توصية واحدة على الأقل.",
@@ -1140,7 +1172,7 @@ export const T = {
   /** Periodic follow-up reports */
   followup: {
     title: "تقارير المتابعة",
-    subtitle: "ولِّد متابعة لفترة من/إلى. النتيجة لهذه الجلسة فقط، وتُفرَّغ عند مغادرة الصفحة.",
+    subtitle: "اعرض متابعة لفترة من/إلى، ثم احفظها لتصبح تقريراً مؤرشفاً يمكن الرجوع إليه.",
     generate: "توليد تقرير متابعة لفترة",
     from: "من",
     to: "إلى",
@@ -1153,6 +1185,12 @@ export const T = {
     empty: "لا توجد تقارير محفوظة.",
     emptyHint: "حدّد فترة زمنية وولِّد المتابعة لعرض التوصيات وملخصها.",
     sessionOnly: "هذه المتابعة لهذه الجلسة فقط. إذا غادرت الصفحة تُفرَّغ ولا تُحفظ.",
+    previewAction: "عرض المتابعة",
+    saveAction: "حفظ التقرير",
+    previewNotice: "هذه معاينة غير محفوظة. اضغط «حفظ التقرير» لتثبيت الأرقام في الأرشيف.",
+    savedNotice: "حُفظ التقرير. الأرقام مثبّتة كما هي الآن ولن تتغير لاحقاً.",
+    frozen: "لقطة مثبّتة — لا تتغير",
+    archive: "التقارير المحفوظة",
     nextForFollowup: "المطلوب في هذه المتابعة",
   },
   /** Portfolio analytics derived from the recommendation register */

@@ -2,14 +2,17 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Internal Audit System",
-    short_name: "Audit",
-    description: "Internal Audit Recommendation Management System",
+    name: "رقيب | RAQEEB",
+    short_name: "رقيب",
+    description:
+      "منصة متابعة توصيات الرقابة الداخلية — بلدية البيرة | Internal Audit Recommendation Follow-up Platform — Al-Bireh Municipality",
     start_url: "/",
     scope: "/",
     display: "standalone",
     orientation: "any",
-    lang: "en",
+    // The interface is Arabic-first and right-to-left by default.
+    lang: "ar",
+    dir: "rtl",
     background_color: "#eef1ee",
     theme_color: "#183b4e",
     icons: [

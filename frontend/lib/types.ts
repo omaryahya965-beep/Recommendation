@@ -46,6 +46,8 @@ export interface RecommendationListItem {
   id: number;
   report: number;
   report_title: string;
+  /** Assurance or advisory — inherited from the recommendation's report. */
+  engagement_type: "assurance" | "advisory";
   department: number;
   department_name: string;
   text: string;

@@ -3,15 +3,30 @@
 import { currentT } from "./i18n/messages";
 import { getLocale, localeDateTag } from "./i18n/store";
 
+/**
+ * Keep a formatted date/time together as one directional unit.
+ *
+ * An Arabic date such as "11 أكتوبر 2026" mixes Latin digits with an RTL word.
+ * Dropped into a `dir="ltr"` wrapper (as many call sites do, to keep numbers
+ * from being mirrored) the bidi algorithm reorders it into "أكتوبر 2026 11".
+ * Wrapping the result in a directional isolate makes it render as authored
+ * whatever context it lands in: RLI…PDI for Arabic, LRI…PDI for English.
+ */
+function isolate(text: string): string {
+  return getLocale() === "ar" ? `⁧${text}⁩` : `⁦${text}⁩`;
+}
+
 export function formatLongDate(value?: Date): string {
   const date = value ?? new Date();
-  return date.toLocaleDateString(localeDateTag(getLocale()), {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    numberingSystem: "latn",
-  });
+  return isolate(
+    date.toLocaleDateString(localeDateTag(getLocale()), {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      numberingSystem: "latn",
+    })
+  );
 }
 
 export function formatDayParts(value?: Date) {
@@ -28,26 +43,30 @@ export function formatDate(value: string | null | undefined): string {
   if (!value) return "—";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString(localeDateTag(getLocale()), {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    numberingSystem: "latn",
-  });
+  return isolate(
+    date.toLocaleDateString(localeDateTag(getLocale()), {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      numberingSystem: "latn",
+    })
+  );
 }
 
 export function formatDateTime(value: string | null | undefined): string {
   if (!value) return "—";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString(localeDateTag(getLocale()), {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    numberingSystem: "latn",
-  });
+  return isolate(
+    date.toLocaleString(localeDateTag(getLocale()), {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      numberingSystem: "latn",
+    })
+  );
 }
 
 export function formatTime(value: string | null | undefined): string {

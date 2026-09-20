@@ -13,7 +13,7 @@ import { ErrorBanner } from "@/components/ui/Base";
 import { OverdueBadge } from "@/components/ui/OverdueBadge";
 import { RiskBadge } from "@/components/ui/RiskBadge";
 import { StatusBadge } from "@/components/ui/StampBadge";
-import { api, loadAuth } from "@/lib/api";
+import { api, downloadFile, errorMessage, loadAuth } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { caseTitle } from "@/lib/finding";
 import { formatDate } from "@/lib/format";
@@ -36,32 +36,6 @@ function sortOptions() {
     { value: "created_at", label: T.register.sortOldest },
     { value: "risk_level", label: T.register.sortRisk },
   ] as const;
-}
-
-function toCsv(items: RecommendationListItem[]): string {
-  const header = [
-    T.table.number,
-    T.table.recommendation,
-    T.common.department,
-    T.common.status,
-    T.common.risk,
-    T.common.priority,
-    T.common.responsible,
-    T.common.targetDate,
-    T.common.overdueBadge,
-  ];
-  const rows = items.map((item) => [
-    `REC-${String(item.id).padStart(4, "0")}`,
-    caseTitle(item.text, 200).replace(/"/g, '""'),
-    item.department_name,
-    STATUS_LABELS[item.status] ?? item.status,
-    RISK_LABELS[item.risk_level] ?? item.risk_level,
-    String(item.priority_score),
-    item.responsible_employee ?? "",
-    item.target_date ?? "",
-    item.overdue ? T.common.yes : T.common.no,
-  ]);
-  return [header, ...rows].map((row) => row.map((cell) => `"${cell}"`).join(",")).join("\r\n");
 }
 
 function assignedToMe(item: RecommendationListItem) {
@@ -303,10 +277,13 @@ function RegisterInner({
     if (department && !mine && !departmentOnly) query.set("report__department", department);
     if (search) query.set("search", search);
     if (recurringOnly) query.set("is_recurring", "true");
+    // Evaluated in SQL so the count and pagination are correct.
+    if (overdueOnly) query.set("overdue", "true");
+    if (searchParams.get("open") === "true") query.set("open", "true");
     query.set("ordering", ordering);
     query.set("page", String(page));
     return query;
-  }, [mine, departmentOnly, stage, status, risk, department, search, recurringOnly, ordering, page]);
+  }, [mine, departmentOnly, stage, status, risk, department, search, recurringOnly, overdueOnly, ordering, page, searchParams]);
 
   const scopeKey = mine ? "mine" : departmentOnly ? "department" : "all";
   const { data, isLoading, isError, refetch } = useQuery({
@@ -319,7 +296,6 @@ function RegisterInner({
   const hideDepartment = mine || departmentOnly;
   const myDepartment = loadAuth()?.user.department ?? null;
   const items = (data?.results ?? []).filter((item) => {
-    if (overdueOnly && !item.overdue) return false;
     if (mine && !assignedToMe(item)) return false;
     if (mine && !EMPLOYEE_WORK_STATUSES.includes(item.status)) return false;
     if (departmentOnly && myDepartment != null && item.department !== myDepartment) return false;
@@ -348,14 +324,24 @@ function RegisterInner({
     recurringOnly ? { key: "is_recurring", label: T.filters.recurringOnly } : null,
   ].filter(Boolean) as Array<{ key: string; label: string }>;
 
-  const exportCsv = () => {
-    const blob = new Blob([`\ufeff${toCsv(items)}`], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `recommendations-${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+  // Exports the complete filtered result set from the server (not just this page).
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const exportCsv = async () => {
+    setExporting(true);
+    setExportError(null);
+    try {
+      const query = new URLSearchParams(params);
+      query.delete("page");
+      await downloadFile(
+        `/api/recommendations/export/?${query.toString()}`,
+        `recommendations-${new Date().toISOString().slice(0, 10)}.csv`
+      );
+    } catch (err) {
+      setExportError(errorMessage(err));
+    } finally {
+      setExporting(false);
+    }
   };
 
   const DirForward = locale === "ar" ? ChevronLeft : ChevronRight;
@@ -429,7 +415,7 @@ function RegisterInner({
           </button>
         </div>
 
-        <Button type="button" variant="ghost" onClick={exportCsv} disabled={!items.length} className="font-bold gap-1.5">
+        <Button type="button" variant="ghost" onClick={exportCsv} disabled={exporting || !data?.count} className="font-bold gap-1.5">
           <Download className="size-4" />
           {T.register.export}
         </Button>
@@ -571,6 +557,8 @@ function RegisterInner({
           </button>
         ) : null}
       </div>
+
+      {exportError ? <ErrorBanner message={exportError} onRetry={() => void exportCsv()} /> : null}
 
       {/* Results */}
       {isLoading ? (

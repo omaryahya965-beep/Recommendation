@@ -58,15 +58,75 @@ class EvidenceUploadApiTests(TestCase):
         analyze.assert_not_called()
         self.assertEqual(self.rec.evidence_files.count(), 1)
 
-    def test_stored_name_attaches_without_reuploading(self):
-        res = self.client.post(
-            f"/api/recommendations/{self.rec.id}/evidence/",
-            {"stored_name": "evidence/2026/08/proof.pdf", "notes": "cloudinary"},
-            format="json",
+    def _cloudinary(self, resource):
+        """Pretend Cloudinary is configured and holds `resource`."""
+        return (
+            patch("apps.core.media_views.cloudinary_ready", return_value=True),
+            patch("apps.core.uploads._fetch_resource", return_value=resource),
         )
+
+    def test_stored_name_attaches_without_reuploading(self):
+        owned = {
+            "bytes": 1024,
+            "tags": [f"uid_{self.users['emp'].id}", f"muni_{self.muni.id}"],
+        }
+        ready, fetch = self._cloudinary(owned)
+        with ready, fetch:
+            res = self.client.post(
+                f"/api/recommendations/{self.rec.id}/evidence/",
+                {"stored_name": "evidence/2026/08/proof.pdf", "notes": "cloudinary"},
+                format="json",
+            )
         self.assertEqual(res.status_code, 200)
         ev = Evidence.objects.get(recommendation=self.rec)
         self.assertEqual(ev.file.name, "evidence/2026/08/proof.pdf")
+
+    def test_cannot_claim_a_file_uploaded_by_someone_else(self):
+        """The core direct-upload hole: naming another user's object."""
+        someone_else = {"bytes": 1024, "tags": ["uid_999999", "muni_1"]}
+        ready, fetch = self._cloudinary(someone_else)
+        with ready, fetch:
+            res = self.client.post(
+                f"/api/recommendations/{self.rec.id}/evidence/",
+                {"stored_name": "evidence/2026/08/someone-elses.pdf"},
+                format="json",
+            )
+        self.assertEqual(res.status_code, 409)
+        self.assertEqual(Evidence.objects.filter(recommendation=self.rec).count(), 0)
+
+    def test_cannot_claim_a_file_that_does_not_exist(self):
+        ready, fetch = self._cloudinary(None)
+        with ready, fetch:
+            res = self.client.post(
+                f"/api/recommendations/{self.rec.id}/evidence/",
+                {"stored_name": "evidence/2026/08/imaginary.pdf"},
+                format="json",
+            )
+        self.assertEqual(res.status_code, 409)
+
+    def test_oversized_direct_upload_is_rejected_server_side(self):
+        """Size limits must not live only in the browser."""
+        too_big = {
+            "bytes": 999 * 1024 * 1024,
+            "tags": [f"uid_{self.users['emp'].id}"],
+        }
+        ready, fetch = self._cloudinary(too_big)
+        with ready, fetch:
+            res = self.client.post(
+                f"/api/recommendations/{self.rec.id}/evidence/",
+                {"stored_name": "evidence/2026/08/huge.pdf"},
+                format="json",
+            )
+        self.assertEqual(res.status_code, 409)
+
+    def test_stored_name_rejected_when_direct_upload_is_unavailable(self):
+        """With no Cloudinary there is no legitimate way to produce a key."""
+        res = self.client.post(
+            f"/api/recommendations/{self.rec.id}/evidence/",
+            {"stored_name": "evidence/2026/08/proof.pdf"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 409)
 
     def test_rejects_stored_name_outside_evidence_folder(self):
         res = self.client.post(

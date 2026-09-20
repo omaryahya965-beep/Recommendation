@@ -30,7 +30,16 @@ SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+# Opt-in, and deliberately not on by default. Submitting a domain to the
+# browser preload list is effectively irreversible for its subdomains, so
+# that is the operator's decision to make for a custom domain, not a default
+# this deployment should assume. (*.vercel.app is already preloaded.)
+SECURE_HSTS_PRELOAD = os.environ.get("SECURE_HSTS_PRELOAD", "False") == "True"
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+# Defence-in-depth headers that cost nothing here.
+SECURE_REFERRER_POLICY = "same-origin"
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = "DENY"
 
 # Serverless (Vercel): do not persist DB connections across invocations.
 # Use Neon's pooled DATABASE_URL for the running app; see DEPLOY.md.

@@ -27,7 +27,14 @@ const FEATURE_CARDS = [
   },
 ] as const;
 
-export function FeatureCards({ className = "" }: { className?: string }) {
+export function FeatureCards({
+  className = "",
+  compact = false,
+}: {
+  className?: string;
+  /** Slightly tighter card padding on desktop, for the longer English copy. */
+  compact?: boolean;
+}) {
   return (
     <ul className={`relative z-10 grid w-full max-w-[38rem] grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-5 ${className}`}>
       {FEATURE_CARDS.map((card) => {
@@ -35,7 +42,7 @@ export function FeatureCards({ className = "" }: { className?: string }) {
         return (
           <li
             key={card.titleKey}
-            className="group flex flex-col items-center gap-1.5 rounded-2xl p-4 text-center transition-all duration-200 sm:gap-2 lg:p-5 xl:p-6"
+            className={`group flex flex-col items-center gap-1.5 rounded-2xl p-4 text-center transition-all duration-200 sm:gap-2 ${compact ? "lg:p-4 xl:p-4" : "lg:p-5 xl:p-6"}`}
             style={{ 
               backgroundColor: "var(--login-hero-card)", 
               borderColor: "var(--login-hero-card-border)",

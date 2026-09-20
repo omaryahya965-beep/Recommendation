@@ -1,6 +1,6 @@
 "use client";
 
-import { AlBirehSeal } from "@/components/brand/AlBirehSeal";
+import { MunicipalityLogo } from "@/components/brand/MunicipalityLogo";
 import { cn } from "@/lib/cn";
 
 export function MunicipalityMark({
@@ -41,7 +41,7 @@ export function MunicipalityMark({
         className
       )}
     >
-      <AlBirehSeal size={size} />
+      <MunicipalityLogo size={size} />
       <div className={cn(isStacked ? "mt-2.5 text-center" : "text-start")}>
         <p
           className={cn(

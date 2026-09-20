@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import re
 
+from apps.ai import taxonomy
 from apps.ai.models import AIAnalysis
 from apps.ai.providers import provider_meta
 from apps.ai.services.case_copy import next_action, risk_label, status_label
@@ -49,17 +50,6 @@ GENERIC_ISSUE = re.compile(
     r"required actions\.?$|الإجراءات المطلوبة",
     re.I,
 )
-
-CATEGORY_RULES = [
-    ("PROCUREMENT", re.compile(r"شراء|مشتريات|عطاء|توريد|procurement|tender|purchas", re.I)),
-    ("FINANCE", re.compile(r"مالي|خزين|صرف|إيراد|محاسب|أمين صندوق|finance|cash|budget|revenue|cashier", re.I)),
-    ("HR", re.compile(r"موارد بشر|موظف|توظيف|hr\b|personnel|staff", re.I)),
-    ("IT", re.compile(r"أنظم|حاسوب|برمج|أمن معلومات|it\b|cyber|system", re.I)),
-    ("COMPLIANCE", re.compile(r"امتثال|قانون|لائحة|compliance|legal|regulat", re.I)),
-    ("ASSET_MANAGEMENT", re.compile(r"أصل|مخزون|معدة|asset|inventory|fleet", re.I)),
-    ("REVENUE", re.compile(r"رسوم|جباية|تحصيل|tax|fee|collection", re.I)),
-    ("OPERATIONS", re.compile(r"تشغيل|خدمة|صيان|operation|service|maintenance", re.I)),
-]
 
 def _band(score: int) -> str:
     if score >= 75:
@@ -171,20 +161,23 @@ def local_recommendation_analysis(rec, language: str) -> dict:
     likelihood = 70 if rec.is_recurring else 55
     urgency = 75 if rec.risk_level == "high" else 50
     blob = semantic_payload(rec.text, rec.root_cause)
-    financial = 80 if CATEGORY_RULES[1][1].search(blob) else risk_base
-    compliance = 80 if CATEGORY_RULES[4][1].search(blob) else max(30, risk_base - 5)
-    operational = 78 if CATEGORY_RULES[7][1].search(blob) else risk_base
+    # Named lookups: these used to index CATEGORY_RULES positionally, so
+    # reordering the list silently rewired the risk dimensions.
+    financial = 80 if taxonomy.matches("FINANCE", blob) else risk_base
+    compliance = (
+        80 if taxonomy.matches("COMPLIANCE", blob) else max(30, risk_base - 5)
+    )
+    operational = 78 if taxonomy.matches("OPERATIONS", blob) else risk_base
     reputational = 70 if rec.risk_level == "high" else 40
     risk_score = round(
         0.25 * impact + 0.15 * likelihood + 0.15 * urgency
         + 0.15 * operational + 0.15 * financial + 0.10 * compliance + 0.05 * reputational
     )
 
-    category = "OTHER"
-    for name, pattern in CATEGORY_RULES:
-        if pattern.search(blob) or pattern.search(rec.report.department.name):
-            category = name
-            break
+    # Scored classification over the shared taxonomy. The finding text leads;
+    # the department name only corroborates, so a finance department raising
+    # an IT finding is still classified from what the finding actually says.
+    category = taxonomy.classify(blob, rec.report.department.name)
 
     if rec.risk_level == "high":
         priority = "HIGH"
@@ -331,6 +324,9 @@ def local_recommendation_analysis(rec, language: str) -> dict:
         "reputational_risk": clamp_score(reputational),
         "suggested_priority": priority,
         "suggested_category": category,
+        "suggested_category_label": taxonomy.category_label(category, language),
+        # Named so the UI can never present this as the auditor's own score.
+        "priority_is_suggestion_only": True,
         "department_relevance": dept,
         "keywords": keywords,
         "issues": issues[:3],
@@ -381,9 +377,11 @@ def _merge_llm(local: dict, llm: dict, rec, language: str) -> dict:
     merged["quality_band"] = _band(merged["quality_score"])
     if llm.get("suggested_priority") in ("HIGH", "MEDIUM", "LOW"):
         merged["suggested_priority"] = llm["suggested_priority"]
-    allowed_cat = {name for name, _ in CATEGORY_RULES} | {"OTHER"}
-    if llm.get("suggested_category") in allowed_cat:
+    if llm.get("suggested_category") in taxonomy.CATEGORY_KEYS:
         merged["suggested_category"] = llm["suggested_category"]
+    merged["suggested_category_label"] = taxonomy.category_label(
+        merged["suggested_category"], language
+    )
 
     llm_issues = [
         str(x).strip()[:180]
@@ -441,7 +439,7 @@ def analyze_recommendation(rec, user, language: str = "ar") -> AIAnalysis:
     llm_out = generate_structured(prompt, fallback=local)
     output = _merge_llm(local, llm_out, rec, lang)
     output["disclaimer"] = (
-        "تحليل استشاري لهذا الملف تحديداً. لا يغيّر حالة التوصية ولا يغني عن اعتماد بشري."
+        "تحليل مساعد لهذا الملف تحديداً. لا يغيّر حالة التوصية ولا يغني عن اعتماد بشري."
         if lang == "ar"
         else "Advisory analysis of this file. It does not change workflow status and does not replace human approval."
     )

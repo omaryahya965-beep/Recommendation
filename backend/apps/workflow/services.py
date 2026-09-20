@@ -14,6 +14,7 @@ from apps.audits.models import AuditReport, Recommendation
 from apps.core.exceptions import StorageUnavailable, WorkflowError
 from apps.core.files import bind_stored_name
 from apps.core.models import log_action
+from apps.core.uploads import claim_uploaded_file
 from apps.notifications.models import Notification
 
 from .models import (
@@ -28,6 +29,15 @@ from .transitions import transition
 
 S = Recommendation.Status
 logger = logging.getLogger(__name__)
+
+# Notification text is written in Arabic, but the model's choice labels are
+# English ("Insufficient - returned"). Using get_decision_display() leaked that
+# English string into Arabic users' notifications.
+_VERIFICATION_LABELS_AR = {
+    "sufficient": "كافية — إغلاق",
+    "partial": "جزئية — تبقى مفتوحة",
+    "insufficient": "غير كافية — أُعيدت للاستكمال",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -235,6 +245,12 @@ def submit_response(recommendation, user, decision, justification="", attachment
     response.justification = justification
     try:
         if stored_name:
+            # Never trust a client-supplied storage key: confirm with the
+            # storage provider that this user uploaded it, into the right
+            # folder, within the size and type limits.
+            stored_name = claim_uploaded_file(
+                stored_name, purpose="response", user=user
+            )
             bind_stored_name(response, "attachment", stored_name)
         elif attachment is not None:
             response.attachment = attachment
@@ -518,6 +534,11 @@ def add_evidence(recommendation, user, file=None, step=None, notes="", stored_na
     if file is None and not stored_name:
         raise WorkflowError("A file is required.")
 
+    if stored_name:
+        # Same rule as management-response attachments: the key is verified
+        # against the storage provider before it is attached to a case.
+        stored_name = claim_uploaded_file(stored_name, purpose="evidence", user=user)
+
     try:
         evidence = Evidence(
             recommendation=recommendation, step=step, uploaded_by=user, notes=notes
@@ -718,7 +739,7 @@ def verify(recommendation, user, decision, notes="", rejected_items="", rejectio
             recommendation,
             Notification.Type.RETURNED,
             (
-                f"قرار التحقق على {_rec_ref(recommendation)}: {verification.get_decision_display()}. "
+                f"قرار التحقق على {_rec_ref(recommendation)}: {_VERIFICATION_LABELS_AR.get(decision, decision)}. "
                 f"المرفوض: {rejected_items}. السبب: {rejection_reason}. "
                 f"المطلوب: {required_action}. الموعد النهائي: {action_deadline}."
             ),

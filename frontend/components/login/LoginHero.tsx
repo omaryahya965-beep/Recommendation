@@ -5,11 +5,17 @@ import Image from "next/image";
 import { LoginToolbar } from "@/components/login/LoginToolbar";
 import { MunicipalityMark } from "@/components/login/MunicipalityMark";
 import { T, useI18n } from "@/lib/i18n";
+import { RaqeebWordmark } from "@/components/brand/RaqeebWordmark";
 import { FeatureCards } from "./FeatureCards";
+import { HeroOrnaments } from "./LoginOrnaments";
 import { ShieldCheck, BarChart3, Users } from "lucide-react";
 
 export function LoginHero() {
-  const { dir } = useI18n();
+  const { dir, locale } = useI18n();
+  // English copy is longer than Arabic (the description wraps to two lines and
+  // the feature-card text to three), so English gets a wider text column and
+  // wider cards to keep the group inside the viewport.
+  const en = locale === "en";
 
   return (
     <aside
@@ -21,7 +27,7 @@ export function LoginHero() {
 
       {/* ── Building photograph (PART 3) ── */}
       <div
-        className="relative shrink-0 overflow-hidden h-[38dvh] min-h-[18rem] w-full lg:flex-none lg:h-[48%]"
+        className={`relative shrink-0 overflow-hidden h-[38dvh] min-h-[18rem] w-full lg:min-h-[12rem] lg:flex-none ${en ? "lg:h-[44.5%] lg:[@media(max-height:760px)]:h-[32%]" : "lg:h-[46.5%] lg:[@media(max-height:760px)]:h-[35%]"}`}
       >
         <Image
           src="/images/al-bireh-city-hall.jpg"
@@ -30,7 +36,7 @@ export function LoginHero() {
           priority
           unoptimized
           sizes="(min-width: 1024px) 50vw, 100vw"
-          className="object-cover object-[center_28%]"
+          className="object-cover object-[center_28%] lg:object-[center_41%]"
         />
         
         {/* ── Mobile Static Text Layout (Inside Image) ── */}
@@ -38,22 +44,11 @@ export function LoginHero() {
         <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black/90 lg:hidden pointer-events-none" />
         
         <div className="absolute inset-0 z-20 flex flex-col justify-between pt-3 pb-4 px-4 lg:hidden">
-          {/* Top: platform name sits in the former slogan slot */}
-          <div className="flex flex-col items-center text-center mt-0">
-            <h3
-              className="invisible mb-1 text-[1.25rem] font-extrabold leading-tight select-none"
-              aria-hidden
-            >
-              {T.login.heroTitle}
-            </h3>
-            <p
-              className="text-[1.25rem] font-bold drop-shadow-md"
-              style={{ color: "var(--login-hero-text-sub)" }}
-            >
-              {T.login.heroTitle}
-            </p>
-          </div>
-          
+          {/* Top: intentionally empty. The RAQEEB wordmark lives in the sign-in
+              card, so it is not repeated over the photo. This spacer keeps the
+              description and features pinned to the bottom (justify-between). */}
+          <div aria-hidden />
+
           {/* Bottom: Description + Horizontal Features */}
           <div className="flex flex-col items-center text-center">
             <p 
@@ -137,64 +132,22 @@ export function LoginHero() {
       {/* ── Teal information section (Desktop Only) ── */}
       <div
         dir={dir}
-        className="relative z-10 hidden lg:flex min-h-0 flex-1 flex-col items-center justify-between px-4 pb-6 pt-2 lg:px-6 lg:pb-4 xl:px-10 xl:pb-6 transition-colors duration-250 ease-in-out"
+        className="relative z-10 hidden lg:flex min-h-0 flex-1 flex-col items-center justify-evenly px-4 pb-6 pt-2 lg:px-6 lg:pb-4 xl:px-10 xl:pb-6 lg:[@media(max-height:760px)]:pb-2 transition-colors duration-250 ease-in-out"
         style={{ backgroundColor: "var(--login-hero-bg)" }}
       >
-        {/* Organic 3-Leaf Stem Watermark on bottom-left background */}
-        <svg
-          aria-hidden
-          viewBox="0 0 160 160"
-          className="pointer-events-none absolute start-3 bottom-6 size-44 opacity-[0.12] select-none"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            d="M 10,150 C 30,100 80,50 140,20"
-            style={{ stroke: "var(--login-hero-text)", transition: "stroke 250ms ease-in-out" }}
-            strokeWidth="2.5"
-            strokeLinecap="round"
-          />
-          <path
-            d="M 140,20 C 110,35 90,65 110,85 C 130,65 145,45 140,20 Z"
-            style={{ stroke: "var(--login-hero-text)", transition: "stroke 250ms ease-in-out" }}
-            strokeWidth="1.8"
-            fill="none"
-          />
-          <path
-            d="M 75,85 C 45,75 30,95 45,115 C 65,105 75,95 75,85 Z"
-            style={{ stroke: "var(--login-hero-text)", transition: "stroke 250ms ease-in-out" }}
-            strokeWidth="1.8"
-            fill="none"
-          />
-          <path
-            d="M 40,120 C 15,120 10,140 25,150 C 40,145 45,135 40,120 Z"
-            style={{ stroke: "var(--login-hero-text)", transition: "stroke 250ms ease-in-out" }}
-            strokeWidth="1.8"
-            fill="none"
-          />
-        </svg>
+        {/* Decorative artwork from the supplied ornament sheet. */}
+        <HeroOrnaments />
 
         {/* ── Platform branding copy (PART 1) ── */}
-        <div className="relative z-10 flex w-full max-w-[42rem] flex-col items-center text-center transition-colors duration-250 ease-in-out">
-          {/* 1. HERO TITLE: dominant heading (38-44px desktop, font 700-800, line-height 1.3) */}
-          <h2 
-            className="text-[clamp(1.4rem,2.5vw,2.4rem)] font-extrabold leading-[1.3] tracking-normal whitespace-nowrap transition-colors duration-250 ease-in-out"
-            style={{ color: "var(--login-hero-text)" }}
-          >
-            {T.login.heroTitle}
-          </h2>
-
-          {/* 2. HERO SUBTITLE: secondary (20-23px, font 500-600, line-height 1.5, soft white, mt 10-14px) */}
-          <p 
-            className="mt-2 text-[clamp(0.9rem,1.1vw,1.2rem)] font-semibold leading-[1.5] transition-colors duration-250 ease-in-out"
-            style={{ color: "var(--login-hero-text-sub)" }}
-          >
-            {T.login.heroSubtitle}
-          </p>
+        <div className={`relative z-10 flex w-full ${en ? "max-w-[50rem]" : "max-w-[42rem]"} flex-col items-center text-center transition-colors duration-250 ease-in-out`}>
+          {/* Wordmark: رقيب / R A Q E E B / tagline */}
+          <div style={{ color: "var(--login-hero-text)" }} className="w-full">
+            <RaqeebWordmark size="hero" />
+          </div>
 
           {/* 3. HERO DESCRIPTION: (15-17px, line-height 1.8-2, font 400, max-w 650px, mt 18-24px) */}
           <p 
-            className="mt-3 max-w-[36rem] text-center text-[clamp(0.8rem,0.85vw,0.95rem)] font-normal leading-[1.8] transition-colors duration-250 ease-in-out"
+            className={`mt-3 ${en ? "max-w-[46rem]" : "max-w-[36rem]"} text-center text-[clamp(0.8rem,0.85vw,0.95rem)] font-normal leading-[1.8] transition-colors duration-250 ease-in-out`}
             style={{ color: "var(--login-hero-text-muted)" }}
           >
             {T.login.heroSupporting}
@@ -202,7 +155,7 @@ export function LoginHero() {
         </div>
 
         {/* ── Feature cards (all screens) ── */}
-        <FeatureCards className="mt-8 lg:mt-10 xl:mt-12" />
+        <FeatureCards compact={en} className={en ? "mt-4 max-w-[46rem]!" : "mt-4"} />
       </div>
 
     </aside>

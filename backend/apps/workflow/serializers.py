@@ -95,16 +95,19 @@ class EvidenceSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_file_url(self, obj):
+        """Authorization-checked download endpoint, not the raw storage URL.
+
+        Handing out the storage URL directly makes a confidential evidence file
+        readable by anyone who obtains the link. This route re-checks that the
+        caller may see the parent recommendation and records the access.
+        """
         if not obj.file:
             return None
-        url = obj.file.url
-        # Cloudinary returns an absolute HTTPS URL. Do not prefix the API host.
-        if url.startswith(("http://", "https://")):
-            return url
         request = self.context.get("request")
-        if request:
-            return request.build_absolute_uri(url)
-        return None
+        path = f"/api/evidence/{obj.pk}/download/"
+        if request is not None:
+            return request.build_absolute_uri(path)
+        return path
 
 
 class VerificationDecisionSerializer(serializers.ModelSerializer):

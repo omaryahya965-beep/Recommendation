@@ -30,7 +30,7 @@ import {
   type FindingSectionId,
 } from "@/lib/finding";
 import { formatDate } from "@/lib/format";
-import { ENGAGEMENT_LABELS, RISK_LABELS, T, useI18n } from "@/lib/i18n";
+import { REPORT_TYPE_LABELS, RISK_LABELS, T, useI18n } from "@/lib/i18n";
 import type { AuditReport, Paginated } from "@/lib/types";
 import { useUnsavedChanges } from "@/lib/useUnsavedChanges";
 
@@ -236,7 +236,7 @@ function NewRecommendationWizard() {
                 <dl className="mt-5 grid gap-4 rounded-xl border border-line bg-subtle/30 p-4.5 sm:grid-cols-2 lg:grid-cols-4">
                   <DataField label={T.response.responsibleParty}><span className="font-bold text-navy">{report.department_name}</span></DataField>
                   <DataField label={T.create.engagement}>
-                    <span className="font-semibold text-ink">{ENGAGEMENT_LABELS[report.engagement_type]}</span>
+                    <span className="font-semibold text-ink">{REPORT_TYPE_LABELS[report.engagement_type]}</span>
                   </DataField>
                   <DataField label={T.common.targetDate}>
                     <span className="font-mono text-ink-soft" dir="ltr">{formatDate(report.response_deadline)}</span>

@@ -1,20 +1,43 @@
-"""Follow-up preview: computed from live data and returned for this session only."""
-from django.db.models import Count
+"""Follow-up reporting.
+
+A follow-up report covers the recommendations that were **on the register
+during the period**: issued on or before `period_end`, and not already closed
+before `period_start`. Both bounds matter — a report for Q1 must not be
+polluted by items closed in the previous year, nor by items issued afterwards.
+
+`build_followup_snapshot` is the single source of truth; `preview_followup_report`
+renders it without saving and `generate_followup_report` freezes it into a
+`FollowUpReport` row so historical reports never drift when the underlying
+recommendations move on.
+"""
+from django.db import transaction
+from django.db.models import Count, Q
 from django.utils import timezone
 
-from apps.audits.models import Recommendation
+from apps.audits.models import AuditReport, Recommendation
 from apps.audits.serializers import is_overdue
+from apps.core.models import log_action
+
+from .models import FollowUpReport
 
 
-def build_followup_snapshot(municipality, period_start, period_end):
-    recommendations = (
+def period_queryset(municipality, period_start, period_end):
+    """Recommendations on the register during [period_start, period_end]."""
+    return (
         Recommendation.objects.filter(
             report__municipality=municipality,
             created_at__date__lte=period_end,
         )
         .exclude(status=Recommendation.Status.DRAFT)
+        .exclude(report__status=AuditReport.Status.DRAFT)
+        # Closed before the period opened -> not part of this follow-up.
+        .filter(Q(closed_at__isnull=True) | Q(closed_at__date__gte=period_start))
         .select_related("report__department", "action_plan__responsible_employee")
     )
+
+
+def build_followup_snapshot(municipality, period_start, period_end):
+    recommendations = period_queryset(municipality, period_start, period_end)
 
     by_status = dict(recommendations.values_list("status").annotate(count=Count("id")))
     by_risk = dict(recommendations.values_list("risk_level").annotate(count=Count("id")))
@@ -22,6 +45,9 @@ def build_followup_snapshot(municipality, period_start, period_end):
         row["report__department__name"]: row["count"]
         for row in recommendations.values("report__department__name").annotate(count=Count("id"))
     }
+    by_engagement_type = dict(
+        recommendations.values_list("report__engagement_type").annotate(count=Count("id"))
+    )
 
     items = []
     overdue_count = 0
@@ -42,6 +68,8 @@ def build_followup_snapshot(municipality, period_start, period_end):
                 "target_date": str(plan.target_date) if plan else None,
                 "responsible": plan.responsible_employee.full_name_ar if plan else None,
                 "overdue": overdue,
+                "engagement_type": rec.report.engagement_type,
+                "closed_at": rec.closed_at.date().isoformat() if rec.closed_at else None,
             }
         )
 
@@ -49,6 +77,8 @@ def build_followup_snapshot(municipality, period_start, period_end):
     closed = by_status.get(Recommendation.Status.CLOSED, 0)
     return {
         "generated_at": timezone.now().isoformat(),
+        "period_start": str(period_start),
+        "period_end": str(period_end),
         "totals": {
             "total": total,
             "closed": closed,
@@ -58,6 +88,7 @@ def build_followup_snapshot(municipality, period_start, period_end):
         "by_status": by_status,
         "by_risk": by_risk,
         "by_department": by_department,
+        "by_engagement_type": by_engagement_type,
         "items": items,
     }
 
@@ -194,6 +225,7 @@ def build_followup_executive_summary(snapshot, period_start, period_end, languag
 
 
 def preview_followup_report(municipality, period_start, period_end, language="ar"):
+    """Compute the report without saving. Used for the on-screen preview."""
     snapshot = build_followup_snapshot(municipality, period_start, period_end)
     return {
         "period_start": period_start,
@@ -203,3 +235,35 @@ def preview_followup_report(municipality, period_start, period_end, language="ar
             snapshot, period_start, period_end, language
         ),
     }
+
+
+@transaction.atomic
+def generate_followup_report(municipality, user, period_start, period_end, language="ar"):
+    """Freeze the current numbers into a persisted FollowUpReport.
+
+    The stored snapshot is intentionally a copy, not a query: reopening this
+    report next year must show what was true on the generation date, even
+    after the underlying recommendations have moved on.
+    """
+    snapshot = build_followup_snapshot(municipality, period_start, period_end)
+    summary = build_followup_executive_summary(
+        snapshot, period_start, period_end, language
+    )
+    report = FollowUpReport.objects.create(
+        municipality=municipality,
+        period_start=period_start,
+        period_end=period_end,
+        generated_by=user,
+        snapshot=snapshot,
+        executive_summary=summary,
+        language=language if language in ("ar", "en") else "ar",
+    )
+    log_action(
+        user,
+        "followup_report_generated",
+        followup_report_id=report.id,
+        period_start=str(period_start),
+        period_end=str(period_end),
+        total=snapshot["totals"]["total"],
+    )
+    return report

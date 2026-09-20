@@ -132,6 +132,49 @@ export async function api<T>(
   return (await res.json()) as T;
 }
 
+/**
+ * Fetch a file from an authenticated endpoint and hand it to the browser.
+ *
+ * A plain anchor cannot be used: the API authenticates with a Bearer header,
+ * which a navigation request will not carry. This performs the authenticated
+ * request (refreshing the token once, like `api`) and saves the response.
+ */
+export async function downloadFile(path: string, fallbackName: string): Promise<void> {
+  const doFetch = async (token: string | null) =>
+    fetch(`${API_BASE}${path}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+
+  let token = loadAuth()?.access ?? null;
+  let res = await doFetch(token);
+  if (res.status === 401 && token) {
+    token = await tryRefresh();
+    if (token) res = await doFetch(token);
+  }
+  if (!res.ok) {
+    let body: unknown = null;
+    try {
+      body = await res.json();
+    } catch {
+      /* non-JSON error body */
+    }
+    throw new ApiError(res.status, body, `API ${res.status}`);
+  }
+
+  // Prefer the filename the server chose, so exports are named consistently.
+  const disposition = res.headers.get("Content-Disposition") ?? "";
+  const match = /filename="?([^";]+)"?/i.exec(disposition);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = match?.[1] ?? fallbackName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 export async function login(username: string, password: string): Promise<AuthState> {
   const res = await fetch(`${API_BASE}/api/auth/login/`, {
     method: "POST",
@@ -145,7 +188,24 @@ export async function login(username: string, password: string): Promise<AuthSta
   return state;
 }
 
-export function logout() {
+/**
+ * Sign out.
+ *
+ * Clearing local storage alone leaves the refresh token valid for its full
+ * lifetime, so a copy taken beforehand keeps working. Ask the server to
+ * blacklist it first, then clear locally and navigate — and still clear
+ * locally if that call fails, because a user who pressed "sign out" must
+ * end up signed out regardless.
+ */
+export async function logout() {
+  const refresh = loadAuth()?.refresh;
+  if (refresh) {
+    try {
+      await api("/api/auth/logout/", { method: "POST", body: { refresh } });
+    } catch {
+      /* Revocation is best-effort; never block the user from leaving. */
+    }
+  }
   saveAuth(null);
   if (typeof window !== "undefined") window.location.href = "/login";
 }

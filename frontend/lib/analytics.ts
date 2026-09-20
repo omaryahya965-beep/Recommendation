@@ -1,53 +1,77 @@
 import { api } from "@/lib/api";
-import type { Paginated, RecommendationListItem } from "@/lib/types";
+import type { RecommendationStatus } from "@/lib/types";
 import { CLOSED_STATUSES, localizedWorkflowStages, stageIndexForStatus } from "@/lib/workflow";
 
 /**
- * The backend caps `page_size` at 100 and exposes no per-department aggregation
- * endpoint, so portfolio analytics are derived on the client from the real
- * recommendation records. Nothing here is estimated or fabricated: every number
- * is a count over rows the API actually returned.
+ * Portfolio analytics, aggregated by the API.
  *
- * `truncated` is surfaced so the UI can say so instead of quietly showing a
- * partial picture.
+ * This used to page up to 1,200 recommendations into the browser and count
+ * them in JavaScript. That shipped every finding's full text just to draw a
+ * chart, got slower as a municipality accumulated history, and silently
+ * truncated past the page ceiling — so the charts could disagree with the
+ * dashboard without saying so.
+ *
+ * `GET /api/analytics/` returns grouped aggregates computed in SQL under the
+ * caller's normal scoping. The payload is a few KB whatever the data volume,
+ * and there is no truncation to disclose because nothing is truncated.
  */
-export interface Portfolio {
-  items: RecommendationListItem[];
+
+export interface AnalyticsTotals {
   total: number;
-  truncated: boolean;
+  open: number;
+  closed: number;
+  overdue: number;
+  high_risk_open: number;
+  recurring_confirmed: number;
+  recurring_flagged: number;
+  with_plan: number;
+  completion_rate: number;
+  overdue_rate: number;
 }
 
-const PAGE_SIZE = 100;
-/** Hard ceiling so a large municipality can never spin the browser. */
-const MAX_PAGES = 12;
-
-export async function fetchPortfolio(query = ""): Promise<Portfolio> {
-  const items: RecommendationListItem[] = [];
-  let total = 0;
-
-  for (let page = 1; page <= MAX_PAGES; page += 1) {
-    const search = new URLSearchParams(query);
-    search.set("page_size", String(PAGE_SIZE));
-    search.set("page", String(page));
-
-    const chunk = await api<Paginated<RecommendationListItem>>(
-      `/api/recommendations/?${search.toString()}`
-    );
-    total = chunk.count;
-    items.push(...chunk.results);
-    if (!chunk.next) break;
-  }
-
-  return { items, total, truncated: items.length < total };
+export interface DepartmentRow {
+  department: number;
+  name: string;
+  total: number;
+  open: number;
+  closed: number;
+  overdue: number;
+  in_progress: number;
+  high_risk: number;
+  recurring: number;
+  execution_rate: number;
 }
 
-const IN_PROGRESS_STATUSES = new Set([
-  "in_progress",
-  "partial",
-  "returned_insufficient",
-  "reopened",
-  "pending_head_review",
-]);
+export interface VolumePoint {
+  month: string;
+  created: number;
+  closed: number;
+}
+
+export interface AnalyticsPayload {
+  generated_at: string;
+  totals: AnalyticsTotals;
+  by_status: Partial<Record<RecommendationStatus, number>>;
+  by_risk: Record<string, number>;
+  by_engagement_type: Record<string, number>;
+  by_department: DepartmentRow[];
+  volume: VolumePoint[];
+  implementation: {
+    average_step_progress: number;
+    steps_total: number;
+    steps_done: number;
+    steps_completion_rate: number;
+  };
+  recurrence: { confirmed: number; awaiting_confirmation: number };
+}
+
+export async function fetchAnalytics(months = 12): Promise<AnalyticsPayload> {
+  return api<AnalyticsPayload>(`/api/analytics/?months=${months}`);
+}
+
+/* ------------------------------------------------------------------ */
+/* Presentation shapes derived from the aggregate payload.            */
+/* ------------------------------------------------------------------ */
 
 export interface DepartmentPressure {
   department: number;
@@ -56,6 +80,7 @@ export interface DepartmentPressure {
   open: number;
   closed: number;
   overdue: number;
+  /** Actively being executed, as opposed to sitting in a review queue. */
   inProgress: number;
   highRisk: number;
   recurring: number;
@@ -63,39 +88,19 @@ export interface DepartmentPressure {
   executionRate: number;
 }
 
-export function departmentPressure(items: RecommendationListItem[]): DepartmentPressure[] {
-  const rows = new Map<number, DepartmentPressure>();
-
-  for (const item of items) {
-    const row = rows.get(item.department) ?? {
-      department: item.department,
-      name: item.department_name,
-      total: 0,
-      open: 0,
-      closed: 0,
-      overdue: 0,
-      inProgress: 0,
-      highRisk: 0,
-      recurring: 0,
-      executionRate: 0,
-    };
-
-    const closed = CLOSED_STATUSES.has(item.status);
-    row.total += 1;
-    if (closed) row.closed += 1;
-    else row.open += 1;
-    if (IN_PROGRESS_STATUSES.has(item.status)) row.inProgress += 1;
-    if (item.overdue) row.overdue += 1;
-    if (item.risk_level === "high" && !closed) row.highRisk += 1;
-    if (item.is_recurring) row.recurring += 1;
-
-    rows.set(item.department, row);
-  }
-
-  return [...rows.values()]
+export function departmentPressure(payload: AnalyticsPayload): DepartmentPressure[] {
+  return payload.by_department
     .map((row) => ({
-      ...row,
-      executionRate: row.total ? Math.round((row.closed / row.total) * 100) : 0,
+      department: row.department,
+      name: row.name,
+      total: row.total,
+      open: row.open,
+      closed: row.closed,
+      overdue: row.overdue,
+      inProgress: row.in_progress,
+      highRisk: row.high_risk,
+      recurring: row.recurring,
+      executionRate: Math.round(row.execution_rate),
     }))
     .sort((a, b) => b.overdue - a.overdue || b.highRisk - a.highRisk || b.open - a.open);
 }
@@ -108,16 +113,21 @@ export interface StagePressure {
 }
 
 /**
- * Counts open recommendations per workflow stage. This answers "where is the
- * pipeline stuck", which a raw status histogram does not.
+ * Open recommendations per workflow stage — "where is the pipeline stuck",
+ * which a raw status histogram does not answer.
+ *
+ * Folding the status histogram into stages is cheap and stays on the client,
+ * because the stage definitions are a UI concern: the server would otherwise
+ * have to know about the presentation grouping.
  */
-export function stagePressure(items: RecommendationListItem[]): StagePressure[] {
+export function stagePressure(payload: AnalyticsPayload): StagePressure[] {
   const stages = localizedWorkflowStages();
   const counts = new Array(stages.length).fill(0) as number[];
 
-  for (const item of items) {
-    if (CLOSED_STATUSES.has(item.status)) continue;
-    counts[stageIndexForStatus(item.status)] += 1;
+  for (const [status, count] of Object.entries(payload.by_status)) {
+    const key = status as RecommendationStatus;
+    if (CLOSED_STATUSES.has(key)) continue;
+    counts[stageIndexForStatus(key)] += count ?? 0;
   }
 
   return stages.map((stage, index) => ({
@@ -141,32 +151,16 @@ export interface PortfolioRates {
   recurring: number;
 }
 
-export function portfolioRates(items: RecommendationListItem[]): PortfolioRates {
-  let open = 0;
-  let closed = 0;
-  let overdue = 0;
-  let highRisk = 0;
-  let recurring = 0;
-
-  for (const item of items) {
-    if (CLOSED_STATUSES.has(item.status)) closed += 1;
-    else {
-      open += 1;
-      if (item.risk_level === "high") highRisk += 1;
-    }
-    if (item.overdue) overdue += 1;
-    if (item.is_recurring) recurring += 1;
-  }
-
-  const total = open + closed;
+export function portfolioRates(payload: AnalyticsPayload): PortfolioRates {
+  const totals = payload.totals;
   return {
-    open,
-    closed,
-    total,
-    completionRate: total ? Math.round((closed / total) * 100) : 0,
-    overdueRate: open ? Math.round((overdue / open) * 100) : 0,
-    overdue,
-    highRisk,
-    recurring,
+    open: totals.open,
+    closed: totals.closed,
+    total: totals.total,
+    completionRate: Math.round(totals.completion_rate),
+    overdueRate: Math.round(totals.overdue_rate),
+    overdue: totals.overdue,
+    highRisk: totals.high_risk_open,
+    recurring: totals.recurring_confirmed,
   };
 }

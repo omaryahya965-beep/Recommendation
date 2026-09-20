@@ -9,7 +9,7 @@ import { useState } from "react";
 import { Button, Callout, Card, ErrorBanner, Field, Select, TextInput } from "@/components/ui/Base";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { api, errorMessage } from "@/lib/api";
-import { ENGAGEMENT_LABELS, T, useI18n } from "@/lib/i18n";
+import { ENGAGEMENT_TYPE_LABELS, T, useI18n } from "@/lib/i18n";
 import type { AuditReport, Department, Paginated } from "@/lib/types";
 
 export default function NewReportPage() {
@@ -99,8 +99,8 @@ export default function NewReportPage() {
           </Field>
           <Field label={T.create.engagement}>
             <Select value={engagementType} onChange={(event) => setEngagementType(event.target.value)}>
-              <option value="assurance">{ENGAGEMENT_LABELS.assurance}</option>
-              <option value="advisory">{ENGAGEMENT_LABELS.advisory}</option>
+              <option value="assurance">{ENGAGEMENT_TYPE_LABELS.assurance}</option>
+              <option value="advisory">{ENGAGEMENT_TYPE_LABELS.advisory}</option>
             </Select>
           </Field>
           <Field label={T.create.deadline}>

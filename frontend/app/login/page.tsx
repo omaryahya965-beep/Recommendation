@@ -16,6 +16,8 @@ import { useEffect, useId, useRef, useState } from "react";
 import { CitySkyline } from "@/components/login/CitySkyline";
 import { LoginHero } from "@/components/login/LoginHero";
 import { LoginToolbar } from "@/components/login/LoginToolbar";
+import { PanelOrnaments } from "@/components/login/LoginOrnaments";
+import { RaqeebWordmark } from "@/components/brand/RaqeebWordmark";
 import { MunicipalityMark } from "@/components/login/MunicipalityMark";
 import { ErrorBanner } from "@/components/ui/Base";
 import { login, ROLE_HOME } from "@/lib/api";
@@ -25,19 +27,26 @@ import type { Role } from "@/lib/types";
 
 import "./login.css";
 
-const DEMO_PASSWORD = "Demo@12345";
+// Demo quick-login is a local-development convenience. The password is NOT in
+// source: it comes from build-time env vars that exist only in a developer's
+// .env.local, so a production build (flag unset) ships neither the password nor
+// the demo accounts, and the section below is not rendered.
+const DEMO_PASSWORD = process.env.NEXT_PUBLIC_DEMO_PASSWORD ?? "";
+const DEMO_ENABLED = process.env.NEXT_PUBLIC_ENABLE_DEMO_LOGIN === "true";
 const REMEMBER_KEY = "audit_login_username";
 
 const DEMO_ACCOUNTS: Array<{
   username: string;
   role: Role;
   noteKey: "demoAudit" | "demoHead" | "demoEmployee" | "demoCouncil";
-}> = [
-  { username: "audit1", role: "audit", noteKey: "demoAudit" },
-  { username: "head_finance", role: "department_head", noteKey: "demoHead" },
-  { username: "emp_finance1", role: "employee", noteKey: "demoEmployee" },
-  { username: "council1", role: "council", noteKey: "demoCouncil" },
-];
+}> = process.env.NEXT_PUBLIC_ENABLE_DEMO_LOGIN === "true"
+  ? [
+    { username: "audit1", role: "audit", noteKey: "demoAudit" },
+    { username: "head_finance", role: "department_head", noteKey: "demoHead" },
+    { username: "emp_finance1", role: "employee", noteKey: "demoEmployee" },
+    { username: "council1", role: "council", noteKey: "demoCouncil" },
+  ]
+  : [];
 
 function fieldClass(invalid: boolean) {
   return cn(
@@ -139,8 +148,10 @@ export default function LoginPage() {
         <section
           dir={dir}
           aria-labelledby="login-heading"
-          className="login-bg login-split relative flex w-full flex-1 flex-col justify-between py-2 lg:py-0 lg:h-full lg:w-1/2 lg:flex-none lg:overflow-hidden login-form-panel"
+          className="login-bg login-split relative isolate flex w-full flex-1 flex-col justify-between py-2 lg:py-0 lg:h-full lg:w-1/2 lg:flex-none lg:overflow-hidden login-form-panel"
         >
+          <PanelOrnaments />
+
           {/* ── Toolbar: language + theme ── */}
           <div className="flex shrink-0 justify-end px-5 pt-1 sm:px-8 lg:px-10 lg:pt-3">
             <LoginToolbar />
@@ -157,9 +168,9 @@ export default function LoginPage() {
               <div className="mt-3 flex flex-col items-center text-center">
                 <h1
                   id="login-heading"
-                  className="text-[clamp(1.25rem,2.5vw,1.45rem)] font-extrabold leading-tight text-[var(--login-navy)]"
+                  className="w-full text-[var(--login-btn)]"
                 >
-                  {T.login.welcome}
+                  <RaqeebWordmark size="card" showTagline={false} />
                 </h1>
                 <p className="mt-1 text-[0.75rem] leading-snug text-[var(--login-muted)]">
                   {T.login.loginHint}
@@ -356,6 +367,8 @@ export default function LoginPage() {
                 </div>
               </form>
 
+              {DEMO_ENABLED ? (
+              <>
               {/* Demo roles toggle section */}
               <div className="mt-2.5 pt-2 border-t border-[var(--login-border)]">
                 <button
@@ -402,6 +415,8 @@ export default function LoginPage() {
                   </ul>
                 ) : null}
               </div>
+              </>
+              ) : null}
 
               {/* Secure access note */}
               <p className="mt-2 flex items-center justify-center gap-1.5 text-center text-[0.6875rem] font-semibold text-[var(--login-muted)]">
@@ -418,14 +433,18 @@ export default function LoginPage() {
               <CitySkyline className="w-full h-10 sm:h-12" />
             </div>
 
-            <footer className="flex flex-wrap items-center justify-between gap-2 px-6 pb-2.5 pt-1 text-[0.65625rem] font-medium text-[var(--login-footer)] lg:px-10 border-t border-[var(--login-border)]">
-              <p>© 2026 {T.login.footerOwner}</p>
-              <div className="flex items-center gap-2">
+            <footer className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 border-t border-[var(--login-border)] px-6 pb-3 pt-3 text-center text-[0.6875rem] font-medium text-[var(--login-footer)] lg:justify-between lg:gap-2 lg:px-10 lg:pb-2.5 lg:pt-1 lg:text-start lg:text-[0.65625rem]">
+              {/* Phones stack: platform, then mayor, then "© owner • version" on
+                  one line. From lg up the original three-column row is kept. */}
+              <p className="order-2 lg:order-none">© 2026 {T.login.footerOwner}</p>
+              <div className="order-1 flex w-full flex-col-reverse items-center gap-1 lg:order-none lg:w-auto lg:flex-row lg:gap-2">
                 <span>{T.login.mayorLabel}: {T.login.mayorName}</span>
-                <span className="opacity-30">•</span>
-                <span>{T.login.footerPlatform}</span>
+                <span className="hidden opacity-30 lg:inline">•</span>
+                <span className="font-semibold lg:font-medium">{T.login.footerPlatform}</span>
               </div>
-              <p>{T.login.versionLabel}</p>
+              <p className="order-3 before:me-3 before:opacity-30 before:content-['•'] lg:order-none lg:before:hidden">
+                {T.login.versionLabel}
+              </p>
             </footer>
           </div>
         </section>

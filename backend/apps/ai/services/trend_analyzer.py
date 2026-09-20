@@ -152,6 +152,14 @@ def _template_narratives(buckets: dict, language: str) -> list[str]:
         n.append(f"{a} recommendations are approaching their deadline within 14 days.")
         n.append(f"{s} recommendations have no recent recorded activity.")
         n.append(f"{e} recommendations have evidence concerns.")
+    # A line that says "0 recommendations …" is noise, not insight. Keep only
+    # what is actually present, and say so plainly when nothing is.
+    n = [line for line in n if not line.startswith("0 ")]
+    if not n:
+        n.append(
+            "لا توجد مؤشرات تستدعي الانتباه حالياً." if ar
+            else "No indicators currently need attention."
+        )
     return n
 
 

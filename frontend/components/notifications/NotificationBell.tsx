@@ -2,7 +2,7 @@
 
 import { Bell, ChevronDown, ChevronUp, X } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useFocusTrap } from "@/components/mobile/useFocusTrap";
 import { cn } from "@/lib/cn";
@@ -40,35 +40,41 @@ export function NotificationBell({ role }: { role: Role }) {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
-  const pickedRef = useRef(false);
   const { data: count } = useUnreadCount();
   const { data: list, isLoading, isError, refetch } = useNotifications(true);
   const markAll = useMarkAllNotificationsRead();
   const markRead = useMarkNotificationRead();
 
-  useFocusTrap(open, panelRef, () => setOpen(false), closeRef);
+  // Declared before first use: `const` is not hoisted, so defining this
+  // below useFocusTrap would be a temporal-dead-zone error at render.
+  const closePanel = useCallback(() => {
+    setOpen(false);
+    setSelectedId(null);
+  }, []);
+
+  useFocusTrap(open, panelRef, closePanel, closeRef);
 
   useEffect(() => {
     if (!open) return;
     const onDoc = (event: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(event.target as Node)) setOpen(false);
+      if (panelRef.current && !panelRef.current.contains(event.target as Node)) closePanel();
     };
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
-  }, [open]);
+  }, [open, closePanel]);
 
   const preview = useMemo(() => newestFirst(list?.results ?? []).slice(0, 20), [list]);
 
-  useEffect(() => {
-    if (!open) {
-      pickedRef.current = false;
-      setSelectedId(null);
-      return;
-    }
-    if (pickedRef.current || !preview.length) return;
-    pickedRef.current = true;
-    setSelectedId(preview[0].id);
-  }, [open, preview]);
+  /**
+   * Which row is expanded.
+   *
+   * This used to be synchronised from an effect, which meant an extra render
+   * pass every time the panel opened and a lint error for setting state
+   * during an effect. The default is derived instead: with nothing explicitly
+   * chosen, the newest notification is the open one. Closing the panel clears
+   * the explicit choice in the handler, where that state change belongs.
+   */
+  const activeId = selectedId ?? preview[0]?.id ?? null;
 
   const unread = count?.unread ?? 0;
   const badge = unread > 9 ? T.notify.badgeMore : unread > 0 ? String(unread) : null;
@@ -77,7 +83,7 @@ export function NotificationBell({ role }: { role: Role }) {
     <div className="relative" ref={panelRef}>
       <button
         type="button"
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => (open ? closePanel() : setOpen(true))}
         className="relative flex size-12 items-center justify-center rounded-xl text-ink-soft transition-colors hover:bg-subtle hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary md:size-9"
         aria-label={T.nav.notifications}
         aria-expanded={open}
@@ -115,7 +121,7 @@ export function NotificationBell({ role }: { role: Role }) {
               <button
                 ref={closeRef}
                 type="button"
-                onClick={() => setOpen(false)}
+                onClick={closePanel}
                 className="flex size-11 items-center justify-center rounded-lg text-ink-soft hover:bg-subtle md:size-9"
                 aria-label={T.nav.close}
               >
@@ -140,7 +146,7 @@ export function NotificationBell({ role }: { role: Role }) {
                   const meta = notifyMeta(item.type);
                   const action = requiredAction(item, role);
                   const mustAct = userMustAct(item, role);
-                  const expanded = selectedId === item.id;
+                  const expanded = activeId === item.id;
                   return (
                     <li key={item.id} className={cn("border-b border-line last:border-0", !item.is_read && "bg-primary/5")}>
                       <button
@@ -199,7 +205,7 @@ export function NotificationBell({ role }: { role: Role }) {
                           ) : null}
                           <Link
                             href={notificationHref(item, role)}
-                            onClick={() => setOpen(false)}
+                            onClick={closePanel}
                             className="inline-flex min-h-11 items-center text-[13.5px] font-bold text-primary-dark hover:underline"
                           >
                             {mustAct ? T.notify.takeAction : T.notify.openCase}
@@ -218,7 +224,7 @@ export function NotificationBell({ role }: { role: Role }) {
           <footer className="border-t border-line bg-subtle/30 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
             <Link
               href={notificationsCenter(role)}
-              onClick={() => setOpen(false)}
+              onClick={closePanel}
               className="flex min-h-12 items-center justify-center text-center text-[15px] font-bold text-primary-dark"
             >
               {T.notify.viewAll}

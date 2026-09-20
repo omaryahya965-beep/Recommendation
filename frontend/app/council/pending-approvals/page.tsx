@@ -13,7 +13,7 @@ import { Button, Callout, ErrorBanner, Field, TextArea } from "@/components/ui/B
 import { DashboardSkeleton, EmptyState } from "@/components/ui/EmptyState";
 import { Section } from "@/components/ui/Section";
 import { api, errorMessage } from "@/lib/api";
-import { ENGAGEMENT_LABELS, T, useI18n } from "@/lib/i18n";
+import { REPORT_TYPE_LABELS, T, useI18n } from "@/lib/i18n";
 import type { AuditReport, DashboardData } from "@/lib/types";
 
 const BASE = "/council/recommendations";
@@ -48,7 +48,7 @@ function PendingReportCard({ report }: { report: AuditReport }) {
         <div className="min-w-0">
           <h3 className="font-heading text-[16px] font-semibold text-ink">{report.title}</h3>
           <p className="mt-1 text-[13px] text-ink-soft">
-            {report.department_name} · {ENGAGEMENT_LABELS[report.engagement_type]} ·{" "}
+            {report.department_name} · {REPORT_TYPE_LABELS[report.engagement_type]} ·{" "}
             <span dir="ltr">{report.recommendations_count}</span> {T.reports.recommendations}
           </p>
         </div>

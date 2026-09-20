@@ -38,12 +38,14 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Internal Audit System | منظومة الرقابة الداخلية",
-  description: "Municipal platform for following up Internal Audit recommendations and corrective actions",
-  applicationName: "Internal Audit System",
+  // Application name first, institution second — never the other way round.
+  title: "رقيب | RAQEEB — بلدية البيرة",
+  description:
+    "منصة متابعة توصيات الرقابة الداخلية في بلدية البيرة — Internal Audit Recommendation Follow-up Platform, Al-Bireh Municipality",
+  applicationName: "RAQEEB",
   appleWebApp: {
     capable: true,
-    title: "Audit",
+    title: "رقيب",
     statusBarStyle: "black-translucent",
   },
   icons: {

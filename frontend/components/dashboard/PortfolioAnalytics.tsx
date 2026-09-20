@@ -5,12 +5,12 @@ import { AlertTriangle, Layers, Repeat2, ChevronRight, ChevronLeft } from "lucid
 import Link from "next/link";
 import { useMemo } from "react";
 
-import { Callout, MeterBar, ProgressBar } from "@/components/ui/Base";
+import { MeterBar, ProgressBar } from "@/components/ui/Base";
 import { CardSkeleton, EmptyState } from "@/components/ui/EmptyState";
 import { Section } from "@/components/ui/Section";
 import {
   departmentPressure,
-  fetchPortfolio,
+  fetchAnalytics,
   portfolioRates,
   stagePressure,
   type PortfolioRates,
@@ -304,17 +304,17 @@ export function PortfolioAnalytics({
 }) {
   useI18n();
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["portfolio", scope],
-    queryFn: () => fetchPortfolio(),
+    queryKey: ["analytics", scope],
+    queryFn: () => fetchAnalytics(),
     staleTime: 60_000,
   });
 
   const derived = useMemo(() => {
     if (!data) return null;
     return {
-      rates: portfolioRates(data.items),
-      departments: departmentPressure(data.items),
-      stages: stagePressure(data.items),
+      rates: portfolioRates(data),
+      departments: departmentPressure(data),
+      stages: stagePressure(data),
     };
   }, [data]);
 
@@ -336,7 +336,6 @@ export function PortfolioAnalytics({
     <div className="space-y-6">
       {showRates ? <PerformanceBand rates={derived.rates} base={base} /> : null}
 
-      {data?.truncated ? <Callout tone="warning" className="shadow-sm">{T.analytics.truncated}</Callout> : null}
 
       {showStages && showDepartments ? (
         <div className="grid gap-6 xl:grid-cols-[1fr_22rem]">

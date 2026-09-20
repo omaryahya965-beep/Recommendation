@@ -21,11 +21,24 @@ class FollowUpReport(models.Model):
         default=dict,
         help_text="Frozen statistics and per-recommendation statuses at generation time.",
     )
+    executive_summary = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Narrative frozen alongside the snapshot, in the generation language.",
+    )
+    language = models.CharField(max_length=5, default="ar")
     generated_file = models.FileField(upload_to="followup_reports/", null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [models.Index(fields=["municipality", "-created_at"])]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(period_start__lte=models.F("period_end")),
+                name="followup_period_start_before_end",
+            ),
+        ]
 
     def __str__(self):
         return f"Follow-up {self.period_start} .. {self.period_end} ({self.municipality.name})"

@@ -13,7 +13,7 @@ import { StatusBadge } from "@/components/ui/StampBadge";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { daysUntil, formatDate, recordCode } from "@/lib/format";
-import { ENGAGEMENT_LABELS, REPORT_STATUS_LABELS, T, useI18n } from "@/lib/i18n";
+import { REPORT_STATUS_LABELS, REPORT_TYPE_LABELS, T, useI18n } from "@/lib/i18n";
 import type { AuditReport, Paginated } from "@/lib/types";
 
 const STATUS_FILTERS: Array<ReportStatus | "all"> = [
@@ -47,7 +47,7 @@ function matchesSearch(report: AuditReport, query: string) {
     report.title.toLowerCase().includes(q) ||
     report.department_name.toLowerCase().includes(q) ||
     auditor.includes(q) ||
-    ENGAGEMENT_LABELS[report.engagement_type].toLowerCase().includes(q) ||
+    REPORT_TYPE_LABELS[report.engagement_type].toLowerCase().includes(q) ||
     REPORT_STATUS_LABELS[report.status].toLowerCase().includes(q) ||
     id.includes(q) ||
     code.includes(q) ||
@@ -79,7 +79,7 @@ function ReportCard({ report }: { report: AuditReport }) {
           <div className="flex flex-wrap items-center gap-2">
             <RecordId id={report.id} prefix="RPT" />
             <span className="rounded-full bg-subtle px-2.5 py-0.5 text-[11px] font-bold text-ink-soft border border-line">
-              {ENGAGEMENT_LABELS[report.engagement_type]}
+              {REPORT_TYPE_LABELS[report.engagement_type]}
             </span>
             {late ? (
               <span className="rounded-full bg-danger-light px-2.5 py-0.5 text-[11px] font-bold text-danger-dark ring-1 ring-danger/20">
@@ -182,7 +182,7 @@ export function ReportsRegister() {
   const chips = [
     status !== "all" ? { key: "status", label: REPORT_STATUS_LABELS[status] } : null,
     department ? { key: "department", label: department } : null,
-    engagement ? { key: "engagement", label: ENGAGEMENT_LABELS[engagement] } : null,
+    engagement ? { key: "engagement", label: REPORT_TYPE_LABELS[engagement] } : null,
     search.trim() ? { key: "search", label: `"${search.trim()}"` } : null,
   ].filter(Boolean) as Array<{ key: string; label: string }>;
 
@@ -228,8 +228,8 @@ export function ReportsRegister() {
           aria-label={T.create.engagement}
         >
           <option value="">{T.create.engagement}: {T.common.all}</option>
-          <option value="assurance">{ENGAGEMENT_LABELS.assurance}</option>
-          <option value="advisory">{ENGAGEMENT_LABELS.advisory}</option>
+          <option value="assurance">{REPORT_TYPE_LABELS.assurance}</option>
+          <option value="advisory">{REPORT_TYPE_LABELS.advisory}</option>
         </Select>
 
         <Select
@@ -366,7 +366,7 @@ export function ReportsRegister() {
                         <Link href={`/audit/reports/${report.id}`} className="font-semibold text-ink group-hover:text-primary transition-colors">
                           {report.title}
                         </Link>
-                        <p className="mt-0.5 text-[11px] font-semibold text-muted/80">{ENGAGEMENT_LABELS[report.engagement_type]}</p>
+                        <p className="mt-0.5 text-[11px] font-semibold text-muted/80">{REPORT_TYPE_LABELS[report.engagement_type]}</p>
                       </LedgerCell>
                       <LedgerCell>{report.department_name}</LedgerCell>
                       <LedgerCell>

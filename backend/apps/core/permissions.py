@@ -43,25 +43,69 @@ class IsAuditOrDepartmentHead(RolePermission):
 def scope_recommendations(queryset, user):
     """Row-level scoping applied to every recommendation queryset.
 
-    audit/council: municipality-wide; department_head: own department;
-    employee: own assigned recommendations only.
+    audit: municipality-wide, including unissued drafts (audit authors them).
+    council: municipality-wide, issued work only.
+    department_head: own department, issued work only.
+    employee: own assigned recommendations only, issued work only.
+
+    "Issued" means the audit unit has released the report to the department.
+    A draft recommendation, or any recommendation still sitting in a draft
+    report, is internal audit working material and must never leak to the
+    audited department, the assigned employee, or the council.
     """
-    queryset = queryset.filter(report__municipality=user.municipality)
+    if getattr(user, "municipality_id", None) is None:
+        return queryset.none()
+
+    queryset = queryset.filter(report__municipality_id=user.municipality_id)
+
+    if user.role == User.Role.AUDIT:
+        return queryset
+
+    # Everyone else sees issued work only.
+    queryset = queryset.exclude(status=_RecommendationStatus().DRAFT).exclude(
+        report__status=_ReportStatus().DRAFT
+    )
+
     if user.role == User.Role.DEPARTMENT_HEAD:
-        return queryset.filter(report__department=user.department)
+        return queryset.filter(report__department_id=user.department_id)
     if user.role == User.Role.EMPLOYEE:
         return queryset.filter(action_plan__responsible_employee=user)
-    if user.role in (User.Role.AUDIT, User.Role.COUNCIL):
+    if user.role == User.Role.COUNCIL:
         return queryset
     return queryset.none()
 
 
 def scope_reports(queryset, user):
-    queryset = queryset.filter(municipality=user.municipality)
+    """Row-level scoping for reports. Mirrors `scope_recommendations`."""
+    if getattr(user, "municipality_id", None) is None:
+        return queryset.none()
+
+    queryset = queryset.filter(municipality_id=user.municipality_id)
+
+    if user.role == User.Role.AUDIT:
+        return queryset
+
+    queryset = queryset.exclude(status=_ReportStatus().DRAFT)
+
     if user.role == User.Role.DEPARTMENT_HEAD:
-        return queryset.filter(department=user.department)
+        return queryset.filter(department_id=user.department_id)
     if user.role == User.Role.EMPLOYEE:
-        return queryset.filter(recommendations__action_plan__responsible_employee=user).distinct()
-    if user.role in (User.Role.AUDIT, User.Role.COUNCIL):
+        return queryset.filter(
+            recommendations__action_plan__responsible_employee=user
+        ).distinct()
+    if user.role == User.Role.COUNCIL:
         return queryset
     return queryset.none()
+
+
+def _RecommendationStatus():
+    # Imported lazily: apps.audits imports this module at load time.
+    from apps.audits.models import Recommendation
+
+    return Recommendation.Status
+
+
+def _ReportStatus():
+    from apps.audits.models import AuditReport
+
+    return AuditReport.Status

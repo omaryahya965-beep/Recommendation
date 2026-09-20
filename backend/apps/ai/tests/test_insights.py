@@ -8,7 +8,14 @@ from apps.workflow.tests import make_world
 
 class InsightsAndSummaryTests(TestCase):
     def setUp(self):
+        from apps.audits.models import AuditReport
+
         self.muni, self.dept, self.users, self.report, self.rec = make_world()
+        # Issue the report as submit_report_to_department would. Non-audit
+        # roles cannot see recommendations that still sit in a draft report,
+        # so leaving it in draft would hide it from the employee-scoped tests.
+        self.report.status = AuditReport.Status.PENDING_RESPONSE
+        self.report.save(update_fields=["status"])
         self.rec.status = Recommendation.Status.PENDING_RESPONSE
         self.rec.save(update_fields=["status"])
         self.client = APIClient()
@@ -107,12 +114,16 @@ class InsightsAndSummaryTests(TestCase):
     def test_summary_employee_tasks(self):
         from apps.workflow.models import ActionPlan
         from django.utils import timezone
+        # submitted_by is a non-null FK: omitting it made this test fail with
+        # an IntegrityError rather than exercising the summary it is testing.
         ActionPlan.objects.create(
             recommendation=self.rec,
             target_date=timezone.localdate(),
-            responsible_employee=self.users["emp"]
+            responsible_employee=self.users["emp"],
+            submitted_by=self.users["head"],
         )
-        
+
+
         self.client.force_authenticate(self.users["emp"])
         res = self.client.post(
             "/api/ai/summaries/",

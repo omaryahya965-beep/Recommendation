@@ -18,11 +18,12 @@ import {
   Users,
   ChevronRight
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
 
-import { MunicipalLogo } from "@/components/brand/MunicipalLogo";
+import { MunicipalityLogo } from "@/components/brand/MunicipalityLogo";
 import { DirCollapse } from "@/components/i18n/DirIcon";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { MobileNavDrawer } from "@/components/shell/MobileNavDrawer";
@@ -494,11 +495,19 @@ function ShellFrame({
       <div className={cn("flex shrink-0 items-center border-b border-sidebar-muted/10 bg-sidebar/95 py-6", collapsed ? "justify-center px-2" : "px-6")}>
         <div className="flex items-center gap-3">
           <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary-dark to-primary shadow-lg ring-1 ring-white/10">
-            <MunicipalLogo size="sm" inverted className="text-white" />
+            <MunicipalityLogo size="sm" />
           </div>
           {collapsed ? null : (
             <div className="min-w-0">
-              <p className="font-heading text-[15px] font-bold leading-tight text-white">{T.appName}</p>
+              <Image
+                src="/images/brand/raqeeb-logo-light.webp"
+                alt={T.appName}
+                width={760}
+                height={397}
+                sizes="96px"
+                draggable={false}
+                className="h-9 w-auto select-none"
+              />
               <p className="truncate text-[12px] font-medium text-sidebar-muted">
                 {ROLE_LABELS[user.role]}
               </p>
@@ -618,7 +627,7 @@ function ShellFrame({
 
               <div className="flex min-w-0 flex-1 items-center gap-2 md:hidden">
                 <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-navy text-white">
-                  <MunicipalLogo size="sm" inverted className="text-white" />
+                  <MunicipalityLogo size="sm" className="!size-7" />
                 </div>
                 <p className="min-w-0 truncate font-heading text-[15px] font-bold text-navy">
                   {pageTitle(pathname)}

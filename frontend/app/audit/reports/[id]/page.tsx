@@ -17,7 +17,7 @@ import { StatusBadge } from "@/components/ui/StampBadge";
 import { api, errorMessage } from "@/lib/api";
 import { caseTitle } from "@/lib/finding";
 import { formatDate, recordCode } from "@/lib/format";
-import { ENGAGEMENT_LABELS, REPORT_STATUS_LABELS, RISK_LABELS, T, useI18n } from "@/lib/i18n";
+import { REPORT_STATUS_LABELS, REPORT_TYPE_LABELS, RISK_LABELS, T, useI18n } from "@/lib/i18n";
 import type { AuditReport } from "@/lib/types";
 import { stageForStatus } from "@/lib/workflow";
 
@@ -81,7 +81,7 @@ export default function ReportDetailPage() {
       <section>
         <h2 className="mb-3 font-heading text-sm font-semibold text-navy">{T.reports.identity}</h2>
         <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <DataField label={T.reports.objective}>{ENGAGEMENT_LABELS[report.engagement_type]}</DataField>
+          <DataField label={T.reports.objective}>{REPORT_TYPE_LABELS[report.engagement_type]}</DataField>
           <DataField label={T.reports.scope}>{report.department_name}</DataField>
           <DataField label={T.common.department}>{report.department_name}</DataField>
           <DataField label={T.reports.period}>
