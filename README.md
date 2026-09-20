@@ -10,23 +10,17 @@ Arabic-first, fully RTL, with an English locale.
 > throughout the code — see `frontend/lib/brand.ts`, which is the single
 > source of truth for both.
 
-## Municipality logo
+## Branding assets
 
-The official artwork is **not** committed to this repository. Place the
-supplied file at:
-
-```
-frontend/public/images/al-bireh-logo.png
-```
-
-`MunicipalityLogo` renders it at its natural aspect ratio (height is set,
-width follows) and never recolors, crops or redraws it. Until the file is
-added, a neutral monogram is shown in its place — deliberately not an
-imitation of the seal.
+- **Municipality seal:** `frontend/public/images/al-bireh-logo.jpeg`, rendered by
+  `MunicipalityLogo` in a circular frame. A neutral monogram is shown only if
+  the file fails to load.
+- **RAQEEB logo:** `frontend/public/images/brand/raqeeb-logo.webp` (green) and
+  `raqeeb-logo-light.webp` (white, for dark backgrounds), used by `RaqeebWordmark`.
 
 ## Live
 
-- **Website:** https://recommendation-frontend-theta.vercel.app/
+- **Website:** https://raqeeb-albireh.vercel.app/
 
 ## Stack
 
