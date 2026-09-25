@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { IBM_Plex_Mono, IBM_Plex_Sans_Arabic, Noto_Kufi_Arabic, Noto_Naskh_Arabic } from "next/font/google";
+import { IBM_Plex_Mono, IBM_Plex_Sans_Arabic } from "next/font/google";
 import "./globals.css";
 import Providers from "./providers";
 
@@ -13,28 +13,25 @@ export const viewport: Viewport = {
   ],
 };
 
-const kufi = Noto_Kufi_Arabic({
-  subsets: ["arabic"],
-  weight: ["500", "600", "700"],
-  variable: "--font-kufi",
-});
-
-const naskh = Noto_Naskh_Arabic({
-  subsets: ["arabic"],
-  weight: ["500", "600", "700"],
-  variable: "--font-naskh",
-});
-
+// IBM Plex Sans Arabic is the one UI typeface: 400 body, 500 labels and
+// navigation, 600 buttons and emphasis, 700 headings. Its Arabic faces are
+// preloaded because every first screen renders them; font preloads compete
+// for bandwidth with the login hero (that page's LCP), so nothing else is.
+// Plex Mono (record IDs, dates, counts) and the Latin faces download only when
+// text on the page uses them. All faces use font-display: swap.
 const plex = IBM_Plex_Sans_Arabic({
   subsets: ["arabic"],
   weight: ["400", "500", "600", "700"],
   variable: "--font-plex",
+  display: "swap",
 });
 
 const plexMono = IBM_Plex_Mono({
   subsets: ["latin"],
-  weight: ["400", "500"],
+  weight: ["400", "500", "700"],
   variable: "--font-plex-mono",
+  display: "swap",
+  preload: false,
 });
 
 export const metadata: Metadata = {
@@ -59,7 +56,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ar" dir="rtl" suppressHydrationWarning>
+    // The font variables live on <html>: Tailwind declares the theme tokens
+    // (--font-body, --font-heading, --font-mono) on :root, and a token that
+    // references a variable defined only further down (e.g. on <body>) is
+    // invalid, which silently dropped every page to the system font.
+    <html lang="ar" dir="rtl" className={`${plex.variable} ${plexMono.variable}`} suppressHydrationWarning>
       <head>
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <script
@@ -69,7 +70,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
       </head>
-      <body className={`${kufi.variable} ${naskh.variable} ${plex.variable} ${plexMono.variable} antialiased`}>
+      <body className="antialiased">
         <Providers>{children}</Providers>
       </body>
     </html>

@@ -66,10 +66,12 @@
   --color-zone-panel: var(--color-elevated);
   --color-zone-header: var(--color-surface);
 
-  --font-heading: var(--font-kufi), "Noto Kufi Arabic", sans-serif;
-  --font-display: var(--font-naskh), "Noto Naskh Arabic", serif;
-  --font-body: var(--font-plex), "IBM Plex Sans Arabic", sans-serif;
-  --font-mono: var(--font-plex-mono), "IBM Plex Mono", monospace;
+  --font-sans: var(--font-plex), system-ui, sans-serif;
+  --font-heading: var(--font-plex), system-ui, sans-serif;
+  --font-body: var(--font-plex), system-ui, sans-serif;
+  /* Plex Mono has no Arabic glyphs; Arabic inside mono text (month names in
+     dates) falls through to Plex Sans Arabic rather than an OS font. */
+  --font-mono: var(--font-plex-mono), var(--font-plex), ui-monospace, monospace;
 
   --radius-btn: 8px;
   --radius-field: 8px;
