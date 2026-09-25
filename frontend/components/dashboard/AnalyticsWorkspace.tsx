@@ -10,12 +10,12 @@ import { StatusDistribution } from "@/components/dashboard/StatusDistribution";
 import { SystemHealth } from "@/components/dashboard/SystemHealth";
 import { TeamLoad } from "@/components/dashboard/TeamLoad";
 import { ErrorBanner } from "@/components/ui/Base";
-import { DashboardSkeleton } from "@/components/ui/EmptyState";
+import { DashboardBodySkeleton } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useDashboard } from "@/lib/hooks";
 import { api } from "@/lib/api";
 import { T, useI18n } from "@/lib/i18n";
-import type { AuditReport, Paginated, Role } from "@/lib/types";
+import type { AuditReport, DashboardData, Paginated, Role } from "@/lib/types";
 import { analyticsStageIds } from "@/lib/workflow";
 
 function recBase(role: Role) {
@@ -48,7 +48,6 @@ function statusHintFor(role: Role) {
 export function AnalyticsWorkspace({ role }: { role: Role }) {
   useI18n();
   const base = recBase(role);
-  const stageIds = analyticsStageIds(role);
   const { data, isLoading, isError, refetch } = useDashboard();
   const { data: reportsPage } = useQuery({
     queryKey: ["reports", "analytics-pipeline", role],
@@ -57,19 +56,43 @@ export function AnalyticsWorkspace({ role }: { role: Role }) {
     retry: false,
   });
 
-  if (isLoading) return <DashboardSkeleton />;
-  if (isError || !data) return <ErrorBanner message={T.common.error} onRetry={() => refetch()} />;
+  // The title renders at once and the portfolio section fetches in parallel;
+  // only the sections built from /api/dashboard/ wait for it.
+  return (
+    <div className="animate-fade-in space-y-6">
+      <PageHeader title={T.nav.analytics} description={descriptionFor(role)} />
 
+      {isLoading ? (
+        <DashboardBodySkeleton />
+      ) : isError || !data ? (
+        <ErrorBanner message={T.common.error} onRetry={() => refetch()} />
+      ) : (
+        <DashboardSections role={role} data={data} reports={reportsPage?.results ?? []} />
+      )}
+
+      {role === "audit" ? (
+        <PortfolioAnalytics
+          base={base}
+          scope="audit-analytics"
+          showRates={false}
+          showStages={false}
+          showDepartments
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function DashboardSections({ role, data, reports }: { role: Role; data: DashboardData; reports: AuditReport[] }) {
+  const base = recBase(role);
+  const stageIds = analyticsStageIds(role);
   const inExecution = data.in_execution?.items ?? [];
-  const reports = reportsPage?.results ?? [];
   const pendingReports = data.action_center.reports_pending_ratification?.count ?? 0;
   const pendingClosures = data.action_center.closures_pending?.count ?? 0;
   const ratified = reports.filter((item) => item.status === "ratified").length;
 
   return (
-    <div className="animate-fade-in space-y-6">
-      <PageHeader title={T.nav.analytics} description={descriptionFor(role)} />
-
+    <>
       {role === "council" ? (
         <MetricStrip
           title={T.dashboard.decisionCenter}
@@ -136,19 +159,9 @@ export function AnalyticsWorkspace({ role }: { role: Role }) {
         </div>
       )}
 
-      {role === "audit" ? (
-        <PortfolioAnalytics
-          base={base}
-          scope="audit-analytics"
-          showRates={false}
-          showStages={false}
-          showDepartments
-        />
-      ) : null}
-
       {role === "department_head" ? (
         <TeamLoad items={inExecution} href="/department/team-progress" />
       ) : null}
-    </div>
+    </>
   );
 }

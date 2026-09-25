@@ -117,14 +117,16 @@ export default function TeamProgressPage() {
   );
   const maxLoad = workloads.reduce((max, workload) => Math.max(max, workload.items.length), 0);
 
-  if (isLoading) return <TableSkeleton />;
-  if (isError) return <ErrorBanner message={T.common.error} onRetry={() => refetch()} />;
-
   return (
     <div className="animate-fade-in space-y-4">
       <PageHeader title={T.team.title} description={T.team.subtitle} />
 
-      {workloads.length ? (
+      {/* The title and guidance are static; only the list waits for data. */}
+      {isLoading ? (
+        <TableSkeleton />
+      ) : isError ? (
+        <ErrorBanner message={T.common.error} onRetry={() => refetch()} />
+      ) : workloads.length ? (
         <div className="space-y-4">
           {workloads.map((workload) => (
             <WorkloadCard key={workload.name} workload={workload} maxLoad={maxLoad} />

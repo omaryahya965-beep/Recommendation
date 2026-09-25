@@ -77,7 +77,16 @@ export function DashboardSkeleton() {
         </div>
         <Skeleton className="h-10 w-32" />
       </div>
-      
+      <DashboardBodySkeleton />
+    </div>
+  );
+}
+
+/** The data-driven part of a dashboard, for pages whose header renders at once. */
+export function DashboardBodySkeleton() {
+  useI18n();
+  return (
+    <div className="space-y-6" aria-busy="true">
       <div className="flex gap-4 h-24">
         <Skeleton className="flex-1 rounded-2xl" />
         <Skeleton className="flex-1 rounded-2xl" />

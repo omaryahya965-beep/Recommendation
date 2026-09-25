@@ -20,8 +20,8 @@ export function aiInsightsPath(lang: string = uiLanguage()) {
   return `/api/ai/dashboard/insights/?language=${encodeURIComponent(lang)}`;
 }
 
-/** Warm the insights cache as soon as any role page mounts. */
-export function usePrefetchAIInsights(role: Role) {
+/** Warm the insights cache as soon as any role page mounts with a session. */
+export function usePrefetchAIInsights(role: Role, enabled = true) {
   const lang = uiLanguage();
   useQuery({
     queryKey: aiInsightsQueryKey(role, lang),
@@ -29,6 +29,7 @@ export function usePrefetchAIInsights(role: Role) {
     staleTime: AI_INSIGHTS_STALE_MS,
     gcTime: 30 * 60_000,
     retry: false,
+    enabled,
   });
 }
 

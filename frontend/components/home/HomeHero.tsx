@@ -54,6 +54,9 @@ export function HomeHero({
         aria-hidden
         fill
         priority
+        // The dashboard's LCP element. Mounted after hydration, so without an
+        // explicit high priority it queues behind the web fonts the page uses.
+        fetchPriority="high"
         sizes="(min-width: 1440px) 1376px, 100vw"
         className="object-cover object-[center_30%] md:object-center"
       />
