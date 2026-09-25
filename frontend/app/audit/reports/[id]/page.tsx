@@ -10,7 +10,8 @@ import { DirBack } from "@/components/i18n/DirIcon";
 
 import { ReportPipeline, REPORT_STATUS_FAMILY } from "@/components/reports/ReportPipeline";
 import { Button, DataField, ErrorBanner } from "@/components/ui/Base";
-import { DashboardSkeleton, EmptyState } from "@/components/ui/EmptyState";
+import { CaseSkeleton } from "@/components/case/CaseHeader";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { OverdueBadge } from "@/components/ui/OverdueBadge";
 import { RiskBadge } from "@/components/ui/RiskBadge";
 import { StatusBadge } from "@/components/ui/StampBadge";
@@ -46,7 +47,11 @@ export default function ReportDetailPage() {
     onError: (err) => setError(errorMessage(err)),
   });
 
-  if (isLoading) return <DashboardSkeleton />;
+  if (isLoading) {
+    return (
+      <CaseSkeleton id={id} prefix="RPT" backHref="/audit/reports" backLabel={T.reports.title} backClassName="text-ink-soft" />
+    );
+  }
   if (isError || !report) return <ErrorBanner message={T.common.error} onRetry={() => refetch()} />;
 
   const recommendations = report.recommendations ?? [];

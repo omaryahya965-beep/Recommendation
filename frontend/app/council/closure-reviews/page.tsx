@@ -30,9 +30,6 @@ export default function CouncilClosureReviewsPage() {
       ),
   });
 
-  if (isLoading) return <TableSkeleton />;
-  if (isError) return <ErrorBanner message={T.common.error} onRetry={() => refetch()} />;
-
   const items = data?.results ?? [];
 
   return (
@@ -46,7 +43,12 @@ export default function CouncilClosureReviewsPage() {
         {T.council.closureHint}
       </Callout>
 
-      {items.length ? (
+      {/* The title and guidance are static; only the list waits for data. */}
+      {isLoading ? (
+        <TableSkeleton />
+      ) : isError ? (
+        <ErrorBanner message={T.common.error} onRetry={() => refetch()} />
+      ) : items.length ? (
         <ul className="space-y-2.5">
           {items.map((item) => (
             <li key={item.id}>

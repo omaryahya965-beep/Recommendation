@@ -12,7 +12,7 @@ import {
 import { ActionPlanTimeline } from "@/components/action-plan/ActionPlanTimeline";
 import { AIActionPlanSuggestion, suggestedPlanToDraftSeed } from "@/components/ai/AIActionPlanSuggestion";
 import { CaseStageAI } from "@/components/ai/CaseStageAI";
-import { CaseHeader } from "@/components/case/CaseHeader";
+import { CaseHeader, CaseSkeleton } from "@/components/case/CaseHeader";
 import { CurrentActionBand } from "@/components/case/CurrentActionBand";
 import { FindingSection } from "@/components/case/FindingSection";
 import { RespondForm, ResponseRecord } from "@/components/case/ResponsePanel";
@@ -34,7 +34,7 @@ import {
   TextArea,
   type TabItem,
 } from "@/components/ui/Base";
-import { DashboardSkeleton, EmptyState } from "@/components/ui/EmptyState";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { VerificationPanel } from "@/components/verification/VerificationPanel";
 import { lastActivity, planProgress, type StepState } from "@/lib/case";
 import { parseFinding } from "@/lib/finding";
@@ -502,7 +502,10 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
       { id: "trail", label: T.case.trail, count: rec.trail?.length },
     ];
 
-  if (isLoading) return <DashboardSkeleton />;
+  if (isLoading) {
+    const back = backHref(role);
+    return <CaseSkeleton id={id} backHref={back.href} backLabel={back.label} />;
+  }
   if (isError || !rec) return <ErrorBanner message={T.common.error} onRetry={() => refetch()} />;
 
   const back = backHref(role);

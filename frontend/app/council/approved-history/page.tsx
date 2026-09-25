@@ -19,9 +19,6 @@ export default function ApprovedHistoryPage() {
     queryFn: () => api<Paginated<AuditReport>>("/api/reports/?status=ratified&page_size=100"),
   });
 
-  if (isLoading) return <TableSkeleton />;
-  if (isError) return <ErrorBanner message={T.common.error} onRetry={() => refetch()} />;
-
   const reports = data?.results ?? [];
 
   return (
@@ -31,7 +28,12 @@ export default function ApprovedHistoryPage() {
         description={T.council.historySubtitle}
       />
 
-      {reports.length ? (
+      {/* The title and guidance are static; only the list waits for data. */}
+      {isLoading ? (
+        <TableSkeleton />
+      ) : isError ? (
+        <ErrorBanner message={T.common.error} onRetry={() => refetch()} />
+      ) : reports.length ? (
         <div className="space-y-3">
           {reports.map((report) => (
             <Card key={report.id}>
