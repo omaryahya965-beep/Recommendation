@@ -1,6 +1,5 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import { ClipboardList } from "lucide-react";
 import Link from "next/link";
 
@@ -14,10 +13,9 @@ import { DashboardSkeleton } from "@/components/ui/EmptyState";
 import { RecordId } from "@/components/ui/Ledger";
 import { OverdueBadge } from "@/components/ui/OverdueBadge";
 import { RiskBadge } from "@/components/ui/RiskBadge";
-import { api } from "@/lib/api";
+import { useDashboard } from "@/lib/hooks";
 import { caseTitle } from "@/lib/finding";
 import { T, useI18n } from "@/lib/i18n";
-import type { DashboardData } from "@/lib/types";
 import { STATUS_NEXT_ACTION } from "@/lib/workflow";
 
 const HOME = "/employee/my-tasks";
@@ -25,10 +23,7 @@ const REGISTER = "/employee/recommendations";
 
 export default function MyTasksPage() {
   useI18n();
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["dashboard"],
-    queryFn: () => api<DashboardData>("/api/dashboard/"),
-  });
+  const { data, isLoading, isError, refetch } = useDashboard();
 
   if (isLoading) return <DashboardSkeleton />;
   if (isError || !data) return <ErrorBanner message={T.common.error} onRetry={() => refetch()} />;

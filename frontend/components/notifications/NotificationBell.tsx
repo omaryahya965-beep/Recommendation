@@ -16,7 +16,13 @@ import {
   requiredAction,
   userMustAct,
 } from "@/lib/notifications";
-import { useMarkAllNotificationsRead, useMarkNotificationRead, useNotifications, useUnreadCount } from "@/lib/hooks";
+import {
+  useMarkAllNotificationsRead,
+  useMarkNotificationRead,
+  useNotifications,
+  usePrefetchNotifications,
+  useUnreadCount,
+} from "@/lib/hooks";
 import type { AppNotification, Role } from "@/lib/types";
 
 const TONE: Record<string, string> = {
@@ -41,7 +47,10 @@ export function NotificationBell({ role }: { role: Role }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const { data: count } = useUnreadCount();
-  const { data: list, isLoading, isError, refetch } = useNotifications(true);
+  // The full list is only needed while the panel is open; the badge runs off
+  // the lightweight unread count, the one poll mounted on every page.
+  const { data: list, isLoading, isError, refetch } = useNotifications(open);
+  const prefetchList = usePrefetchNotifications();
   const markAll = useMarkAllNotificationsRead();
   const markRead = useMarkNotificationRead();
 
@@ -84,6 +93,8 @@ export function NotificationBell({ role }: { role: Role }) {
       <button
         type="button"
         onClick={() => (open ? closePanel() : setOpen(true))}
+        onMouseEnter={prefetchList}
+        onFocus={prefetchList}
         className="relative flex size-12 items-center justify-center rounded-xl text-ink-soft transition-colors hover:bg-subtle hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary md:size-9"
         aria-label={T.nav.notifications}
         aria-expanded={open}

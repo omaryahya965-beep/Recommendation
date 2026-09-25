@@ -1,6 +1,5 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import { ClipboardList, FilePlus2, FileText } from "lucide-react";
 
 import { queueLabel, type ActionSource } from "@/components/dashboard/AttentionBoard";
@@ -10,9 +9,8 @@ import { HomeHero } from "@/components/home/HomeHero";
 import { PriorityMetrics } from "@/components/home/PriorityMetrics";
 import { ErrorBanner } from "@/components/ui/Base";
 import { DashboardSkeleton } from "@/components/ui/EmptyState";
-import { api } from "@/lib/api";
+import { useDashboard } from "@/lib/hooks";
 import { T, useI18n } from "@/lib/i18n";
-import type { DashboardData } from "@/lib/types";
 
 const BASE = "/audit/recommendations";
 
@@ -26,10 +24,7 @@ const QUEUES: Array<{ key: string; href: string }> = [
 
 export default function AuditDashboard() {
   useI18n();
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["dashboard"],
-    queryFn: () => api<DashboardData>("/api/dashboard/"),
-  });
+  const { data, isLoading, isError, refetch } = useDashboard();
 
   if (isLoading) return <DashboardSkeleton />;
   if (isError || !data) return <ErrorBanner message={T.common.error} onRetry={() => refetch()} />;

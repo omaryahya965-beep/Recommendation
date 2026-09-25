@@ -30,7 +30,7 @@ export function LoginHero() {
         className={`relative shrink-0 overflow-hidden h-[38dvh] min-h-[18rem] w-full lg:min-h-[12rem] lg:flex-none ${en ? "lg:h-[44.5%] lg:[@media(max-height:760px)]:h-[32%]" : "lg:h-[46.5%] lg:[@media(max-height:760px)]:h-[35%]"}`}
       >
         <Image
-          src="/images/al-bireh-city-hall.jpg"
+          src="/images/al-bireh-city-hall.webp"
           alt={T.login.cityHallAlt}
           fill
           priority

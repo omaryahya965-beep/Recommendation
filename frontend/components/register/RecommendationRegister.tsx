@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Download, LayoutList, Rows3, Search, SlidersHorizontal, X, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -17,8 +17,9 @@ import { api, downloadFile, errorMessage, loadAuth } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { caseTitle } from "@/lib/finding";
 import { formatDate } from "@/lib/format";
-import { useDepartments } from "@/lib/hooks";
+import { useDepartments, usePrefetchRecommendation } from "@/lib/hooks";
 import { RISK_LABELS, STATUS_LABELS, T, useI18n } from "@/lib/i18n";
+import { LIVE } from "@/lib/queryPolicy";
 import type { Paginated, RecommendationListItem, RecommendationStatus } from "@/lib/types";
 import {
   EMPLOYEE_WORK_STATUSES,
@@ -53,23 +54,27 @@ const RISK_BORDER_TONES: Record<string, string> = {
   low: "border-s-success",
 };
 
+type PrefetchHandlers = ReturnType<ReturnType<typeof usePrefetchRecommendation>>;
+
 function RegisterCard({
   item,
   href,
   mine = false,
   hideDepartment = false,
+  intent,
 }: {
   item: RecommendationListItem;
   href: string;
   mine?: boolean;
   hideDepartment?: boolean;
+  intent?: PrefetchHandlers;
 }) {
   useI18n();
   const next = STATUS_NEXT_ACTION[item.status];
   const borderTone = RISK_BORDER_TONES[item.risk_level] || "border-s-line";
 
   return (
-    <li>
+    <li {...intent}>
       <Link
         href={href}
         className={cn(
@@ -139,10 +144,12 @@ function CompactTable({
   items,
   detailBase,
   hideDepartment = false,
+  intentFor,
 }: {
   items: RecommendationListItem[];
   detailBase: string;
   hideDepartment?: boolean;
+  intentFor?: (id: number) => PrefetchHandlers;
 }) {
   useI18n();
   return (
@@ -157,7 +164,7 @@ function CompactTable({
       ]}
     >
       {items.map((item) => (
-        <tr key={item.id} className="group transition-colors hover:bg-subtle/60">
+        <tr key={item.id} className="group transition-colors hover:bg-subtle/60" {...intentFor?.(item.id)}>
           <LedgerCell mono>
             <Link href={`${detailBase}/${item.id}`} className="font-bold text-primary hover:text-primary-dark hover:underline">
               <RecordId id={item.id} />
@@ -286,10 +293,15 @@ function RegisterInner({
   }, [mine, departmentOnly, stage, status, risk, department, search, recurringOnly, overdueOnly, ordering, page, searchParams]);
 
   const scopeKey = mine ? "mine" : departmentOnly ? "department" : "all";
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isError, refetch, isPlaceholderData } = useQuery({
     queryKey: ["recommendations", scopeKey, params.toString()],
     queryFn: () => api<Paginated<RecommendationListItem>>(`/api/recommendations/?${params}`),
+    ...LIVE,
+    // Changing page or filter keeps the current rows on screen (dimmed)
+    // instead of flashing a skeleton while the next page loads.
+    placeholderData: keepPreviousData,
   });
+  const intentFor = usePrefetchRecommendation();
 
   const { data: departments } = useDepartments();
 
@@ -574,6 +586,7 @@ function RegisterInner({
         />
       ) : (
         <>
+          <div aria-busy={isPlaceholderData} className={cn("transition-opacity", isPlaceholderData && "opacity-60")}>
           <ul className={cn("space-y-3", view === "compact" && "md:hidden")}>
             {items.map((item) => (
               <RegisterCard
@@ -582,14 +595,16 @@ function RegisterInner({
                 href={`${detailBase}/${item.id}`}
                 mine={mine}
                 hideDepartment={hideDepartment}
+                intent={intentFor(item.id)}
               />
             ))}
           </ul>
           {view === "compact" ? (
             <div className="hidden md:block">
-              <CompactTable items={items} detailBase={detailBase} hideDepartment={hideDepartment} />
+              <CompactTable items={items} detailBase={detailBase} hideDepartment={hideDepartment} intentFor={intentFor} />
             </div>
           ) : null}
+          </div>
         </>
       )}
 

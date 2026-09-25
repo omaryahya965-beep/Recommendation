@@ -75,6 +75,23 @@ def scope_recommendations(queryset, user):
     return queryset.none()
 
 
+def recommendation_scope_key(user):
+    """A cache-key fragment that is identical for two users exactly when
+    `scope_recommendations` gives them the same rows.
+
+    It must name every user attribute that function reads. If scoping ever
+    starts depending on something else, add it here, or cached aggregates
+    will be served across scopes.
+    """
+    role = getattr(user, "role", "") or "-"
+    key = f"m{getattr(user, 'municipality_id', None)}:{role}"
+    if role == User.Role.DEPARTMENT_HEAD:
+        key += f":d{user.department_id}"
+    elif role == User.Role.EMPLOYEE:
+        key += f":u{user.pk}"
+    return key
+
+
 def scope_reports(queryset, user):
     """Row-level scoping for reports. Mirrors `scope_recommendations`."""
     if getattr(user, "municipality_id", None) is None:

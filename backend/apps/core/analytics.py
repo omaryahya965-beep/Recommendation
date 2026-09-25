@@ -8,7 +8,15 @@ recommendation's full text to the client just to draw a bar chart.
 Everything here is a grouped aggregate over the caller's own scoped queryset,
 so municipality and role scoping are preserved and the payload is a few KB
 regardless of how many recommendations exist.
+
+The payload is cached briefly (see `cached_analytics`): the aggregates scan
+the whole scoped portfolio, and several people in the same scope open the
+analytics page with nothing changed in between.
 """
+import time
+
+from django.core.cache import cache
+from django.db import connection, transaction
 from django.db.models import Avg, Count, Q, Value
 from django.db.models.functions import Coalesce, TruncMonth
 from django.utils import timezone
@@ -18,8 +26,57 @@ from apps.audits.models import (
     OVERDUE_ACTIVE_STATUSES,
     Recommendation,
 )
+from apps.core.permissions import recommendation_scope_key, scope_recommendations
 
 S = Recommendation.Status
+
+# Upper bound on staleness if a change ever bypasses model signals
+# (e.g. a raw queryset.update() in a shell). Normal writes invalidate at once.
+ANALYTICS_CACHE_SECONDS = 90
+_GENERATION_KEY = "analytics:generation"
+
+
+def bump_analytics_generation():
+    """Invalidate every cached analytics payload.
+
+    Keys embed this generation, so changing it orphans all old entries (they
+    expire on their own). Global rather than per-municipality: writes are
+    rare next to reads, and this avoids a lookup on every save.
+    """
+    cache.set(_GENERATION_KEY, time.time_ns(), None)
+
+
+def invalidate_analytics(**_kwargs):
+    """Signal receiver for writes that can change any analytics number.
+
+    Bumps immediately, and again after commit when inside a transaction: a
+    request computing analytics between the first bump and the commit would
+    otherwise cache pre-commit numbers under the new generation.
+    """
+    bump_analytics_generation()
+    if connection.in_atomic_block:
+        transaction.on_commit(bump_analytics_generation)
+
+
+def cached_analytics(user, *, months=12):
+    """`build_analytics` for this user's scope, cached per scope.
+
+    The key carries everything that changes the result: the user's scope
+    (see `recommendation_scope_key`), the window, and today's date (overdue
+    is relative to it). Users with identical scopes share an entry; users
+    with different scopes never do.
+    """
+    generation = cache.get(_GENERATION_KEY, 0)
+    key = (
+        f"analytics:{generation}:{recommendation_scope_key(user)}"
+        f":{months}:{timezone.localdate().isoformat()}"
+    )
+    payload = cache.get(key)
+    if payload is None:
+        queryset = scope_recommendations(Recommendation.objects.all(), user)
+        payload = build_analytics(queryset, months=months)
+        cache.set(key, payload, ANALYTICS_CACHE_SECONDS)
+    return payload
 
 # Work the department is actively executing, as opposed to merely open
 # (which also counts items sitting in review or approval queues).

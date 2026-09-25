@@ -12,9 +12,12 @@ import { RecommendationTable } from "@/components/RecommendationTable";
 import { Button, Callout, ErrorBanner, Field, TextArea } from "@/components/ui/Base";
 import { DashboardSkeleton, EmptyState } from "@/components/ui/EmptyState";
 import { Section } from "@/components/ui/Section";
+import { useDashboard } from "@/lib/hooks";
 import { api, errorMessage } from "@/lib/api";
+import { invalidateRecommendationViews } from "@/lib/queryPolicy";
 import { REPORT_TYPE_LABELS, T, useI18n } from "@/lib/i18n";
-import type { AuditReport, DashboardData } from "@/lib/types";
+import { LIVE } from "@/lib/queryPolicy";
+import type { AuditReport } from "@/lib/types";
 
 const BASE = "/council/recommendations";
 
@@ -35,9 +38,8 @@ function PendingReportCard({ report }: { report: AuditReport }) {
     mutationFn: () => api(`/api/reports/${report.id}/ratify/`, { method: "POST", body: { notes } }),
     onSuccess: () => {
       setError(null);
-      queryClient.invalidateQueries({ queryKey: ["pending-approvals"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      queryClient.invalidateQueries({ queryKey: ["reports"] });
+      // Ratification moves every recommendation in the report at once.
+      invalidateRecommendationViews(queryClient, { reportId: report.id, allCases: true });
     },
     onError: (err) => setError(errorMessage(err)),
   });
@@ -86,11 +88,9 @@ export default function PendingApprovalsPage() {
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["pending-approvals"],
     queryFn: () => api<AuditReport[]>("/api/council/pending-approvals/"),
+    ...LIVE,
   });
-  const { data: dashboard } = useQuery({
-    queryKey: ["dashboard"],
-    queryFn: () => api<DashboardData>("/api/dashboard/"),
-  });
+  const { data: dashboard } = useDashboard();
 
   if (isLoading) return <DashboardSkeleton />;
   if (isError) return <ErrorBanner message={T.common.error} onRetry={() => refetch()} />;

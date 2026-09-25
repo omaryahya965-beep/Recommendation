@@ -16,6 +16,7 @@ import { api, loadAuth } from "@/lib/api";
 import { caseTitle } from "@/lib/finding";
 import { formatDate } from "@/lib/format";
 import { T, useI18n } from "@/lib/i18n";
+import { MODERATE } from "@/lib/queryPolicy";
 import type { FollowUpPreview, FollowUpReport, Paginated } from "@/lib/types";
 
 function Stat({ label, value, suffix }: { label: string; value: number; suffix?: string }) {
@@ -238,6 +239,7 @@ export function FollowUpList({ actions }: { actions?: ReactNode }) {
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["followups"],
     queryFn: () => api<Paginated<FollowUpReport>>("/api/followup-reports/"),
+    ...MODERATE,
   });
   const reports = data?.results ?? [];
 

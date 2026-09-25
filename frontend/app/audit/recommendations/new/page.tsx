@@ -22,6 +22,7 @@ import {
 import { DashboardSkeleton, EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { api, errorMessage } from "@/lib/api";
+import { invalidateRecommendationViews } from "@/lib/queryPolicy";
 import {
   composeFinding,
   EMPTY_FINDING,
@@ -150,9 +151,7 @@ function NewRecommendationWizard() {
       }),
     onSuccess: (data) => {
       setSavedId(data.id);
-      queryClient.invalidateQueries({ queryKey: ["recommendations"] });
-      queryClient.invalidateQueries({ queryKey: ["reports"] });
-      queryClient.invalidateQueries({ queryKey: ["report", Number(reportId)] });
+      invalidateRecommendationViews(queryClient, { reportId: Number(reportId) });
     },
   });
 
