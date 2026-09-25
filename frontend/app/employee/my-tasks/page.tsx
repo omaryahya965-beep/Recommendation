@@ -9,7 +9,7 @@ import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { ActionNow } from "@/components/home/ActionNow";
 import { HomeHero } from "@/components/home/HomeHero";
 import { ErrorBanner } from "@/components/ui/Base";
-import { DashboardSkeleton } from "@/components/ui/EmptyState";
+import { DashboardBodySkeleton } from "@/components/ui/EmptyState";
 import { RecordId } from "@/components/ui/Ledger";
 import { OverdueBadge } from "@/components/ui/OverdueBadge";
 import { RiskBadge } from "@/components/ui/RiskBadge";
@@ -25,8 +25,26 @@ export default function MyTasksPage() {
   useI18n();
   const { data, isLoading, isError, refetch } = useDashboard();
 
-  if (isLoading) return <DashboardSkeleton />;
-  if (isError || !data) return <ErrorBanner message={T.common.error} onRetry={() => refetch()} />;
+  const hero = (
+    <HomeHero
+      role="employee"
+      title={T.dashboard.employeeTitle}
+      subtitle={T.dashboard.employeeHint}
+      actions={[{ href: REGISTER, label: T.dashboard.myRecommendations, icon: ClipboardList, primary: true }]}
+    />
+  );
+
+  // The hero is static: it renders at once, while only the data sections
+  // wait for /api/dashboard/. Same wrapper in both branches, so the hero is
+  // updated in place (not remounted) when the data arrives.
+  if (isLoading || isError || !data) {
+    return (
+      <div className="animate-fade-in space-y-5">
+        {hero}
+        {isLoading ? <DashboardBodySkeleton /> : <ErrorBanner message={T.common.error} onRetry={() => refetch()} />}
+      </div>
+    );
+  }
 
   const sources: ActionSource[] = [];
   const overdue = data.action_center.overdue;
@@ -43,12 +61,7 @@ export default function MyTasksPage() {
 
   return (
     <div className="animate-fade-in space-y-5">
-      <HomeHero
-        role="employee"
-        title={T.dashboard.employeeTitle}
-        subtitle={T.dashboard.employeeHint}
-        actions={[{ href: REGISTER, label: T.dashboard.myRecommendations, icon: ClipboardList, primary: true }]}
-      />
+      {hero}
 
       {next ? (
         <section className="section-elevated border-transparent bg-gradient-to-br from-inverse via-inverse to-[#1a4b66] p-5 md:p-6 text-on-inverse shadow-[0_8px_32px_rgba(24,59,78,0.25)] relative overflow-hidden">

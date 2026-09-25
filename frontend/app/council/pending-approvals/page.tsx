@@ -10,7 +10,7 @@ import { ActionNow } from "@/components/home/ActionNow";
 import { HomeHero } from "@/components/home/HomeHero";
 import { RecommendationTable } from "@/components/RecommendationTable";
 import { Button, Callout, ErrorBanner, Field, TextArea } from "@/components/ui/Base";
-import { DashboardSkeleton, EmptyState } from "@/components/ui/EmptyState";
+import { DashboardBodySkeleton, EmptyState } from "@/components/ui/EmptyState";
 import { Section } from "@/components/ui/Section";
 import { useDashboard } from "@/lib/hooks";
 import { api, errorMessage } from "@/lib/api";
@@ -92,8 +92,30 @@ export default function PendingApprovalsPage() {
   });
   const { data: dashboard } = useDashboard();
 
-  if (isLoading) return <DashboardSkeleton />;
-  if (isError) return <ErrorBanner message={T.common.error} onRetry={() => refetch()} />;
+  const hero = (
+    <HomeHero
+      role="council"
+      title={T.dashboard.councilTitle}
+      subtitle={T.dashboard.councilHint}
+      actions={[
+        { href: "/council/pending-approvals", label: T.nav.pendingApprovals, icon: ClipboardCheck, primary: true },
+        { href: "/council/closure-reviews", label: T.nav.closureReviews, icon: Gavel },
+        { href: BASE, label: T.nav.recommendations, icon: ClipboardList },
+      ]}
+    />
+  );
+
+  // The hero is static: it renders at once, while only the data sections
+  // wait for /api/dashboard/. Same wrapper in both branches, so the hero is
+  // updated in place (not remounted) when the data arrives.
+  if (isLoading || isError) {
+    return (
+      <div className="animate-fade-in space-y-5">
+        {hero}
+        {isLoading ? <DashboardBodySkeleton /> : <ErrorBanner message={T.common.error} onRetry={() => refetch()} />}
+      </div>
+    );
+  }
 
   const pendingReports = data ?? [];
   const sources: ActionSource[] = dashboard?.action_center.closures_pending
@@ -108,16 +130,7 @@ export default function PendingApprovalsPage() {
 
   return (
     <div className="animate-fade-in space-y-5">
-      <HomeHero
-        role="council"
-        title={T.dashboard.councilTitle}
-        subtitle={T.dashboard.councilHint}
-        actions={[
-          { href: "/council/pending-approvals", label: T.nav.pendingApprovals, icon: ClipboardCheck, primary: true },
-          { href: "/council/closure-reviews", label: T.nav.closureReviews, icon: Gavel },
-          { href: BASE, label: T.nav.recommendations, icon: ClipboardList },
-        ]}
-      />
+      {hero}
 
       <Section title={T.dashboard.decisionCenter} hint={T.dashboard.decisionCenterHint}>
         {pendingReports.length ? (

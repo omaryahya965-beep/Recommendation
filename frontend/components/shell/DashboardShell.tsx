@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import {
   BarChart3,
+  Bell,
   ClipboardCheck,
   ClipboardList,
   FilePlus2,
@@ -21,7 +22,16 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
+import {
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ComponentType,
+  type ReactNode,
+} from "react";
 
 import { MunicipalityLogo } from "@/components/brand/MunicipalityLogo";
 import { DirCollapse } from "@/components/i18n/DirIcon";
@@ -29,6 +39,7 @@ import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { MobileNavDrawer } from "@/components/shell/MobileNavDrawer";
 import { MobileSearchOverlay } from "@/components/shell/MobileSearchOverlay";
 import { usePrefetchAIInsights } from "@/lib/ai";
+import { Skeleton } from "@/components/ui/EmptyState";
 import { StatusBadge } from "@/components/ui/StampBadge";
 import { api, loadAuth, logout, ROLE_HOME, ROLE_PROFILE } from "@/lib/api";
 import { cn } from "@/lib/cn";
@@ -361,19 +372,41 @@ function GlobalSearch({ role }: { role: Role }) {
   );
 }
 
-function SidebarNav({
-  role,
-  pathname,
-  collapsed,
-  onNavigate,
-}: {
+interface SidebarNavProps {
   role: Role;
   pathname: string;
   collapsed: boolean;
   onNavigate?: () => void;
-}) {
+}
+
+const NO_SEARCH_PARAMS = new URLSearchParams();
+
+function SidebarNavWithParams(props: SidebarNavProps) {
+  return <SidebarNavView {...props} searchParams={useSearchParams()} />;
+}
+
+/**
+ * useSearchParams() cannot be read while prerendering a static page: it makes
+ * the nearest Suspense boundary render its fallback instead. Scoping that to
+ * the nav alone, with a fallback that is the same nav minus query-string
+ * matching, keeps the whole shell in the static HTML.
+ */
+function SidebarNav(props: SidebarNavProps) {
+  return (
+    <Suspense fallback={<SidebarNavView {...props} searchParams={NO_SEARCH_PARAMS} />}>
+      <SidebarNavWithParams {...props} />
+    </Suspense>
+  );
+}
+
+function SidebarNavView({
+  role,
+  pathname,
+  collapsed,
+  onNavigate,
+  searchParams,
+}: SidebarNavProps & { searchParams: URLSearchParams }) {
   useI18n();
-  const searchParams = useSearchParams();
   const groups = navFor(role);
 
   const itemCls = (active: boolean) =>
@@ -446,13 +479,61 @@ function ShellInner({ role, children }: { role: Role; children: ReactNode }) {
     setChecked(true);
   }, [role, router]);
 
-  if (!checked || !user) return null;
-
+  // The frame (sidebar, header, navigation) comes from the route's role and
+  // holds no private data, so it renders at once — into the static HTML and
+  // before hydration. The session lives in localStorage, readable only in the
+  // browser: the page itself, which fetches private data, and the user's name
+  // wait for the check above, which also redirects a wrong or missing session.
+  const signedIn = checked ? user : null;
   return (
-    <ShellFrame role={role} user={user} pathname={pathname}>
-      {children}
+    <ShellFrame role={role} user={signedIn} pathname={pathname}>
+      {signedIn ? <Suspense fallback={<ContentSkeleton />}>{children}</Suspense> : <ContentSkeleton />}
     </ShellFrame>
   );
+}
+
+/** Neutral page placeholder shown until the session check lets the page mount. */
+function ContentSkeleton() {
+  return (
+    <div className="space-y-6" aria-busy="true">
+      <div className="space-y-2">
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-8 w-64 max-w-full" />
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-24 rounded-xl" />
+        ))}
+      </div>
+      <Skeleton className="h-72 rounded-xl" />
+    </div>
+  );
+}
+
+const SIDEBAR_KEY = "audit_sidebar_collapsed";
+const sidebarListeners = new Set<() => void>();
+
+function subscribeSidebar(listener: () => void) {
+  sidebarListeners.add(listener);
+  return () => sidebarListeners.delete(listener);
+}
+
+function readSidebarCollapsed() {
+  return window.localStorage.getItem(SIDEBAR_KEY) === "1";
+}
+
+/**
+ * The saved sidebar width. Server render and hydration use the expanded
+ * default (localStorage does not exist there), then the saved value applies —
+ * reading it during the first render would mismatch the static HTML.
+ */
+function useSidebarCollapsed() {
+  const collapsed = useSyncExternalStore(subscribeSidebar, readSidebarCollapsed, () => false);
+  const toggle = () => {
+    window.localStorage.setItem(SIDEBAR_KEY, readSidebarCollapsed() ? "0" : "1");
+    sidebarListeners.forEach((listener) => listener());
+  };
+  return [collapsed, toggle] as const;
 }
 
 function ShellFrame({
@@ -462,33 +543,23 @@ function ShellFrame({
   children,
 }: {
   role: Role;
-  user: User;
+  /** Null until the browser-side session check passes (and on the server). */
+  user: User | null;
   pathname: string;
   children: ReactNode;
 }) {
   useI18n();
-  usePrefetchAIInsights(role);
-  const [collapsed, setCollapsed] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("audit_sidebar_collapsed") === "1";
-  });
+  usePrefetchAIInsights(role, user !== null);
+  const [collapsed, toggleCollapsed] = useSidebarCollapsed();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const searchParams = useSearchParams();
   const settings = settingsFor(role);
   const profile = profileHref(role);
 
-  const toggleCollapsed = () => {
-    setCollapsed((v) => {
-      const next = !v;
-      window.localStorage.setItem("audit_sidebar_collapsed", next ? "1" : "0");
-      return next;
-    });
-  };
-
-  const initials = (user.full_name_ar || user.username).slice(0, 1);
-  const settingsActive = navItemActive(pathname, searchParams, settings.href);
-  const profileActive = navItemActive(pathname, searchParams, profile);
+  const initials = user ? (user.full_name_ar || user.username).slice(0, 1) : "";
+  // Settings and profile links carry no query string, so only the path matters.
+  const settingsActive = navItemActive(pathname, NO_SEARCH_PARAMS, settings.href);
+  const profileActive = navItemActive(pathname, NO_SEARCH_PARAMS, profile);
 
   const sidebar = (
     <>
@@ -509,7 +580,7 @@ function ShellFrame({
                 className="h-9 w-auto select-none"
               />
               <p className="truncate text-[12px] font-medium text-sidebar-muted">
-                {ROLE_LABELS[user.role]}
+                {ROLE_LABELS[role]}
               </p>
             </div>
           )}
@@ -540,7 +611,7 @@ function ShellFrame({
         <div className={cn("mt-2 flex items-center gap-2 rounded-lg bg-sidebar-hover/30 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]", collapsed && "justify-center p-1.5")}>
           <Link
             href={profile}
-            title={user.full_name_ar || user.username}
+            title={user ? user.full_name_ar || user.username : undefined}
             aria-label={T.nav.profile}
             aria-current={profileActive ? "page" : undefined}
             onClick={() => setMobileOpen(false)}
@@ -553,10 +624,16 @@ function ShellFrame({
             <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-sidebar-hover font-heading text-[13px] font-bold text-white shadow-sm ring-1 ring-white/5">
               {initials}
             </div>
-            {collapsed ? <span className="sr-only">{T.nav.profile}</span> : (
+            {collapsed ? <span className="sr-only">{T.nav.profile}</span> : user ? (
               <div className="min-w-0 flex-1">
                 <p className="truncate font-heading text-[13px] font-semibold text-white">{user.full_name_ar || user.username}</p>
                 <p className="truncate text-[12px] text-sidebar-muted">{user.municipality_name || ROLE_LABELS[user.role]}</p>
+              </div>
+            ) : (
+              // Same two-line height as the filled block, so nothing shifts.
+              <div className="min-w-0 flex-1 space-y-1.5" aria-hidden>
+                <div className="h-3.5 w-24 animate-pulse rounded bg-sidebar-hover" />
+                <div className="h-3 w-16 animate-pulse rounded bg-sidebar-hover/70" />
               </div>
             )}
           </Link>
@@ -657,7 +734,14 @@ function ShellFrame({
                 <GlobalSearch role={role} />
               </div>
               <div className="hidden h-5 w-px bg-line md:block" />
-              <NotificationBell role={role} />
+              {user ? (
+                <NotificationBell role={role} />
+              ) : (
+                // Same footprint as the bell; its unread poll needs a session.
+                <span className="flex size-12 items-center justify-center text-ink-soft md:size-9" aria-hidden>
+                  <Bell className="size-5" />
+                </span>
+              )}
             </div>
           </div>
         </header>
@@ -677,9 +761,5 @@ export default function DashboardShell({
   role: Role;
   children: ReactNode;
 }) {
-  return (
-    <Suspense fallback={null}>
-      <ShellInner role={role}>{children}</ShellInner>
-    </Suspense>
-  );
+  return <ShellInner role={role}>{children}</ShellInner>;
 }

@@ -8,7 +8,7 @@ import { ActionNow } from "@/components/home/ActionNow";
 import { HomeHero } from "@/components/home/HomeHero";
 import { PriorityMetrics } from "@/components/home/PriorityMetrics";
 import { ErrorBanner } from "@/components/ui/Base";
-import { DashboardSkeleton } from "@/components/ui/EmptyState";
+import { DashboardBodySkeleton } from "@/components/ui/EmptyState";
 import { useDashboard } from "@/lib/hooks";
 import { T, useI18n } from "@/lib/i18n";
 
@@ -26,8 +26,30 @@ export default function AuditDashboard() {
   useI18n();
   const { data, isLoading, isError, refetch } = useDashboard();
 
-  if (isLoading) return <DashboardSkeleton />;
-  if (isError || !data) return <ErrorBanner message={T.common.error} onRetry={() => refetch()} />;
+  const hero = (
+    <HomeHero
+      role="audit"
+      title={T.dashboard.auditTitle}
+      subtitle={T.dashboard.auditHint}
+      actions={[
+        { href: "/audit/reports/new", label: T.reports.addReport, icon: FilePlus2, primary: true },
+        { href: "/audit/reports", label: T.nav.reports, icon: FileText },
+        { href: BASE, label: T.register.title, icon: ClipboardList },
+      ]}
+    />
+  );
+
+  // The hero is static: it renders at once, while only the data sections
+  // wait for /api/dashboard/. Same wrapper in both branches, so the hero is
+  // updated in place (not remounted) when the data arrives.
+  if (isLoading || isError || !data) {
+    return (
+      <div className="animate-fade-in min-w-0 space-y-5">
+        {hero}
+        {isLoading ? <DashboardBodySkeleton /> : <ErrorBanner message={T.common.error} onRetry={() => refetch()} />}
+      </div>
+    );
+  }
 
   const sources: ActionSource[] = QUEUES.filter((queue) => data.action_center[queue.key]).map((queue) => ({
     key: queue.key,
@@ -36,16 +58,7 @@ export default function AuditDashboard() {
   }));
   return (
     <div className="animate-fade-in min-w-0 space-y-5">
-      <HomeHero
-        role="audit"
-        title={T.dashboard.auditTitle}
-        subtitle={T.dashboard.auditHint}
-        actions={[
-          { href: "/audit/reports/new", label: T.reports.addReport, icon: FilePlus2, primary: true },
-          { href: "/audit/reports", label: T.nav.reports, icon: FileText },
-          { href: BASE, label: T.register.title, icon: ClipboardList },
-        ]}
-      />
+      {hero}
 
       <PriorityMetrics
         items={sources.slice(0, 5).map((source) => ({
