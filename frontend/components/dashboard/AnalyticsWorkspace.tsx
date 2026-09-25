@@ -12,9 +12,10 @@ import { TeamLoad } from "@/components/dashboard/TeamLoad";
 import { ErrorBanner } from "@/components/ui/Base";
 import { DashboardSkeleton } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { useDashboard } from "@/lib/hooks";
 import { api } from "@/lib/api";
 import { T, useI18n } from "@/lib/i18n";
-import type { AuditReport, DashboardData, Paginated, Role } from "@/lib/types";
+import type { AuditReport, Paginated, Role } from "@/lib/types";
 import { analyticsStageIds } from "@/lib/workflow";
 
 function recBase(role: Role) {
@@ -48,10 +49,7 @@ export function AnalyticsWorkspace({ role }: { role: Role }) {
   useI18n();
   const base = recBase(role);
   const stageIds = analyticsStageIds(role);
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["dashboard"],
-    queryFn: () => api<DashboardData>("/api/dashboard/"),
-  });
+  const { data, isLoading, isError, refetch } = useDashboard();
   const { data: reportsPage } = useQuery({
     queryKey: ["reports", "analytics-pipeline", role],
     queryFn: () => api<Paginated<AuditReport>>("/api/reports/?page_size=100"),

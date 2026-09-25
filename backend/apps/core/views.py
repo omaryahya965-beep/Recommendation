@@ -19,7 +19,7 @@ from apps.audits.models import (
     Recommendation,
 )
 from apps.audits.serializers import RecommendationListSerializer
-from apps.core.analytics import build_analytics
+from apps.core.analytics import cached_analytics
 from apps.core.permissions import scope_recommendations
 
 class HealthView(View):
@@ -39,12 +39,11 @@ class AnalyticsView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        queryset = scope_recommendations(Recommendation.objects.all(), request.user)
         try:
             months = max(1, min(36, int(request.query_params.get("months", 12))))
         except (TypeError, ValueError):
             months = 12
-        return Response(build_analytics(queryset, months=months))
+        return Response(cached_analytics(request.user, months=months))
 
 
 S = Recommendation.Status

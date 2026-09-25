@@ -15,9 +15,11 @@ import { OverdueBadge } from "@/components/ui/OverdueBadge";
 import { RiskBadge } from "@/components/ui/RiskBadge";
 import { StatusBadge } from "@/components/ui/StampBadge";
 import { api, errorMessage } from "@/lib/api";
+import { invalidateRecommendationViews } from "@/lib/queryPolicy";
 import { caseTitle } from "@/lib/finding";
 import { formatDate, recordCode } from "@/lib/format";
 import { REPORT_STATUS_LABELS, REPORT_TYPE_LABELS, RISK_LABELS, T, useI18n } from "@/lib/i18n";
+import { MODERATE } from "@/lib/queryPolicy";
 import type { AuditReport } from "@/lib/types";
 import { stageForStatus } from "@/lib/workflow";
 
@@ -31,15 +33,15 @@ export default function ReportDetailPage() {
   const { data: report, isLoading, isError, refetch } = useQuery({
     queryKey: ["report", id],
     queryFn: () => api<AuditReport>(`/api/reports/${id}/`),
+    ...MODERATE,
   });
 
   const reportAction = useMutation({
     mutationFn: (path: string) => api(`/api/reports/${id}/${path}`, { method: "POST" }),
     onSuccess: () => {
       setError(null);
-      queryClient.invalidateQueries({ queryKey: ["report", id] });
-      queryClient.invalidateQueries({ queryKey: ["reports"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      // Report actions move every recommendation in the report at once.
+      invalidateRecommendationViews(queryClient, { reportId: id, allCases: true });
     },
     onError: (err) => setError(errorMessage(err)),
   });

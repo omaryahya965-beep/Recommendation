@@ -10,6 +10,7 @@ import {
   UserRound,
   Users,
 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 
@@ -59,6 +60,7 @@ function fieldClass(invalid: boolean) {
 export default function LoginPage() {
   const { dir } = useI18n();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const formErrorId = useId();
   const usernameErrorId = useId();
   const passwordErrorId = useId();
@@ -92,6 +94,10 @@ export default function LoginPage() {
     setPasswordError(null);
     try {
       const auth = await login(user, pass);
+      // Query keys are not per-user. The login page can be reached by a
+      // client-side redirect (e.g. signed out in another tab), so drop any
+      // previous session's cached data before showing the new user's pages.
+      queryClient.clear();
       if (remember) localStorage.setItem(REMEMBER_KEY, user);
       else localStorage.removeItem(REMEMBER_KEY);
       router.replace(ROLE_HOME[auth.user.role] ?? "/login");

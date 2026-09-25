@@ -82,8 +82,13 @@ class AuditReportViewSet(viewsets.ModelViewSet):
     search_fields = ["title"]
 
     def get_queryset(self):
+        # created_by_detail serializes the author's department and
+        # municipality names; without them joined here every row costs a query.
         qs = (
-            AuditReport.objects.select_related("department", "created_by", "municipality")
+            AuditReport.objects.select_related(
+                "department", "municipality",
+                "created_by__department", "created_by__municipality",
+            )
             .annotate(recommendations_count=Count("recommendations"))
         )
         return scope_reports(qs, self.request.user)

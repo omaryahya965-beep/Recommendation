@@ -14,6 +14,7 @@ import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { daysUntil, formatDate, recordCode } from "@/lib/format";
 import { REPORT_STATUS_LABELS, REPORT_TYPE_LABELS, T, useI18n } from "@/lib/i18n";
+import { MODERATE } from "@/lib/queryPolicy";
 import type { AuditReport, Paginated } from "@/lib/types";
 
 const STATUS_FILTERS: Array<ReportStatus | "all"> = [
@@ -146,6 +147,7 @@ export function ReportsRegister() {
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["reports"],
     queryFn: () => api<Paginated<AuditReport>>("/api/reports/?page_size=100"),
+    ...MODERATE,
   });
 
   const all = data?.results ?? [];

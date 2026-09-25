@@ -16,12 +16,14 @@ import { api } from "@/lib/api";
 import { caseTitle } from "@/lib/finding";
 import { formatDate } from "@/lib/format";
 import { T, useI18n } from "@/lib/i18n";
+import { LIVE } from "@/lib/queryPolicy";
 import type { Paginated, RecommendationListItem } from "@/lib/types";
 
 export default function CouncilClosureReviewsPage() {
   useI18n();
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["recommendations", "pending-closure-council"],
+    ...LIVE,
     queryFn: () =>
       api<Paginated<RecommendationListItem>>(
         "/api/recommendations/?status=pending_closure_council&page_size=100"

@@ -18,6 +18,7 @@ import { api, loadAuth } from "@/lib/api";
 import { caseTitle } from "@/lib/finding";
 import { formatDate } from "@/lib/format";
 import { T, useI18n } from "@/lib/i18n";
+import { LIVE } from "@/lib/queryPolicy";
 import type { Paginated, RecommendationListItem } from "@/lib/types";
 import { buildWorkloads, type Workload } from "@/lib/workload";
 
@@ -98,6 +99,7 @@ export default function TeamProgressPage() {
   useI18n();
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["recommendations", "team-progress"],
+    ...LIVE,
     queryFn: () =>
       api<Paginated<RecommendationListItem>>(
         `/api/recommendations/?status__in=${EXECUTION_STATUSES}&page_size=100`

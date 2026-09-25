@@ -17,6 +17,7 @@ import {
 } from "@/lib/analytics";
 import { cn } from "@/lib/cn";
 import { T, useI18n } from "@/lib/i18n";
+import { MODERATE } from "@/lib/queryPolicy";
 
 /** Percentage readout with the population it is measured against spelled out. */
 function Rate({
@@ -306,7 +307,7 @@ export function PortfolioAnalytics({
   const { data, isLoading, isError } = useQuery({
     queryKey: ["analytics", scope],
     queryFn: () => fetchAnalytics(),
-    staleTime: 60_000,
+    ...MODERATE,
   });
 
   const derived = useMemo(() => {
