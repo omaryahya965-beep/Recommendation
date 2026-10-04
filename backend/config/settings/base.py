@@ -207,6 +207,10 @@ MEDIA_ROOT = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# Whatever settings module is active, `manage.py test` refuses non-local
+# databases, forces the local AI provider and blocks outbound network calls.
+TEST_RUNNER = "config.test_runner.SafeTestRunner"
+
 # ---------------------------------------------------------------------------
 # Uploads: restrict evidence/attachment files by size and type
 # ---------------------------------------------------------------------------
