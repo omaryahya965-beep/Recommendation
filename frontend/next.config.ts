@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // The Playwright suite builds into its own directory (NEXT_DIST_DIR=.next-e2e)
+  // with the local E2E API baked in, so it never overwrites a developer build.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   env: {
     // Always define these so Next inlines them at build time. An *undefined*
     // NEXT_PUBLIC_* variable is left as a runtime `process.env` lookup, which

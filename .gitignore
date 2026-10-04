@@ -53,3 +53,10 @@ yarn-error.log*
 Thumbs.db
 Desktop.ini
 ehthumbs.db
+
+# E2E (Playwright) artifacts and the local E2E backend's uploads
+backend/.e2e-media/
+frontend/.next-e2e/
+frontend/playwright-report/
+frontend/test-results/
+frontend/e2e/.auth/
