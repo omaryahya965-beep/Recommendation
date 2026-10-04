@@ -1,4 +1,3 @@
-from django.utils import timezone
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
@@ -11,23 +10,28 @@ from apps.workflow.serializers import (
     VerificationDecisionSerializer,
 )
 
-from .models import OVERDUE_ACTIVE_STATUSES, AuditReport, Recommendation
+from .finding import brief_excerpt, case_title
+from .models import AuditReport, Recommendation
 
 
 def is_overdue(recommendation):
-    """Overdue is ALWAYS computed dynamically from the plan deadline —
-    it is never a stored workflow state.
+    """Department overdue, ALWAYS computed — never a stored workflow state.
 
-    Reads the same status list as the `overdue` query filter
-    (`OVERDUE_ACTIVE_STATUSES`), so a badge can never contradict the filter
-    that produced the row.
+    The binding deadline is the action-plan target date, or the audit-set
+    deadline after a partial/insufficient verification (W1), and it only
+    counts while the department owns the next action (W2). The `overdue`
+    filter, dashboards, analytics and reminders use the same rules
+    (apps.workflow.presentation), so a badge can never contradict the list
+    or the KPI that produced it.
     """
-    plan = getattr(recommendation, "action_plan", None)
-    if plan is None or plan.target_date is None:
-        return False
-    if recommendation.status not in OVERDUE_ACTIVE_STATUSES:
-        return False
-    return plan.target_date < timezone.localdate()
+    from apps.workflow.presentation import is_department_overdue
+
+    return is_department_overdue(recommendation)
+
+
+def _request_user(serializer):
+    request = serializer.context.get("request")
+    return getattr(request, "user", None)
 
 
 class RecommendationListSerializer(serializers.ModelSerializer):
@@ -42,19 +46,81 @@ class RecommendationListSerializer(serializers.ModelSerializer):
         source="action_plan.responsible_employee.full_name_ar", read_only=True, default=None
     )
     overdue = serializers.SerializerMethodField()
+    # Derived for display; `text` stays the stored contract.
+    title = serializers.SerializerMethodField()
+    excerpt = serializers.SerializerMethodField()
+    # Where the case stands (apps.workflow.presentation).
+    stage = serializers.SerializerMethodField()
+    waiting_on = serializers.SerializerMethodField()
+    next_role = serializers.SerializerMethodField()
+    deadline = serializers.SerializerMethodField()
+    deadline_source = serializers.SerializerMethodField()
+    days_overdue = serializers.SerializerMethodField()
+    due_in_days = serializers.SerializerMethodField()
+    response_overdue = serializers.SerializerMethodField()
+    days_waiting = serializers.SerializerMethodField()
+    my_turn = serializers.SerializerMethodField()
 
     class Meta:
         model = Recommendation
         fields = [
             "id", "report", "report_title", "engagement_type", "department", "department_name",
-            "text", "risk_level", "priority_score", "status", "is_recurring",
-            "recurrence_confirmed", "target_date", "responsible_employee",
-            "overdue", "created_at",
+            "title", "excerpt", "text", "risk_level", "priority_score", "status", "resolution",
+            "is_recurring", "recurrence_confirmed", "target_date", "responsible_employee",
+            "overdue", "stage", "waiting_on", "next_role", "deadline", "deadline_source",
+            "days_overdue", "due_in_days", "response_overdue", "days_waiting", "my_turn",
+            "created_at", "closed_at",
         ]
         read_only_fields = fields
 
+    @staticmethod
+    def _facts(obj):
+        from apps.workflow.presentation import facts
+
+        return facts(obj)
+
     def get_overdue(self, obj):
-        return is_overdue(obj)
+        return self._facts(obj)["is_overdue"]
+
+    def get_title(self, obj):
+        return case_title(obj.text)
+
+    def get_excerpt(self, obj):
+        return brief_excerpt(obj.text, 200)
+
+    def get_stage(self, obj):
+        return self._facts(obj)["stage"]
+
+    def get_waiting_on(self, obj):
+        return self._facts(obj)["waiting_on"]
+
+    def get_next_role(self, obj):
+        return self._facts(obj)["next_role"]
+
+    def get_deadline(self, obj):
+        deadline = self._facts(obj)["deadline"]
+        return deadline.isoformat() if deadline else None
+
+    def get_deadline_source(self, obj):
+        return self._facts(obj)["deadline_source"]
+
+    def get_days_overdue(self, obj):
+        return self._facts(obj)["days_overdue"]
+
+    def get_due_in_days(self, obj):
+        return self._facts(obj)["due_in_days"]
+
+    def get_response_overdue(self, obj):
+        return self._facts(obj)["response_overdue"]
+
+    def get_days_waiting(self, obj):
+        return self._facts(obj)["days_waiting"]
+
+    def get_my_turn(self, obj):
+        from apps.workflow.presentation import is_my_turn
+
+        user = _request_user(self)
+        return bool(user and user.is_authenticated and is_my_turn(obj, user))
 
 
 class TrailEntrySerializer(serializers.Serializer):
@@ -75,15 +141,26 @@ class RecommendationDetailSerializer(RecommendationListSerializer):
     verifications = VerificationDecisionSerializer(many=True, read_only=True)
     trail = TrailEntrySerializer(source="trail_entries", many=True, read_only=True)
     similar_recommendation_text = serializers.SerializerMethodField()
+    workflow = serializers.SerializerMethodField()
 
     class Meta(RecommendationListSerializer.Meta):
         fields = RecommendationListSerializer.Meta.fields + [
-            "root_cause", "resolution", "similar_recommendation",
+            "root_cause", "similar_recommendation",
             "similar_recommendation_text", "similarity_score",
             "response", "action_plan", "approvals", "evidence_files",
-            "verifications", "trail", "updated_at",
+            "verifications", "trail", "workflow", "updated_at",
         ]
         read_only_fields = fields
+
+    def get_workflow(self, obj):
+        """Stage, owner, deadline, overdue and the actions this user may take
+        now — computed by the same guards the endpoints enforce."""
+        from apps.workflow.presentation import workflow_block
+
+        user = _request_user(self)
+        if user is None or not user.is_authenticated:
+            return None
+        return workflow_block(obj, user)
 
     def get_similar_recommendation_text(self, obj):
         other = obj.similar_recommendation
@@ -198,6 +275,9 @@ class AuditReportDetailSerializer(AuditReportSerializer):
         )
         if request is not None and request.user.is_authenticated:
             queryset = scope_recommendations(queryset, request.user)
+        from apps.workflow.presentation import annotate_workflow
+
+        queryset = annotate_workflow(queryset)
         return ReportRecommendationSerializer(
             queryset, many=True, context=self.context
         ).data

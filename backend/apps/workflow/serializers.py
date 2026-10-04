@@ -25,13 +25,15 @@ def validate_upload(file):
     max_bytes = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
     if file.size > max_bytes:
         raise serializers.ValidationError(
-            f"File exceeds the maximum size of {settings.MAX_UPLOAD_SIZE_MB} MB."
+            f"File exceeds the maximum size of {settings.MAX_UPLOAD_SIZE_MB} MB.",
+            code="upload_too_large",
         )
     ext = os.path.splitext(file.name)[1].lower()
     if ext not in settings.ALLOWED_UPLOAD_EXTENSIONS:
         raise serializers.ValidationError(
             f"File type '{ext}' is not allowed. Allowed: "
-            + ", ".join(settings.ALLOWED_UPLOAD_EXTENSIONS)
+            + ", ".join(settings.ALLOWED_UPLOAD_EXTENSIONS),
+            code="upload_type_not_allowed",
         )
     return file
 
@@ -85,14 +87,26 @@ class ApprovalRecordSerializer(serializers.ModelSerializer):
 class EvidenceSerializer(serializers.ModelSerializer):
     uploaded_by_detail = UserSerializer(source="uploaded_by", read_only=True)
     file_url = serializers.SerializerMethodField()
+    can_delete = serializers.SerializerMethodField()
 
     class Meta:
         model = Evidence
         fields = [
             "id", "recommendation", "step", "file", "file_url", "uploaded_by",
-            "uploaded_by_detail", "notes", "uploaded_at",
+            "uploaded_by_detail", "notes", "uploaded_at", "can_delete",
         ]
         read_only_fields = fields
+
+    def get_can_delete(self, obj):
+        """Whether the requesting user may delete this file now — the same
+        rule `delete_evidence` enforces."""
+        from apps.workflow.services.execution import evidence_delete_blocker
+
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if user is None or not user.is_authenticated:
+            return False
+        return evidence_delete_blocker(obj.recommendation, user, obj) is None
 
     def get_file_url(self, obj):
         """Authorization-checked download endpoint, not the raw storage URL.
@@ -154,18 +168,22 @@ class RespondInputSerializer(serializers.Serializer):
             try:
                 attrs["stored_name"] = validate_stored_name(stored, allowed_prefix="responses/")
             except ValueError as exc:
-                raise serializers.ValidationError({"stored_name": str(exc)}) from exc
+                raise serializers.ValidationError({"stored_name": str(exc)}, code="invalid_upload") from exc
             ext = os.path.splitext(attrs["stored_name"])[1].lower()
             if ext not in settings.ALLOWED_UPLOAD_EXTENSIONS:
-                raise serializers.ValidationError({"stored_name": f"File type '{ext}' is not allowed."})
+                raise serializers.ValidationError(
+                    {"stored_name": f"File type '{ext}' is not allowed."}, code="upload_type_not_allowed"
+                )
         if attrs["decision"] == ManagementResponse.Decision.DISAGREE:
             if not attrs.get("justification", "").strip():
                 raise serializers.ValidationError(
-                    {"justification": "Disagreement requires a written justification."}
+                    {"justification": "Disagreement requires a written justification."},
+                    code="disagreement_requires_justification",
                 )
             if not attrs.get("attachment") and not attrs.get("stored_name"):
                 raise serializers.ValidationError(
-                    {"attachment": "Disagreement requires a supporting attachment."}
+                    {"attachment": "Disagreement requires a supporting attachment."},
+                    code="attachment_required",
                 )
         return attrs
 
@@ -193,12 +211,14 @@ class EvidenceInputSerializer(serializers.Serializer):
             try:
                 attrs["stored_name"] = validate_stored_name(stored, allowed_prefix="evidence/")
             except ValueError as exc:
-                raise serializers.ValidationError({"stored_name": str(exc)}) from exc
+                raise serializers.ValidationError({"stored_name": str(exc)}, code="invalid_upload") from exc
             ext = os.path.splitext(attrs["stored_name"])[1].lower()
             if ext not in settings.ALLOWED_UPLOAD_EXTENSIONS:
-                raise serializers.ValidationError({"stored_name": f"File type '{ext}' is not allowed."})
+                raise serializers.ValidationError(
+                    {"stored_name": f"File type '{ext}' is not allowed."}, code="upload_type_not_allowed"
+                )
         if not attrs.get("file") and not attrs.get("stored_name"):
-            raise serializers.ValidationError({"file": "A file is required."})
+            raise serializers.ValidationError({"file": "A file is required."}, code="file_required")
         return attrs
 
 
@@ -209,3 +229,15 @@ class VerifyInputSerializer(serializers.Serializer):
     rejection_reason = serializers.CharField(required=False, allow_blank=True)
     required_action = serializers.CharField(required=False, allow_blank=True)
     action_deadline = serializers.DateField(required=False, allow_null=True)
+    # W4: "Sufficient + send to council" in one step. Both transitions and
+    # both audit-trail entries are still written.
+    send_to_council = serializers.BooleanField(required=False, default=False)
+    closure_notes = serializers.CharField(required=False, allow_blank=True)
+
+    def validate(self, attrs):
+        if attrs.get("send_to_council") and attrs["decision"] != VerificationDecision.Decision.SUFFICIENT:
+            raise serializers.ValidationError(
+                {"send_to_council": "Only a sufficient verification can be sent to the council."},
+                code="send_to_council_requires_sufficient",
+            )
+        return attrs

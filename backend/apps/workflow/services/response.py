@@ -12,6 +12,7 @@ from ..models import (
     ApprovalRecord,
     ManagementResponse,
 )
+from .. import guards
 from ..transitions import transition
 from .plan import _upsert_plan
 from .common import _policy
@@ -29,18 +30,19 @@ S = Recommendation.Status
 @db_transaction.atomic
 def submit_response(recommendation, user, decision, justification="", attachment=None,
                     plan_data=None, stored_name=""):
-    if recommendation.status not in (S.PENDING_RESPONSE, S.RETURNED_FOR_REVISION):
-        raise WorkflowError("This recommendation is not awaiting a department response.")
-    if user.department_id != recommendation.report.department_id:
-        raise WorkflowError("You can only respond to your own department's recommendations.")
+    guards.require("respond", recommendation, user)
     if decision == ManagementResponse.Decision.DISAGREE and not justification.strip():
-        raise WorkflowError("Disagreement requires a written justification.")
+        raise WorkflowError(
+            "Disagreement requires a written justification.",
+            code="disagreement_requires_justification",
+        )
 
     policy = _policy(recommendation.report)
     require_plan = bool(policy and policy.require_plan_with_response)
     if require_plan and decision == ManagementResponse.Decision.AGREE and not plan_data:
         raise WorkflowError(
-            "Municipal policy requires the action plan to be submitted with the response."
+            "Municipal policy requires the action plan to be submitted with the response.",
+            code="plan_required_with_response",
         )
 
     response = getattr(recommendation, "response", None)
@@ -97,11 +99,8 @@ def submit_response(recommendation, user, decision, justification="", attachment
 @db_transaction.atomic
 def review_response(recommendation, user, accept, notes=""):
     """Audit reviews the response (and plan, when submitted together) as one unit."""
-    if recommendation.status != S.AUDIT_REVIEW:
-        raise WorkflowError("This recommendation's response is not under audit review.")
-    response = getattr(recommendation, "response", None)
-    if response is None:
-        raise WorkflowError("No management response exists to review.")
+    guards.require("review_response", recommendation, user)
+    response = recommendation.response
 
     response.reviewed_by = user
     response.audit_review_notes = notes
@@ -135,7 +134,10 @@ def review_response(recommendation, user, accept, notes=""):
         )
     else:
         if not notes.strip():
-            raise WorkflowError("Rejecting a response requires review notes for the department.")
+            raise WorkflowError(
+                "Rejecting a response requires review notes for the department.",
+                code="review_notes_required",
+            )
         response.review_status = ManagementResponse.ReviewStatus.REJECTED
         response.save()
         transition(

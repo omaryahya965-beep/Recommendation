@@ -284,12 +284,16 @@ class DashboardInsightsView(APIView):
     def get(self, request):
         if not settings.AI_ENABLED:
             return Response({"available": False, "detail": "AI unavailable"})
-        qs = scope_recommendations(
-            Recommendation.objects.select_related(
-                "report__department", "action_plan__responsible_employee"
-            ),
-            request.user,
-        ).exclude(status=Recommendation.Status.DRAFT)
+        from apps.workflow.presentation import annotate_workflow
+
+        qs = annotate_workflow(
+            scope_recommendations(
+                Recommendation.objects.select_related(
+                    "report__department", "action_plan__responsible_employee"
+                ),
+                request.user,
+            ).exclude(status=Recommendation.Status.DRAFT)
+        )
         lang = _language(request)
         try:
             payload = build_dashboard_insights(qs, request, request.user, lang)

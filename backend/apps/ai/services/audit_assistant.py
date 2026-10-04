@@ -50,7 +50,9 @@ def _qs(user):
     )
     if user.role != "audit":
         qs = qs.exclude(status=S.DRAFT)
-    return qs
+    from apps.workflow.presentation import annotate_workflow
+
+    return annotate_workflow(qs)
 
 
 def _display_title(text: str) -> str:

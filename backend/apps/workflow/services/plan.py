@@ -8,6 +8,7 @@ from apps.core.models import log_action
 from apps.notifications.models import Notification
 
 from ..models import ActionPlan, ActionStep
+from .. import guards
 from ..transitions import transition
 from .notify import (
     _audit_users,
@@ -23,9 +24,15 @@ def _upsert_plan(recommendation, user, plan_data):
     """Create or update the plan and its steps; history goes to AuditTrail."""
     employee = plan_data["responsible_employee"]
     if employee.department_id != recommendation.report.department_id:
-        raise WorkflowError("The responsible employee must belong to the audited department.")
+        raise WorkflowError(
+            "The responsible employee must belong to the audited department.",
+            code="employee_wrong_department",
+        )
     if employee.role != User.Role.EMPLOYEE:
-        raise WorkflowError("The responsible person must have the employee role.")
+        raise WorkflowError(
+            "The responsible person must have the employee role.",
+            code="employee_wrong_role",
+        )
 
     plan = getattr(recommendation, "action_plan", None)
     previous = None
@@ -74,10 +81,7 @@ def _upsert_plan(recommendation, user, plan_data):
 
 @db_transaction.atomic
 def submit_action_plan(recommendation, user, plan_data):
-    if recommendation.status not in (S.ACTION_PLAN_REQUIRED, S.REVISION_REQUIRED):
-        raise WorkflowError("This recommendation is not awaiting an action plan.")
-    if user.department_id != recommendation.report.department_id:
-        raise WorkflowError("You can only submit plans for your own department.")
+    guards.require("submit_plan", recommendation, user)
 
     plan = _upsert_plan(recommendation, user, plan_data)
     transition(recommendation, S.ACTION_PLAN_REVIEW, user, "action_plan_submitted_for_review")
@@ -92,11 +96,8 @@ def submit_action_plan(recommendation, user, plan_data):
 
 @db_transaction.atomic
 def review_action_plan(recommendation, user, approve, notes=""):
-    if recommendation.status != S.ACTION_PLAN_REVIEW:
-        raise WorkflowError("This recommendation's action plan is not under review.")
-    plan = getattr(recommendation, "action_plan", None)
-    if plan is None:
-        raise WorkflowError("No action plan exists to review.")
+    guards.require("review_plan", recommendation, user)
+    plan = recommendation.action_plan
 
     plan.reviewed_by = user
     plan.review_notes = notes
@@ -120,7 +121,10 @@ def review_action_plan(recommendation, user, approve, notes=""):
         )
     else:
         if not notes.strip():
-            raise WorkflowError("Requesting a plan revision requires review notes.")
+            raise WorkflowError(
+                "Requesting a plan revision requires review notes.",
+                code="review_notes_required",
+            )
         plan.status = ActionPlan.Status.REVISION_REQUIRED
         plan.save()
         transition(recommendation, S.REVISION_REQUIRED, user, "action_plan_revision_requested", notes=notes)

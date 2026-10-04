@@ -12,7 +12,10 @@ S = Recommendation.Status
 @db_transaction.atomic
 def confirm_recurrence(recommendation, user, confirmed):
     if not recommendation.is_recurring:
-        raise WorkflowError("This recommendation is not flagged as possibly recurring.")
+        raise WorkflowError(
+            "This recommendation is not flagged as possibly recurring.",
+            code="not_flagged_recurring",
+        )
     recommendation.recurrence_confirmed = confirmed
     if not confirmed:
         recommendation.is_recurring = False

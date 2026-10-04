@@ -7,7 +7,7 @@ justifications, closure rules, structured rejection feedback.
 The implementation is split by lifecycle stage; this package re-exports the
 public surface so callers keep using `from apps.workflow import services`.
 """
-from .closure import council_closure, submit_for_closure, verify
+from .closure import council_closure, submit_for_closure, verify, verify_and_submit_for_closure
 from .execution import (
     EXECUTION_STATUSES,
     _ensure_executor,
@@ -42,4 +42,5 @@ __all__ = [
     "submit_response",
     "update_step_progress",
     "verify",
+    "verify_and_submit_for_closure",
 ]

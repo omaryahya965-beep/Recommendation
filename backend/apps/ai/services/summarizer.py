@@ -31,11 +31,15 @@ OPEN = [s for s, _ in S.choices if s not in (S.CLOSED, S.DRAFT)]
 
 
 def _scoped_recs(user):
-    return scope_recommendations(
-        Recommendation.objects.select_related(
-            "report__department", "action_plan__responsible_employee"
-        ).exclude(status=S.DRAFT),
-        user,
+    from apps.workflow.presentation import annotate_workflow
+
+    return annotate_workflow(
+        scope_recommendations(
+            Recommendation.objects.select_related(
+                "report__department", "action_plan__responsible_employee"
+            ).exclude(status=S.DRAFT),
+            user,
+        )
     )
 
 
@@ -43,7 +47,11 @@ def _stats_from_qs(qs):
     total = qs.count()
     closed = qs.filter(status=S.CLOSED).count()
     open_count = qs.filter(status__in=OPEN).count()
-    overdue = sum(1 for rec in qs.select_related("action_plan") if is_overdue(rec))
+    from apps.workflow.presentation import annotate_workflow, overdue_q
+
+    qs = annotate_workflow(qs)
+    # Counted in SQL: this used to load and test every recommendation in Python.
+    overdue = qs.filter(overdue_q()).count()
     by_dept = {}
     overdue_by_dept = {}
     recurring = 0

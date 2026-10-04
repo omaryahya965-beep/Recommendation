@@ -16,9 +16,20 @@ class NotificationViewSet(mixins.ListModelMixin, mixins.DestroyModelMixin, views
     filterset_fields = ["is_read", "type"]
 
     def get_queryset(self):
-        return Notification.objects.filter(user=self.request.user).select_related(
-            "recommendation__report__department",
-            "recommendation__action_plan__responsible_employee",
+        # The case context on each row (deadline, overdue) uses the same
+        # workflow annotations as the register, loaded once for the page.
+        from django.db.models import Prefetch
+
+        from apps.audits.models import Recommendation
+        from apps.workflow.presentation import annotate_workflow
+
+        cases = annotate_workflow(
+            Recommendation.objects.select_related(
+                "report__department", "action_plan__responsible_employee"
+            )
+        )
+        return Notification.objects.filter(user=self.request.user).prefetch_related(
+            Prefetch("recommendation", queryset=cases)
         )
 
     @action(detail=True, methods=["post"], url_path="mark-read")

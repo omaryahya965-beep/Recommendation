@@ -2,15 +2,23 @@
 
 `overdue` used to be applied in the browser over one page of results, which
 made the count, the pagination and the dashboard links disagree with each
-other. It is evaluated in SQL here instead, from the same status list the
-serializer and dashboard use.
+other. It is evaluated in SQL here instead, with the same rules as the row
+badge and the dashboards (apps.workflow.presentation): the binding deadline,
+counted only while the department owns the next action.
 """
-from django.db.models import Case, F, IntegerField, Value, When
+from datetime import timedelta
+
+from django.db.models import Case, F, IntegerField, Q, Value, When
 from django.utils import timezone
 from django_filters import rest_framework as filters
 from rest_framework.filters import OrderingFilter
 
-from .models import OPEN_STATUSES, OVERDUE_ACTIVE_STATUSES, AuditReport, Recommendation
+from .models import (
+    DEPARTMENT_DEADLINE_STATUSES,
+    OPEN_STATUSES,
+    AuditReport,
+    Recommendation,
+)
 
 # Severity as a number, so "sort by risk" means high -> medium -> low rather
 # than the alphabetical high -> low -> medium the raw column gives.
@@ -84,6 +92,15 @@ class RecommendationFilterSet(filters.FilterSet):
     responsible_employee = filters.NumberFilter(
         field_name="action_plan__responsible_employee_id"
     )
+    # Business-stage views of the workflow (ten stages, not nineteen statuses).
+    stage = filters.CharFilter(method="filter_stage")
+    waiting_on = filters.ChoiceFilter(
+        method="filter_waiting_on",
+        choices=[(side, side) for side in ("department", "audit", "council", "none")],
+    )
+    my_turn = filters.BooleanFilter(method="filter_my_turn")
+    response_overdue = filters.BooleanFilter(method="filter_response_overdue")
+    due_within = filters.NumberFilter(method="filter_due_within")
 
     class Meta:
         model = Recommendation
@@ -98,18 +115,64 @@ class RecommendationFilterSet(filters.FilterSet):
             "overdue",
             "open",
             "responsible_employee",
+            "stage",
+            "waiting_on",
+            "my_turn",
+            "response_overdue",
+            "due_within",
         ]
 
     def filter_overdue(self, queryset, name, value):
+        from apps.workflow.presentation import annotate_workflow, overdue_q
+
         if value is None:
             return queryset
-        condition = {
-            "status__in": OVERDUE_ACTIVE_STATUSES,
-            "action_plan__target_date__lt": timezone.localdate(),
-        }
+        queryset = annotate_workflow(queryset)
         if value:
-            return queryset.filter(**condition)
-        return queryset.exclude(**condition)
+            return queryset.filter(overdue_q())
+        return queryset.exclude(overdue_q())
+
+    def filter_stage(self, queryset, name, value):
+        from apps.workflow.presentation import statuses_for_stage
+
+        statuses = statuses_for_stage(value)
+        return queryset.filter(status__in=statuses) if statuses else queryset.none()
+
+    def filter_waiting_on(self, queryset, name, value):
+        from apps.workflow.presentation import waiting_on_q
+
+        return queryset.filter(waiting_on_q(value)) if value else queryset
+
+    def filter_my_turn(self, queryset, name, value):
+        from apps.workflow.presentation import my_turn_q
+
+        if value is None:
+            return queryset
+        condition = my_turn_q(self.request.user)
+        return queryset.filter(condition) if value else queryset.exclude(condition)
+
+    def filter_response_overdue(self, queryset, name, value):
+        if value is None:
+            return queryset
+        condition = Q(
+            status__in=(Recommendation.Status.PENDING_RESPONSE, Recommendation.Status.RETURNED_FOR_REVISION),
+            report__response_deadline__lt=timezone.localdate(),
+        )
+        return queryset.filter(condition) if value else queryset.exclude(condition)
+
+    def filter_due_within(self, queryset, name, value):
+        """Department-owned cases whose binding deadline falls in the next N days."""
+        from apps.workflow.presentation import annotate_workflow
+
+        if value is None:
+            return queryset
+        today = timezone.localdate()
+        queryset = annotate_workflow(queryset)
+        return queryset.filter(
+            status__in=DEPARTMENT_DEADLINE_STATUSES,
+            binding_deadline__gte=today,
+            binding_deadline__lte=today + timedelta(days=max(0, int(value))),
+        )
 
     def filter_open(self, queryset, name, value):
         if value is None:

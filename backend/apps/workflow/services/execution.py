@@ -11,11 +11,8 @@ from apps.core.models import log_action
 from apps.core.uploads import claim_uploaded_file
 from apps.notifications.models import Notification
 
-from ..models import (
-    ActionStep,
-    ApprovalRecord,
-    Evidence,
-)
+from .. import guards
+from ..models import ActionStep, ApprovalRecord, Evidence
 from ..transitions import transition
 from .notify import (
     _assignee,
@@ -28,21 +25,19 @@ from .notify import (
 S = Recommendation.Status
 logger = logging.getLogger("apps.workflow.services")
 
-
-EXECUTION_STATUSES = (S.IN_PROGRESS, S.RETURNED_INSUFFICIENT, S.PARTIAL, S.REOPENED)
+# Kept for importers; the rule itself lives in guards.
+EXECUTION_STATUSES = guards.EXECUTION_STATUSES
 
 
 def _ensure_executor(recommendation, user):
-    plan = getattr(recommendation, "action_plan", None)
-    if plan is None:
-        raise WorkflowError("No approved action plan exists for this recommendation.")
-    if user.role == User.Role.EMPLOYEE and plan.responsible_employee_id != user.id:
-        raise WorkflowError("Only the responsible employee may update this recommendation.")
-    if user.role == User.Role.DEPARTMENT_HEAD and user.department_id != recommendation.report.department_id:
-        raise WorkflowError("You can only act within your own department.")
-    if user.role not in (User.Role.EMPLOYEE, User.Role.DEPARTMENT_HEAD):
-        raise WorkflowError("Only the responsible employee or department head may do this.")
-    return plan
+    """The plan, if `user` is the responsible employee or the head of the
+    audited department; otherwise the matching WorkflowError."""
+    blocker = guards.executor(recommendation, user)
+    if blocker is not None:
+        raise WorkflowError(
+            guards.BLOCKER_TEXT.get(blocker.code, blocker.code), code=blocker.code
+        )
+    return recommendation.action_plan
 
 
 def _resume_if_returned(recommendation, user):
@@ -54,16 +49,19 @@ def _resume_if_returned(recommendation, user):
 @db_transaction.atomic
 def update_step_progress(recommendation, step, user, progress_percent=None, is_done=None,
                          comments=None):
-    if recommendation.status not in EXECUTION_STATUSES:
-        raise WorkflowError("Step progress can only be updated during execution.")
-    plan = _ensure_executor(recommendation, user)
+    guards.require("update_progress", recommendation, user)
+    plan = recommendation.action_plan
     if step.plan_id != plan.id:
-        raise WorkflowError("This step does not belong to the recommendation's plan.")
+        raise WorkflowError(
+            "This step does not belong to the recommendation's plan.", code="step_wrong_plan"
+        )
     if step.depends_on_id and is_done:
         dep = ActionStep.objects.get(pk=step.depends_on_id)
         if not dep.is_done:
             raise WorkflowError(
-                f"Step '{step.title}' depends on '{dep.title}', which is not completed yet."
+                f"Step '{step.title}' depends on '{dep.title}', which is not completed yet.",
+                code="step_dependency_incomplete",
+                params={"step": step.title, "dependency": dep.title},
             )
 
     previous = {
@@ -73,7 +71,9 @@ def update_step_progress(recommendation, step, user, progress_percent=None, is_d
     }
     if progress_percent is not None:
         if not 0 <= progress_percent <= 100:
-            raise WorkflowError("Progress must be between 0 and 100.")
+            raise WorkflowError(
+                "Progress must be between 0 and 100.", code="progress_out_of_range"
+            )
         step.progress_percent = progress_percent
     if is_done is not None:
         step.is_done = is_done
@@ -95,13 +95,13 @@ def update_step_progress(recommendation, step, user, progress_percent=None, is_d
 
 @db_transaction.atomic
 def add_evidence(recommendation, user, file=None, step=None, notes="", stored_name=""):
-    if recommendation.status not in EXECUTION_STATUSES + (S.PENDING_HEAD_REVIEW, S.SUBMITTED_FOR_VERIFICATION):
-        raise WorkflowError("Evidence can only be uploaded during execution or verification.")
-    _ensure_executor(recommendation, user)
+    guards.require("upload_evidence", recommendation, user)
     if step is not None and step.plan.recommendation_id != recommendation.id:
-        raise WorkflowError("The linked step does not belong to this recommendation.")
+        raise WorkflowError(
+            "The linked step does not belong to this recommendation.", code="evidence_wrong_step"
+        )
     if file is None and not stored_name:
-        raise WorkflowError("A file is required.")
+        raise WorkflowError("A file is required.", code="file_required")
 
     if stored_name:
         # Same rule as management-response attachments: the key is verified
@@ -130,6 +130,16 @@ def add_evidence(recommendation, user, file=None, step=None, notes="", stored_na
     return evidence
 
 
+def evidence_delete_blocker(recommendation, user, evidence):
+    """Why this user may not delete this file now, or None if they may."""
+    availability = guards.check("delete_evidence", recommendation, user)
+    if availability is None:
+        return "evidence_delete_not_allowed"
+    if user.role == User.Role.EMPLOYEE and evidence.uploaded_by_id != user.id:
+        return "evidence_not_owner"
+    return None
+
+
 @db_transaction.atomic
 def delete_evidence(recommendation, user, evidence):
     """Remove an uploaded evidence file during implementation.
@@ -138,15 +148,14 @@ def delete_evidence(recommendation, user, evidence):
     department head. Not allowed after the case leaves implementation/verification.
     """
     if evidence.recommendation_id != recommendation.id:
-        raise WorkflowError("This evidence does not belong to this recommendation.")
-    if recommendation.status not in EXECUTION_STATUSES + (
-        S.PENDING_HEAD_REVIEW,
-        S.SUBMITTED_FOR_VERIFICATION,
-    ):
-        raise WorkflowError("Evidence can only be removed during implementation.")
-    _ensure_executor(recommendation, user)
+        raise WorkflowError(
+            "This evidence does not belong to this recommendation.", code="evidence_wrong_case"
+        )
+    guards.require("delete_evidence", recommendation, user)
     if user.role == User.Role.EMPLOYEE and evidence.uploaded_by_id != user.id:
-        raise WorkflowError("You can only remove evidence files that you uploaded.")
+        raise WorkflowError(
+            "You can only remove evidence files that you uploaded.", code="evidence_not_owner"
+        )
 
     file_name = evidence.file.name if evidence.file else ""
     evidence_id = evidence.id
@@ -171,19 +180,7 @@ def mark_implemented(recommendation, user):
     """Employee self-assessment. NEVER closes the recommendation and NEVER
     skips the department head: it only submits implementation for the head
     to review, and only when required steps are done and evidence exists."""
-    if recommendation.status not in (
-        S.IN_PROGRESS, S.RETURNED_INSUFFICIENT, S.PARTIAL, S.REOPENED
-    ):
-        raise WorkflowError("Only recommendations under execution can be marked implemented.")
-    _ensure_executor(recommendation, user)
-
-    plan = recommendation.action_plan
-    incomplete = plan.steps.filter(is_required_for_closure=True, is_done=False)
-    if incomplete.exists():
-        titles = ", ".join(incomplete.values_list("title", flat=True)[:5])
-        raise WorkflowError(f"Required steps are not completed yet: {titles}")
-    if not recommendation.evidence_files.exists():
-        raise WorkflowError("At least one evidence file is required before submission.")
+    guards.require("mark_implemented", recommendation, user)
 
     transition(
         recommendation, S.PENDING_HEAD_REVIEW, user, "marked_implemented"
@@ -201,12 +198,7 @@ def mark_implemented(recommendation, user):
 def review_implementation(recommendation, user, accept, notes=""):
     """Department head reviews execution and evidence, then either returns it
     to the employee or submits it to internal audit."""
-    if recommendation.status != S.PENDING_HEAD_REVIEW:
-        raise WorkflowError("This recommendation is not awaiting department review of implementation.")
-    if user.role != User.Role.DEPARTMENT_HEAD:
-        raise WorkflowError("Only the department head may review implementation.")
-    if user.department_id != recommendation.report.department_id:
-        raise WorkflowError("You can only review implementation in your own department.")
+    guards.require("review_implementation", recommendation, user)
 
     if accept:
         ApprovalRecord.objects.create(
@@ -235,7 +227,10 @@ def review_implementation(recommendation, user, accept, notes=""):
             )
     else:
         if not notes.strip():
-            raise WorkflowError("Returning implementation to the employee requires notes.")
+            raise WorkflowError(
+                "Returning implementation to the employee requires notes.",
+                code="review_notes_required",
+            )
         transition(
             recommendation, S.IN_PROGRESS, user,
             "implementation_returned_by_head", notes=notes,

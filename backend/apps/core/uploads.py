@@ -91,7 +91,8 @@ def claim_uploaded_file(stored_name: str, *, purpose: str, user) -> str:
     if extension not in settings.ALLOWED_UPLOAD_EXTENSIONS:
         raise WorkflowError(
             f"File type '{extension or 'unknown'}' is not allowed.",
-            code="invalid_upload",
+            code="upload_type_not_allowed",
+            params={"extension": extension or ""},
         )
 
     from apps.core.media_views import cloudinary_ready
@@ -101,14 +102,14 @@ def claim_uploaded_file(stored_name: str, *, purpose: str, user) -> str:
         # can only be an attempt to reference a file the server never received.
         raise WorkflowError(
             "Direct uploads are not available; send the file with the request.",
-            code="invalid_upload",
+            code="direct_upload_unavailable",
         )
 
     resource = _fetch_resource(name)
     if resource is None:
         raise WorkflowError(
             "The uploaded file could not be found. Please upload it again.",
-            code="invalid_upload",
+            code="upload_not_found",
         )
 
     tags = set(resource.get("tags") or [])
@@ -124,7 +125,8 @@ def claim_uploaded_file(stored_name: str, *, purpose: str, user) -> str:
     if size > _max_bytes():
         raise WorkflowError(
             f"File exceeds the maximum size of {settings.MAX_UPLOAD_SIZE_MB} MB.",
-            code="invalid_upload",
+            code="upload_too_large",
+            params={"max_mb": settings.MAX_UPLOAD_SIZE_MB},
         )
 
     return name

@@ -29,10 +29,10 @@ S = Recommendation.Status
 def submit_report_to_department(report, user):
     report.refresh_from_db()
     if report.status != AuditReport.Status.DRAFT:
-        raise WorkflowError("Only draft reports can be sent to the department.")
+        raise WorkflowError("Only draft reports can be sent to the department.", code="report_not_draft")
     recommendations = list(report.recommendations.all())
     if not recommendations:
-        raise WorkflowError("The report has no recommendations to send.")
+        raise WorkflowError("The report has no recommendations to send.", code="report_empty")
 
     for rec in recommendations:
         if rec.status == S.DRAFT:
@@ -54,11 +54,16 @@ def submit_report_to_department(report, user):
 def submit_report_to_council(report, user):
     report.refresh_from_db()
     if report.status != AuditReport.Status.UNDER_REVIEW:
-        raise WorkflowError("The report must be under audit review before council submission.")
+        raise WorkflowError(
+            "The report must be under audit review before council submission.",
+            code="report_not_under_review",
+        )
     pending = report.recommendations.exclude(status=S.PENDING_COUNCIL).count()
     if pending:
         raise WorkflowError(
-            f"{pending} recommendation(s) are not yet audit-approved for council submission."
+            f"{pending} recommendation(s) are not yet audit-approved for council submission.",
+            code="report_has_unapproved",
+            params={"count": pending},
         )
     report.status = AuditReport.Status.PENDING_COUNCIL
     report.save(update_fields=["status", "updated_at"])
@@ -78,7 +83,10 @@ def ratify_report(report, user, notes=""):
     """COUNCIL_RATIFICATION: the only event that sets the reminder anchor date."""
     report.refresh_from_db()
     if report.status != AuditReport.Status.PENDING_COUNCIL:
-        raise WorkflowError("Only reports pending council ratification can be ratified.")
+        raise WorkflowError(
+            "Only reports pending council ratification can be ratified.",
+            code="report_not_pending_council",
+        )
 
     now = timezone.now()
     policy = _policy(report)

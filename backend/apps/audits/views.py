@@ -26,6 +26,7 @@ from apps.core.permissions import (
 )
 from apps.workflow import services
 from apps.workflow.models import ActionStep, Evidence
+from apps.workflow.presentation import annotate_workflow
 from apps.workflow.serializers import (
     ActionPlanInputSerializer,
     EvidenceInputSerializer,
@@ -137,7 +138,7 @@ class AuditReportViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         if serializer.instance.status != AuditReport.Status.DRAFT:
-            raise WorkflowError("Only draft reports can be edited.")
+            raise WorkflowError("Only draft reports can be edited.", code="report_not_draft")
         serializer.save()
 
     @action(detail=True, methods=["post"], url_path="submit-to-department")
@@ -175,17 +176,20 @@ class RecommendationViewSet(viewsets.ModelViewSet):
         "target_date", "deadline", "id",
     ]
 
-    def get_queryset(self):
+    def get_queryset(self, detail=None):
         qs = Recommendation.objects.select_related(
             "report__department", "report__municipality",
             "action_plan__responsible_employee", "response", "similar_recommendation",
         ).prefetch_related("action_plan__steps")
-        if self.action == "retrieve":
+        if detail or (detail is None and self.action == "retrieve"):
             qs = qs.prefetch_related(
                 "approvals__approved_by", "evidence_files__uploaded_by",
-                "verifications__reviewed_by", "trail_entries__user",
+                "verifications__reviewed_by", "verifications__assigned_to",
+                "trail_entries__user", "response__submitted_by",
             )
-        return scope_recommendations(qs, self.request.user)
+        # Stage, binding deadline, overdue and queue age, computed in SQL so
+        # filters, ordering and every row agree (apps.workflow.presentation).
+        return annotate_workflow(scope_recommendations(qs, self.request.user))
 
     def get_serializer_class(self):
         if self.action == "create":
@@ -291,9 +295,9 @@ class RecommendationViewSet(viewsets.ModelViewSet):
             )
 
     def _detail(self, request, recommendation):
-        recommendation.refresh_from_db()
+        """The full case after an action, loaded like a normal case read."""
         data = RecommendationDetailSerializer(
-            self.get_queryset().get(pk=recommendation.pk), context={"request": request}
+            self.get_queryset(detail=True).get(pk=recommendation.pk), context={"request": request}
         ).data
         return Response(data)
 
@@ -436,15 +440,23 @@ class RecommendationViewSet(viewsets.ModelViewSet):
         recommendation = self.get_object()
         serializer = VerifyInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        services.verify(
-            recommendation, request.user,
-            decision=serializer.validated_data["decision"],
-            notes=serializer.validated_data.get("notes", ""),
-            rejected_items=serializer.validated_data.get("rejected_items", ""),
-            rejection_reason=serializer.validated_data.get("rejection_reason", ""),
-            required_action=serializer.validated_data.get("required_action", ""),
-            action_deadline=serializer.validated_data.get("action_deadline"),
-        )
+        data = serializer.validated_data
+        if data.get("send_to_council"):
+            services.verify_and_submit_for_closure(
+                recommendation, request.user,
+                notes=data.get("notes", ""),
+                closure_notes=data.get("closure_notes", ""),
+            )
+        else:
+            services.verify(
+                recommendation, request.user,
+                decision=data["decision"],
+                notes=data.get("notes", ""),
+                rejected_items=data.get("rejected_items", ""),
+                rejection_reason=data.get("rejection_reason", ""),
+                required_action=data.get("required_action", ""),
+                action_deadline=data.get("action_deadline"),
+            )
         return self._detail(request, recommendation)
 
     @action(detail=True, methods=["post"], url_path="submit-for-closure")
@@ -550,7 +562,7 @@ class RecommendationViewSet(viewsets.ModelViewSet):
         try:
             employee = User.objects.get(pk=plan_input["responsible_employee"])
         except User.DoesNotExist:
-            raise WorkflowError("Responsible employee not found.")
+            raise WorkflowError("Responsible employee not found.", code="employee_not_found")
         return {
             "responsible_employee": employee,
             "target_date": plan_input["target_date"],

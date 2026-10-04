@@ -21,6 +21,7 @@ from apps.audits.models import (
 from apps.audits.serializers import RecommendationListSerializer
 from apps.core.analytics import cached_analytics
 from apps.core.permissions import scope_recommendations
+from apps.workflow.presentation import annotate_workflow, overdue_q
 
 class HealthView(View):
     """Cheap liveness probe: no DB, no DRF, no Spectacular."""
@@ -60,10 +61,9 @@ def _serialize(queryset, request, limit=10):
 
 
 def _overdue_qs(queryset):
-    return queryset.filter(
-        status__in=ACTIVE_EXECUTION,
-        action_plan__target_date__lt=timezone.localdate(),
-    )
+    """Department overdue (binding deadline passed while the department owns
+    the action), the same rule as the register filter and the row badge."""
+    return annotate_workflow(queryset).filter(overdue_q())
 
 
 def _stats(queryset):
@@ -89,12 +89,14 @@ class DashboardView(APIView):
 
     def get(self, request):
         user = request.user
-        base = scope_recommendations(
-            Recommendation.objects.select_related(
-                "report__department", "action_plan__responsible_employee"
-            ),
-            user,
-        ).exclude(status=S.DRAFT)
+        base = annotate_workflow(
+            scope_recommendations(
+                Recommendation.objects.select_related(
+                    "report__department", "action_plan__responsible_employee"
+                ),
+                user,
+            ).exclude(status=S.DRAFT)
+        )
 
         handler = {
             User.Role.AUDIT: self._audit,
@@ -112,7 +114,7 @@ class DashboardView(APIView):
         plans_to_review = qs.filter(status=S.ACTION_PLAN_REVIEW).order_by("-priority_score")
         verifications = qs.filter(status=S.SUBMITTED_FOR_VERIFICATION).order_by("-priority_score")
         closures = qs.filter(status=S.CLOSURE_REVIEW).order_by("-priority_score")
-        overdue = _overdue_qs(qs).order_by("action_plan__target_date")
+        overdue = _overdue_qs(qs).order_by("binding_deadline", "-priority_score")
         recurring_unconfirmed = qs.filter(is_recurring=True, recurrence_confirmed=False)
 
         return {
@@ -155,7 +157,7 @@ class DashboardView(APIView):
         ).order_by("-priority_score")
         implementations_to_review = qs.filter(status=S.PENDING_HEAD_REVIEW).order_by("-priority_score")
         in_execution = qs.filter(status__in=ACTIVE_EXECUTION)
-        overdue = _overdue_qs(qs).order_by("action_plan__target_date")
+        overdue = _overdue_qs(qs).order_by("binding_deadline", "-priority_score")
 
         return {
             "role": "department_head",
@@ -189,11 +191,11 @@ class DashboardView(APIView):
         returned = qs.filter(status__in=(S.RETURNED_INSUFFICIENT, S.REOPENED))
         waiting_head = qs.filter(status=S.PENDING_HEAD_REVIEW)
         active = qs.filter(status__in=(S.IN_PROGRESS, S.PARTIAL, S.REOPENED))
-        overdue = _overdue_qs(qs).order_by("action_plan__target_date")
+        overdue = _overdue_qs(qs).order_by("binding_deadline", "-priority_score")
         upcoming = qs.filter(
             status__in=(S.IN_PROGRESS, S.PARTIAL, S.RETURNED_INSUFFICIENT, S.REOPENED),
             action_plan__target_date__gte=today,
-        ).order_by("action_plan__target_date")
+        ).order_by("binding_deadline", "-priority_score")
 
         return {
             "role": "employee",
