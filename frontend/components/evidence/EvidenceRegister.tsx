@@ -1,9 +1,10 @@
 "use client";
 
-import { Download, FileCheck2, FolderOpen, Info, Trash2, Upload } from "lucide-react";
+import { FileCheck2, FolderOpen, Info, Trash2, Upload } from "lucide-react";
 import { useState } from "react";
 
 import { EvidenceCard } from "@/components/evidence/EvidenceCard";
+import { EvidenceFileActions, evidenceFileName } from "@/components/evidence/EvidenceFileActions";
 import { AIEvidenceAnalysis } from "@/components/ai/AIEvidenceAnalysis";
 import { Button, Callout, ErrorBanner, Field, Select, TextArea } from "@/components/ui/Base";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -68,12 +69,12 @@ function EvidenceItem({
   useI18n();
   const review = reviewStateMeta(reviewState);
   const [open, setOpen] = useState(false);
-  const url = evidence.file_url ?? evidence.file;
-  const name = fileNameFromUrl(url);
+  const name = evidenceFileName(evidence);
 
   return (
     <>
       <tr
+        data-testid="evidence-item"
         className="cursor-pointer align-top hover:bg-subtle/50"
         onClick={() => setOpen((value) => !value)}
       >
@@ -98,9 +99,10 @@ function EvidenceItem({
         <td className="px-4 py-3">
           <span className={cn("text-[12px] font-medium", review.className)}>{review.label}</span>
         </td>
-        {onDelete ? (
-          <td className="px-3 py-3">
-            {canDelete ? (
+        <td className="px-3 py-3">
+          <div className="flex items-start gap-2">
+            <EvidenceFileActions evidence={evidence} size="sm" />
+            {onDelete && canDelete ? (
               <button
                 type="button"
                 aria-label={T.evidenceRegister.deleteFile}
@@ -114,8 +116,8 @@ function EvidenceItem({
                 <Trash2 className="size-4" />
               </button>
             ) : null}
-          </td>
-        ) : null}
+          </div>
+        </td>
       </tr>
       {open ? (
         <tr>
@@ -149,16 +151,6 @@ function EvidenceItem({
               </span>
             </p>
             <div className="mt-3 flex flex-wrap items-center gap-3">
-              <a
-                href={url}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1 text-sm font-medium text-primary-dark hover:underline"
-                onClick={(event) => event.stopPropagation()}
-              >
-                <Download className="size-3.5" />
-                {T.evidence.download}
-              </a>
               {canDelete && onDelete ? (
                 <Button
                   type="button"
@@ -184,7 +176,7 @@ function EvidenceItem({
             {canAnalyze ? (
               <div className="mt-4 border-t border-line pt-3">
                 <p className="mb-2 text-[11px] font-medium text-ai-dark">{T.evidenceRegister.aiDisclaimer}</p>
-                <AIEvidenceAnalysis evidenceId={evidence.id} fileUrl={url} />
+                <AIEvidenceAnalysis evidenceId={evidence.id} />
               </div>
             ) : null}
           </td>
@@ -222,9 +214,9 @@ export function EvidenceRegister({
   const stepTitles = new Map(steps.map((item) => [item.id, item.title]));
   const files = rec.evidence_files ?? [];
   const userId = loadAuth()?.user.id;
-  const showDeleteColumn =
+  const canDeleteAny =
     Boolean(action) && files.some((item) => canRemoveFile(item, canUpload, role, userId));
-  const actionColSpan = showDeleteColumn ? 8 : 7;
+  const actionColSpan = 8;
 
   const removeFile = (evidence: Evidence) => {
     if (!action || !canRemoveFile(evidence, canUpload, role, userId)) return;
@@ -331,7 +323,7 @@ export function EvidenceRegister({
             <ul className="space-y-3 md:hidden">
               {files.map((item) => (
                 <li key={item.id}>
-                  <EvidenceCard evidence={item} />
+                  <EvidenceCard evidence={item} showAnalysis={canAnalyze} />
                   {canRemoveFile(item, canUpload, role, userId) ? (
                     <Button
                       type="button"
@@ -371,11 +363,9 @@ export function EvidenceRegister({
                   <th scope="col" className="px-4 py-2 text-start font-medium">
                     {T.common.status}
                   </th>
-                  {showDeleteColumn ? (
-                    <th scope="col" className="px-3 py-2 text-start font-medium">
-                      {T.common.actions}
-                    </th>
-                  ) : null}
+                  <th scope="col" className="px-3 py-2 text-start font-medium">
+                    {T.common.actions}
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
@@ -388,7 +378,7 @@ export function EvidenceRegister({
                     canAnalyze={canAnalyze}
                     canDelete={canRemoveFile(item, canUpload, role, userId)}
                     deleting={Boolean(action?.mutation.isPending)}
-                    onDelete={showDeleteColumn ? () => removeFile(item) : undefined}
+                    onDelete={canDeleteAny ? () => removeFile(item) : undefined}
                     actionColSpan={actionColSpan}
                   />
                 ))}
