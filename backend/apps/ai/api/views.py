@@ -25,7 +25,7 @@ class AIUserRateThrottle(SimpleRateThrottle):
 from apps.accounts.models import User
 from apps.ai.exceptions import AIError, AIUnavailable
 from apps.ai.providers.llm import USER_SAFE_UNAVAILABLE
-from apps.ai.models import AIAnalysis, AIJob
+from apps.ai.models import AIAnalysis, AIConversation, AIJob, AIMessage
 from apps.ai.providers import provider_meta
 from apps.ai.services.action_plan_generator import suggest_action_plan
 from apps.ai.services.audit_assistant import clear_conversation, run_assistant

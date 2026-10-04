@@ -5,10 +5,66 @@ made the count, the pagination and the dashboard links disagree with each
 other. It is evaluated in SQL here instead, from the same status list the
 serializer and dashboard use.
 """
+from django.db.models import Case, F, IntegerField, Value, When
 from django.utils import timezone
 from django_filters import rest_framework as filters
+from rest_framework.filters import OrderingFilter
 
 from .models import OPEN_STATUSES, OVERDUE_ACTIVE_STATUSES, AuditReport, Recommendation
+
+# Severity as a number, so "sort by risk" means high -> medium -> low rather
+# than the alphabetical high -> low -> medium the raw column gives.
+RISK_RANK = Case(
+    When(risk_level=Recommendation.RiskLevel.HIGH, then=Value(3)),
+    When(risk_level=Recommendation.RiskLevel.MEDIUM, then=Value(2)),
+    When(risk_level=Recommendation.RiskLevel.LOW, then=Value(1)),
+    default=Value(0),
+    output_field=IntegerField(),
+)
+
+
+class RecommendationOrderingFilter(OrderingFilter):
+    """`?ordering=` for the register and its CSV export.
+
+    Public names stay stable while the SQL behind them is corrected:
+    `risk_level`/`risk` order by severity, `target_date`/`deadline` by the
+    action-plan deadline with undated cases last. A deterministic tie-break
+    is always appended so pagination never shows a row twice.
+    """
+
+    ALIASES = {
+        "risk_level": "risk_rank",
+        "risk": "risk_rank",
+        "target_date": "action_plan__target_date",
+        "deadline": "action_plan__target_date",
+    }
+    TIEBREAK = ("-priority_score", "-created_at", "-id")
+
+    def filter_queryset(self, request, queryset, view):
+        ordering = self.get_ordering(request, queryset, view)
+        if not ordering:
+            return queryset
+
+        expressions = []
+        used = set()
+        for term in ordering:
+            descending = term.startswith("-")
+            name = self.ALIASES.get(term.lstrip("-"), term.lstrip("-"))
+            if name in used:
+                continue
+            used.add(name)
+            if name == "risk_rank" and "risk_rank" not in queryset.query.annotations:
+                queryset = queryset.annotate(risk_rank=RISK_RANK)
+            field = F(name)
+            expressions.append(
+                field.desc(nulls_last=True) if descending else field.asc(nulls_last=True)
+            )
+        for tie in self.TIEBREAK:
+            name = tie.lstrip("-")
+            if name not in used:
+                used.add(name)
+                expressions.append(F(name).desc() if tie.startswith("-") else F(name).asc())
+        return queryset.order_by(*expressions)
 
 
 class RecommendationFilterSet(filters.FilterSet):

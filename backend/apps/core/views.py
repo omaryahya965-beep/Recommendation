@@ -223,10 +223,16 @@ class DashboardView(APIView):
         }
 
     def _council(self, request, qs):
-        pending_reports = AuditReport.objects.filter(
-            municipality=request.user.municipality,
-            status=AuditReport.Status.PENDING_COUNCIL,
-        ).select_related("department")
+        pending_reports = (
+            AuditReport.objects.filter(
+                municipality=request.user.municipality,
+                status=AuditReport.Status.PENDING_COUNCIL,
+            )
+            .select_related("department")
+            # One grouped query instead of a COUNT per report.
+            .annotate(recommendations_total=Count("recommendations"))
+            .order_by("updated_at", "id")
+        )
 
         pending_closures = qs.filter(status=S.PENDING_CLOSURE_COUNCIL).order_by("-priority_score")
 
@@ -241,7 +247,7 @@ class DashboardView(APIView):
                             "title": r.title,
                             "department_name": r.department.name,
                             "engagement_type": r.engagement_type,
-                            "recommendations_count": r.recommendations.count(),
+                            "recommendations_count": r.recommendations_total,
                             "created_at": r.created_at,
                         }
                         for r in pending_reports[:10]

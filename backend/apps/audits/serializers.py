@@ -120,6 +120,37 @@ class RecommendationCreateSerializer(serializers.ModelSerializer):
         return report
 
 
+class RecommendationUpdateSerializer(serializers.ModelSerializer):
+    """Edits an unissued draft. The report is fixed once the draft exists;
+    whether editing is allowed at all is decided in the view (draft only)."""
+
+    priority_score = serializers.IntegerField(required=False, min_value=0, max_value=100)
+
+    class Meta:
+        model = Recommendation
+        fields = ["id", "text", "root_cause", "risk_level", "priority_score"]
+        read_only_fields = ["id"]
+
+    def validate_text(self, value):
+        if not (value or "").strip():
+            raise serializers.ValidationError("Recommendation text is required.")
+        return value
+
+
+class ReportRecommendationSerializer(RecommendationListSerializer):
+    """A recommendation as listed inside its report. Adds the department's
+    response decision so the council can see, before ratifying, which
+    disagreements its ratification will close."""
+
+    response_decision = serializers.CharField(
+        source="response.decision", read_only=True, default=None
+    )
+
+    class Meta(RecommendationListSerializer.Meta):
+        fields = RecommendationListSerializer.Meta.fields + ["response_decision"]
+        read_only_fields = fields
+
+
 class AuditReportSerializer(serializers.ModelSerializer):
     created_by_detail = UserSerializer(source="created_by", read_only=True)
     department_name = serializers.CharField(source="department.name", read_only=True)
@@ -151,7 +182,7 @@ class AuditReportDetailSerializer(AuditReportSerializer):
     class Meta(AuditReportSerializer.Meta):
         fields = AuditReportSerializer.Meta.fields + ["recommendations"]
 
-    @extend_schema_field(RecommendationListSerializer(many=True))
+    @extend_schema_field(ReportRecommendationSerializer(many=True))
     def get_recommendations(self, report):
         """Only the recommendations this user may see.
 
@@ -163,10 +194,10 @@ class AuditReportDetailSerializer(AuditReportSerializer):
 
         request = self.context.get("request")
         queryset = Recommendation.objects.filter(report=report).select_related(
-            "report__department", "action_plan__responsible_employee"
+            "report__department", "action_plan__responsible_employee", "response"
         )
         if request is not None and request.user.is_authenticated:
             queryset = scope_recommendations(queryset, request.user)
-        return RecommendationListSerializer(
+        return ReportRecommendationSerializer(
             queryset, many=True, context=self.context
         ).data

@@ -4,9 +4,11 @@ import logging
 from django.contrib.auth import get_user_model
 from django.db.models import Count
 from django.http import StreamingHttpResponse
+from django_filters.rest_framework import DjangoFilterBackend
 from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.filters import SearchFilter
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -33,7 +35,7 @@ from apps.workflow.serializers import (
     VerifyInputSerializer,
 )
 
-from .filters import RecommendationFilterSet
+from .filters import RecommendationFilterSet, RecommendationOrderingFilter
 from .models import AuditReport, Recommendation
 from .serializers import (
     AuditReportDetailSerializer,
@@ -41,10 +43,25 @@ from .serializers import (
     RecommendationCreateSerializer,
     RecommendationDetailSerializer,
     RecommendationListSerializer,
+    RecommendationUpdateSerializer,
     is_overdue,
 )
 
 User = get_user_model()
+
+
+def _clip_for_log(value, limit=500):
+    if isinstance(value, str) and len(value) > limit:
+        return value[:limit] + "…"
+    return value
+
+
+def _csv_cell(value):
+    """CSV text for one value. Only a missing value becomes an empty cell:
+    `value or ""` used to blank out legitimate zeros (priority score 0)."""
+    if value is None:
+        return ""
+    return value
 
 
 class _EchoBuffer:
@@ -67,6 +84,9 @@ class PendingApprovalsView(APIView):
             )
             .select_related("department", "created_by", "municipality")
             .annotate(recommendations_count=Count("recommendations"))
+            # Meta.ordering is ignored once Count() adds a GROUP BY, so the
+            # queue order must be explicit: longest-waiting report first.
+            .order_by("updated_at", "id")
         )
         return Response(
             AuditReportSerializer(reports, many=True, context={"request": request}).data
@@ -90,6 +110,9 @@ class AuditReportViewSet(viewsets.ModelViewSet):
                 "created_by__department", "created_by__municipality",
             )
             .annotate(recommendations_count=Count("recommendations"))
+            # Meta.ordering is ignored once Count() adds a GROUP BY; without
+            # this the register came back in arbitrary order.
+            .order_by("-created_at", "-id")
         )
         return scope_reports(qs, self.request.user)
 
@@ -143,9 +166,14 @@ class RecommendationViewSet(viewsets.ModelViewSet):
     parser_classes = [JSONParser, MultiPartParser, FormParser]
     # Consumed by the throttled `export` action below.
     throttle_scope = "export"
+    filter_backends = [DjangoFilterBackend, SearchFilter, RecommendationOrderingFilter]
     filterset_class = RecommendationFilterSet
     search_fields = ["text", "root_cause"]
-    ordering_fields = ["priority_score", "created_at", "risk_level", "status"]
+    # risk_level/risk sort by severity; target_date/deadline by plan deadline.
+    ordering_fields = [
+        "priority_score", "created_at", "risk_level", "risk", "status",
+        "target_date", "deadline", "id",
+    ]
 
     def get_queryset(self):
         qs = Recommendation.objects.select_related(
@@ -164,6 +192,8 @@ class RecommendationViewSet(viewsets.ModelViewSet):
             return RecommendationCreateSerializer
         if self.action == "retrieve":
             return RecommendationDetailSerializer
+        if self.action in ("update", "partial_update"):
+            return RecommendationUpdateSerializer
         return RecommendationListSerializer
 
     def get_permissions(self):
@@ -202,10 +232,63 @@ class RecommendationViewSet(viewsets.ModelViewSet):
         # completed. They are computed on demand by the /api/ai/ endpoints,
         # which cache their result, so nothing is lost by deferring them.
 
-    def perform_update(self, serializer):
-        if serializer.instance.status != Recommendation.Status.DRAFT:
-            raise WorkflowError("Only draft recommendations can be edited.")
-        serializer.save()
+    def update(self, request, *args, **kwargs):
+        """Edit an unissued draft and answer with the full case, like every
+        other action on this resource."""
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        if (
+            instance.status != Recommendation.Status.DRAFT
+            or instance.report.status != AuditReport.Status.DRAFT
+        ):
+            raise WorkflowError(
+                "Only draft recommendations in a draft report can be edited.",
+                code="draft_only",
+            )
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+
+        tracked = ("text", "root_cause", "risk_level", "priority_score")
+        before = {field: getattr(instance, field) for field in tracked}
+        recommendation = serializer.save()
+        changes = {
+            field: {"from": _clip_for_log(before[field]), "to": _clip_for_log(getattr(recommendation, field))}
+            for field in tracked
+            if before[field] != getattr(recommendation, field)
+        }
+        if changes:
+            log_action(
+                request.user, "recommendation_updated",
+                recommendation=recommendation, report=recommendation.report,
+                changes=changes,
+            )
+        if "text" in changes or "root_cause" in changes:
+            self._refresh_recurrence(recommendation, request.user)
+        return self._detail(request, recommendation)
+
+    def _refresh_recurrence(self, recommendation, user):
+        """The wording changed, so the stored embedding and any automatic
+        recurrence flag describe the old text. A human-confirmed recurrence
+        is the auditor's decision and is left alone."""
+        if recommendation.recurrence_confirmed:
+            return
+        recommendation.embedding = None
+        recommendation.embedding_model = ""
+        recommendation.is_recurring = False
+        recommendation.similar_recommendation = None
+        recommendation.similarity_score = None
+        recommendation.save(update_fields=[
+            "embedding", "embedding_model", "is_recurring",
+            "similar_recommendation", "similarity_score", "updated_at",
+        ])
+        try:
+            from apps.ai_similarity.service import flag_if_recurring
+
+            flag_if_recurring(recommendation, user=user)
+        except Exception:
+            logging.getLogger("apps.ai").warning(
+                "recurrence_flagging_skipped rec=%s", recommendation.pk, exc_info=True
+            )
 
     def _detail(self, request, recommendation):
         recommendation.refresh_from_db()
@@ -439,7 +522,7 @@ class RecommendationViewSet(viewsets.ModelViewSet):
             yield "﻿"
             yield writer.writerow([name for name, _ in columns])
             for rec in queryset.iterator(chunk_size=500):
-                yield writer.writerow([accessor(rec) or "" for _, accessor in columns])
+                yield writer.writerow([_csv_cell(accessor(rec)) for _, accessor in columns])
 
         filename = f"recommendations-{timezone.localdate().isoformat()}.csv"
         response = StreamingHttpResponse(rows(), content_type="text/csv; charset=utf-8")

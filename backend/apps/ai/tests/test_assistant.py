@@ -270,3 +270,35 @@ class AssistantToolLoopTests(TestCase):
         )
         hits = result["tool_results"]["search_recommendations"]["matches"]
         self.assertTrue(any(item["id"] == self.rec.id for item in hits))
+
+
+class AssistantMemoryClearTests(TestCase):
+    """DELETE .../conversations/memory/ crashed with a NameError: the view
+    used AIConversation and AIMessage without importing them."""
+
+    def test_clears_only_the_callers_system_memory(self):
+        from apps.ai.models import AIConversation, AIMessage
+
+        muni, dept, users, report, rec = make_world()
+        mine = AIConversation.objects.create(user=users["audit"], municipality=muni, role="audit")
+        AIMessage.objects.create(conversation=mine, role=AIMessage.Role.SYSTEM, content="memory")
+        AIMessage.objects.create(conversation=mine, role=AIMessage.Role.USER, content="question")
+        theirs = AIConversation.objects.create(user=users["head"], municipality=muni, role="department_head")
+        AIMessage.objects.create(conversation=theirs, role=AIMessage.Role.SYSTEM, content="other memory")
+
+        client = APIClient()
+        client.force_authenticate(users["audit"])
+        res = client.delete("/api/ai/assistant/conversations/memory/")
+
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.data, {"memory_cleared": True})
+        self.assertFalse(mine.messages.filter(role=AIMessage.Role.SYSTEM).exists())
+        self.assertTrue(mine.messages.filter(role=AIMessage.Role.USER).exists())
+        self.assertTrue(theirs.messages.filter(role=AIMessage.Role.SYSTEM).exists())
+
+    def test_without_a_conversation_it_still_succeeds(self):
+        muni, dept, users, report, rec = make_world()
+        client = APIClient()
+        client.force_authenticate(users["employee"] if "employee" in users else users["emp"])
+        res = client.delete("/api/ai/assistant/conversations/memory/")
+        self.assertEqual(res.status_code, 200)
