@@ -35,6 +35,7 @@ import {
   TextArea,
   type TabItem,
 } from "@/components/ui/Base";
+import { BlockerList } from "@/components/case/BlockerList";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { VerificationPanel } from "@/components/verification/VerificationPanel";
 import { lastActivity, planProgress, type StepState } from "@/lib/case";
@@ -43,7 +44,7 @@ import { formatDateTime } from "@/lib/format";
 import { useRecommendation, useWorkflowAction, useWorkflowPolicy, type WorkflowAction } from "@/lib/hooks";
 import { APPROVAL_TYPE_LABELS, T, TRAIL_ACTION_LABELS, useI18n } from "@/lib/i18n";
 import type { ActionStep, RecommendationDetail, Role } from "@/lib/types";
-import { can } from "@/lib/workflow";
+import { canAct, caseAction, isOffered } from "@/lib/workflow";
 
 type TabId =
   | "overview"
@@ -264,11 +265,11 @@ function PlanTab({
   action: WorkflowAction;
 }) {
   useI18n();
-  const canSubmitPlan = can("submit_plan", rec.status, role);
-  const canReviewPlan = can("review_plan", rec.status, role);
-  const canProgress = can("update_progress", rec.status, role);
-  const canMarkImplemented = can("mark_implemented", rec.status, role);
-  const canReviewImplementation = can("review_implementation", rec.status, role);
+  const canSubmitPlan = isOffered(rec, "submit_plan");
+  const canReviewPlan = isOffered(rec, "review_plan");
+  const canProgress = isOffered(rec, "update_progress");
+  const canMarkImplemented = isOffered(rec, "mark_implemented");
+  const canReviewImplementation = isOffered(rec, "review_implementation");
 
   const [draft, setDraft] = useState<PlanDraft>(() =>
     emptyPlanDraft({
@@ -333,10 +334,11 @@ function PlanTab({
       {canMarkImplemented ? (
         <Card title={T.plan.markImplemented} className="border-s-4 border-s-success">
           <p className="mb-4 text-[13.5px] leading-relaxed text-ink-soft">{T.plan.markImplementedHint}</p>
+          <BlockerList blockers={caseAction(rec, "mark_implemented")?.blockers} />
           <ErrorBanner message={action.error} />
           <Button
             onClick={() => action.mutation.mutate({ path: "mark-implemented/" })}
-            disabled={action.mutation.isPending}
+            disabled={action.mutation.isPending || !canAct(rec, "mark_implemented")}
             className="font-bold gap-2 shadow-md"
           >
             <CheckCircle2 className="size-4.5" />
@@ -455,7 +457,7 @@ function ClosurePanel({
   useI18n();
   const [notes, setNotes] = useState("");
 
-  if (can("submit_for_closure", rec.status, role)) {
+  if (isOffered(rec, "submit_for_closure")) {
     return (
       <Card title={T.verify.submitForClosure} className="border-s-4 border-s-primary">
         <Field label={T.verify.closureNotes}>
@@ -474,7 +476,7 @@ function ClosurePanel({
     );
   }
 
-  if (can("council_closure", rec.status, role)) {
+  if (isOffered(rec, "council_closure")) {
     return (
       <DecisionPanel
         title={T.verify.councilNotes}
@@ -508,20 +510,20 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
 
   const awaitingTab: TabId | null = useMemo(() => {
     if (!rec) return null;
-    if (can("respond", rec.status, role) || can("review_response", rec.status, role)) return "response";
+    if (isOffered(rec, "respond") || isOffered(rec, "review_response")) return "response";
     if (
-      can("submit_plan", rec.status, role) ||
-      can("review_plan", rec.status, role) ||
-      can("update_progress", rec.status, role) ||
-      can("mark_implemented", rec.status, role) ||
-      can("review_implementation", rec.status, role)
+      isOffered(rec, "submit_plan") ||
+      isOffered(rec, "review_plan") ||
+      isOffered(rec, "update_progress") ||
+      isOffered(rec, "mark_implemented") ||
+      isOffered(rec, "review_implementation")
     ) {
       return "plan";
     }
     if (
-      can("verify", rec.status, role) ||
-      can("submit_for_closure", rec.status, role) ||
-      can("council_closure", rec.status, role)
+      isOffered(rec, "verify") ||
+      isOffered(rec, "submit_for_closure") ||
+      isOffered(rec, "council_closure")
     ) {
       return "verification";
     }
@@ -570,7 +572,7 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
         acting={Boolean(awaitingTab && resolvedTab === awaitingTab)}
         onAct={awaitingTab ? () => setPicked({ recId: id, tab: awaitingTab }) : undefined}
       />
-      <WorkflowRail status={rec.status} role={role} />
+      <WorkflowRail status={rec.status} role={role} myTurn={rec.workflow?.my_turn} />
 
       <SuccessBanner message={action.success ?? (searchParams.get("saved") ? T.create.editSaved : null)} />
 
@@ -586,7 +588,7 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
           </div>
         </Callout>
       ) : null}
-      {can("confirm_recurrence", rec.status, role) ? <RecurrencePanel rec={rec} action={action} /> : null}
+      {isOffered(rec, "confirm_recurrence") ? <RecurrencePanel rec={rec} action={action} /> : null}
 
       <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
         <Tabs
@@ -610,7 +612,7 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
 
           {resolvedTab === "response" ? (
             <div className="space-y-6">
-              {can("respond", rec.status, role) ? (
+              {isOffered(rec, "respond") ? (
                 <RespondForm
                   rec={rec}
                   action={action}
@@ -637,7 +639,7 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
                     />
                   }
                 />
-              ) : can("review_response", rec.status, role) ? (
+              ) : isOffered(rec, "review_response") ? (
                 <AuditReviewPanel rec={rec} action={action} />
               ) : (
                 <ResponseRecord rec={rec} />
@@ -653,7 +655,7 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
             <EvidenceRegister
               rec={rec}
               role={role}
-              canUpload={can("upload_evidence", rec.status, role)}
+              canUpload={isOffered(rec, "upload_evidence")}
               canAnalyze
               action={action}
             />
@@ -661,7 +663,7 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
 
           {resolvedTab === "verification" ? (
             <div className="space-y-6">
-              <VerificationPanel rec={rec} action={action} canVerify={can("verify", rec.status, role)} />
+              <VerificationPanel rec={rec} action={action} canVerify={isOffered(rec, "verify")} />
               <ClosurePanel rec={rec} role={role} action={action} />
             </div>
           ) : null}

@@ -147,6 +147,17 @@ export function ageingBucketLabel(daysOverdue: number): string {
   return labels[bucket];
 }
 
+/**
+ * YYYY-MM-DD for a date in the user's own timezone. `toISOString()` gives the
+ * UTC date, which is the previous day for hours after local midnight.
+ */
+export function localISODate(value: Date = new Date()): string {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export function fileNameFromUrl(url: string): string {
   try {
     const path = decodeURIComponent(url.split("?")[0] ?? url);

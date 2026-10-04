@@ -121,3 +121,24 @@ export async function firstRecommendationOf(
   if (!first) throw new Error(`No recommendation visible to ${who} in ${reportTitle}`);
   return first;
 }
+
+/** Multipart POST (file uploads) as the given user. */
+export async function apiUpload<T = unknown>(
+  request: APIRequestContext,
+  who: UserKey,
+  path: string,
+  fields: Record<string, string | { name: string; mimeType: string; buffer: Buffer }>
+): Promise<{ status: number; body: T }> {
+  const session = await apiLogin(request, who);
+  const res = await request.post(`${API_URL}${path}`, {
+    headers: { Authorization: `Bearer ${session.access}` },
+    multipart: fields,
+  });
+  let body: unknown = null;
+  try {
+    body = await res.json();
+  } catch {
+    body = null;
+  }
+  return { status: res.status(), body: body as T };
+}

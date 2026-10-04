@@ -54,21 +54,38 @@ describe("api client", () => {
     expect(loadAuth()).toBeNull();
   });
 
-  it("reads DRF detail strings from ApiError bodies", () => {
-    const err = new ApiError(400, { detail: "Invalid token." }, "API 400");
-    expect(errorMessage(err)).toBe("Invalid token.");
+  it("translates an error code instead of showing the server's English", () => {
+    const err = new ApiError(
+      409,
+      { detail: "Required steps are not completed yet.", code: "required_steps_incomplete", params: { count: 2 } },
+      "API 409"
+    );
+    const message = errorMessage(err);
+    expect(message).toContain("2");
+    expect(message).not.toContain("Required steps");
   });
 
-  it("joins field-level DRF errors into one message", () => {
+  it("names each invalid field in the UI language", () => {
     const err = new ApiError(
       400,
-      { title: ["This field is required."], risk_level: "Invalid choice." },
+      {
+        title: ["This field is required."],
+        risk_level: ["Invalid choice."],
+        code: "validation_error",
+        field_codes: { title: ["required"], risk_level: ["invalid_choice"] },
+      },
       "API 400"
     );
     const message = errorMessage(err);
-    expect(message).toContain("title:");
-    expect(message).toContain("This field is required.");
-    expect(message).toContain("risk_level:");
+    expect(message).toContain("العنوان");
+    expect(message).toContain("الخطورة");
+    expect(message).not.toContain("This field is required.");
+  });
+
+  it("never shows English server text on an Arabic screen for an unknown code", () => {
+    const err = new ApiError(400, { detail: "Invalid token." }, "API 400");
+    expect(errorMessage(err)).not.toContain("Invalid token.");
+    expect(errorMessage(err)).toContain("400");
   });
 
   it("sends the bearer token and returns JSON on success", async () => {

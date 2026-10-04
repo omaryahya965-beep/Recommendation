@@ -1,5 +1,6 @@
 "use client";
 
+import { messageFromErrorBody, type ApiErrorBody } from "./errors";
 import { currentT } from "./i18n/messages";
 import type { Role, User } from "./types";
 
@@ -52,22 +53,16 @@ export class ApiError extends Error {
 /** Client-side validation or Cloudinary upload failure — not a dropped HTTP call. */
 export class ClientError extends Error {}
 
-/** Extracts a human-readable message from DRF error payloads. */
+/**
+ * A message in the user's language for any failure. API errors are
+ * translated by their stable `code` (lib/errors); the server's English
+ * `detail` never reaches an Arabic screen.
+ */
 export function errorMessage(err: unknown): string {
   const T = currentT();
   if (err instanceof ClientError) return err.message;
   if (err instanceof ApiError) {
-    const body = err.body as Record<string, unknown> | null;
-    if (body) {
-      if (typeof body.detail === "string") return body.detail;
-      const parts: string[] = [];
-      for (const [key, value] of Object.entries(body)) {
-        if (Array.isArray(value)) parts.push(`${key}: ${value.join(T.common.listSep)}`);
-        else if (typeof value === "string") parts.push(`${key}: ${value}`);
-      }
-      if (parts.length) return parts.join(" — ");
-    }
-    return T.common.httpError.replace("{status}", String(err.status));
+    return messageFromErrorBody(err.body as ApiErrorBody | null, err.status);
   }
   const msg = err instanceof Error ? err.message : "";
   if (/failed to fetch|networkerror|load failed|network request failed/i.test(msg)) {

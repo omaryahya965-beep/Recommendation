@@ -42,6 +42,83 @@ export type RecommendationStatus =
   | "pending_closure_council"
   | "closed";
 
+/** The ten business stages (backend apps/workflow/presentation.py). */
+export type StageId =
+  | "preparation"
+  | "response"
+  | "audit_review"
+  | "council"
+  | "plan"
+  | "execution"
+  | "head_review"
+  | "verification"
+  | "closure"
+  | "closed";
+
+/** Who a case is waiting on. Department overdue only applies to "department". */
+export type WaitingOn = "department" | "audit" | "council" | "none";
+
+export type DeadlineSource = "plan" | "verification" | "response";
+
+/** Every action the API can offer on a case (apps/workflow/guards.py). */
+export type CaseActionId =
+  | "edit_draft"
+  | "respond"
+  | "review_response"
+  | "submit_plan"
+  | "review_plan"
+  | "update_progress"
+  | "upload_evidence"
+  | "delete_evidence"
+  | "mark_implemented"
+  | "review_implementation"
+  | "verify"
+  | "submit_for_closure"
+  | "council_closure"
+  | "confirm_recurrence";
+
+export interface ActionBlocker {
+  code: string;
+  params?: Record<string, unknown>;
+}
+
+export interface ActionAvailability {
+  id: CaseActionId;
+  enabled: boolean;
+  blockers: ActionBlocker[];
+}
+
+/** The case detail's `workflow` block: where it stands and what this user may do. */
+export interface WorkflowBlock {
+  status: RecommendationStatus;
+  status_label: string;
+  stage: StageId;
+  stage_index: number;
+  stage_count: number;
+  returned: boolean;
+  waiting_on: WaitingOn;
+  next_actor: {
+    role: Role;
+    side: Exclude<WaitingOn, "none">;
+    user: { id: number; name: string } | null;
+  } | null;
+  waiting_since: string | null;
+  days_waiting: number;
+  deadline: { date: string; source: DeadlineSource } | null;
+  original_target_date: string | null;
+  is_overdue: boolean;
+  days_overdue: number;
+  due_in_days: number | null;
+  response_overdue: boolean;
+  my_turn: boolean;
+  available_actions: ActionAvailability[];
+  primary_action: CaseActionId | null;
+  report_action:
+    | { id: "submit_report_to_department" | "submit_report_to_council" | "ratify_report"; report: number }
+    | null;
+  combined_closure_available: boolean;
+}
+
 export interface RecommendationListItem {
   id: number;
   report: number;
@@ -50,16 +127,36 @@ export interface RecommendationListItem {
   engagement_type: "assurance" | "advisory";
   department: number;
   department_name: string;
+  /** One-line title derived from the stored text (never the full text). */
+  title: string;
+  excerpt: string;
   text: string;
   risk_level: "high" | "medium" | "low";
   priority_score: number;
   status: RecommendationStatus;
+  resolution: string;
   is_recurring: boolean;
   recurrence_confirmed: boolean;
+  /** The action plan's own target date (kept visible after W1 replaces it). */
   target_date: string | null;
   responsible_employee: string | null;
+  /** Department overdue: binding deadline passed while the department owns the action. */
   overdue: boolean;
+  stage: StageId;
+  waiting_on: WaitingOn;
+  next_role: Role | null;
+  /** The binding deadline (plan, audit-set after verification, or response). */
+  deadline: string | null;
+  deadline_source: DeadlineSource | null;
+  days_overdue: number;
+  due_in_days: number | null;
+  response_overdue: boolean;
+  /** Days since the case entered its current status (queue age). */
+  days_waiting: number;
+  /** True when the case is waiting on the requesting user. */
+  my_turn: boolean;
   created_at: string;
+  closed_at: string | null;
 }
 
 export interface ActionStep {
@@ -120,6 +217,8 @@ export interface Evidence {
   uploaded_by_detail: User;
   notes: string;
   uploaded_at: string;
+  /** Whether the requesting user may delete this file now (server rule). */
+  can_delete?: boolean;
 }
 
 export interface VerificationDecision {
@@ -147,7 +246,6 @@ export interface TrailEntry {
 
 export interface RecommendationDetail extends RecommendationListItem {
   root_cause: string;
-  resolution: string;
   similar_recommendation: number | null;
   similar_recommendation_text: string | null;
   similarity_score: number | null;
@@ -157,6 +255,8 @@ export interface RecommendationDetail extends RecommendationListItem {
   evidence_files: Evidence[];
   verifications: VerificationDecision[];
   trail: TrailEntry[];
+  /** Null only when the response was not built for a signed-in user. */
+  workflow: WorkflowBlock | null;
   updated_at: string;
 }
 

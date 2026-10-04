@@ -25,7 +25,7 @@ import {
 import { cn } from "@/lib/cn";
 import { latestVerification, outstandingRequirements, planProgress } from "@/lib/case";
 import { parseFinding } from "@/lib/finding";
-import { formatDate, formatDateTime } from "@/lib/format";
+import { formatDate, formatDateTime, localISODate } from "@/lib/format";
 import type { WorkflowAction } from "@/lib/hooks";
 import { T, VERIFICATION_LABELS, useI18n } from "@/lib/i18n";
 import type { RecommendationDetail, VerificationDecision } from "@/lib/types";
@@ -188,10 +188,15 @@ export function VerificationPanel({
   const [checklist, setChecklist] = useState<ChecklistState>(emptyChecklist);
   const [localError, setLocalError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
+  // W4: on by default when the server allows the combined action.
+  const combinedAvailable = Boolean(rec.workflow?.combined_closure_available);
+  const [sendToCouncil, setSendToCouncil] = useState(true);
+  const [closureNotes, setClosureNotes] = useState("");
 
   const decisions = rec.verifications ?? [];
   const outstanding = latestVerification(rec);
   const structuredRequired = decision !== "sufficient";
+  const combined = combinedAvailable && decision === "sufficient" && sendToCouncil;
   const composedNotes = composeChecklistNotes(checklist, notes);
 
   const ask = (event: React.FormEvent) => {
@@ -213,14 +218,16 @@ export function VerificationPanel({
     setConfirming(false);
     action.mutation.mutate({
       path: "verify/",
-      body: {
-        decision,
-        notes: composedNotes,
-        rejected_items: rejectedItems,
-        rejection_reason: rejectionReason,
-        required_action: requiredAction,
-        action_deadline: actionDeadline || null,
-      },
+      body: combined
+        ? { decision, notes: composedNotes, send_to_council: true, closure_notes: closureNotes }
+        : {
+            decision,
+            notes: composedNotes,
+            rejected_items: rejectedItems,
+            rejection_reason: rejectionReason,
+            required_action: requiredAction,
+            action_deadline: actionDeadline || null,
+          },
     });
   };
 
@@ -312,12 +319,36 @@ export function VerificationPanel({
                     <TextInput
                       type="date"
                       dir="ltr"
+                      min={localISODate()}
                       value={actionDeadline}
                       onChange={(event) => setActionDeadline(event.target.value)}
                       required
                     />
+                    <p className="mt-1.5 text-xs text-muted">{T.verify.deadlineBinding}</p>
                   </Field>
                 </div>
+              </div>
+            ) : null}
+
+            {combinedAvailable && decision === "sufficient" ? (
+              <div className="mt-5 space-y-3 rounded-xl bg-white/10 p-4">
+                <label className="flex min-h-11 cursor-pointer items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={sendToCouncil}
+                    onChange={(event) => setSendToCouncil(event.target.checked)}
+                    className="mt-1 size-5 shrink-0 accent-primary"
+                  />
+                  <span>
+                    <span className="block text-[14px] font-bold text-on-inverse">{T.verify.sendToCouncil}</span>
+                    <span className="mt-0.5 block text-[12.5px] text-on-inverse/75">{T.verify.sendToCouncilHint}</span>
+                  </span>
+                </label>
+                {sendToCouncil ? (
+                  <Field label={T.verify.closureNotes} className="text-ink">
+                    <TextArea rows={2} value={closureNotes} onChange={(event) => setClosureNotes(event.target.value)} />
+                  </Field>
+                ) : null}
               </div>
             ) : null}
 
@@ -337,7 +368,7 @@ export function VerificationPanel({
               disabled={action.mutation.isPending}
             >
               <ShieldCheck className="size-4" />
-              {T.verify.submit}
+              {combined ? T.verify.submitAndSend : T.verify.submit}
             </Button>
           </section>
 
@@ -349,10 +380,11 @@ export function VerificationPanel({
                 <p>
                   {T.verify.decision}: <strong>{VERIFICATION_LABELS[decision]}</strong>
                 </p>
+                {combined ? <p className="mt-2">{T.verify.confirmBoth}</p> : null}
                 <p className="mt-2">{T.confirm.irreversible}</p>
               </>
             }
-            confirmLabel={T.verify.submit}
+            confirmLabel={combined ? T.verify.submitAndSend : T.verify.submit}
             tone={decision === "sufficient" ? "primary" : "danger"}
             busy={action.mutation.isPending}
             onConfirm={submit}

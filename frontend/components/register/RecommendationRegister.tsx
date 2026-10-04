@@ -16,17 +16,18 @@ import { StatusBadge } from "@/components/ui/StampBadge";
 import { api, downloadFile, errorMessage, loadAuth } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { caseTitle } from "@/lib/finding";
-import { formatDate } from "@/lib/format";
+import { formatDate, localISODate } from "@/lib/format";
 import { useDepartments, usePrefetchRecommendation } from "@/lib/hooks";
 import { RISK_LABELS, STATUS_LABELS, T, useI18n } from "@/lib/i18n";
 import { LIVE } from "@/lib/queryPolicy";
 import type { Paginated, RecommendationListItem, RecommendationStatus } from "@/lib/types";
 import {
   EMPLOYEE_WORK_STATUSES,
-  STATUS_NEXT_ACTION,
-  WORKFLOW_STAGES,
   localizedWorkflowStages,
+  normalizeStageId,
+  STATUS_NEXT_ACTION,
 } from "@/lib/workflow";
+import { statusesForStage } from "@/lib/contract";
 
 const PAGE_SIZE = 25;
 
@@ -229,7 +230,8 @@ function RegisterInner({
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [view, setView] = useState<"list" | "compact">("compact");
 
-  const stage = searchParams.get("stage") ?? "";
+  // Old nine-stage ids in saved links still resolve.
+  const stage = normalizeStageId(searchParams.get("stage")) ?? "";
   const status = searchParams.get("status") ?? "";
   const risk = searchParams.get("risk_level") ?? "";
   const department = searchParams.get("report__department") ?? "";
@@ -269,8 +271,7 @@ function RegisterInner({
       if (status && allowed.has(status as RecommendationStatus)) {
         query.set("status", status);
       } else if (stage) {
-        const definition = WORKFLOW_STAGES.find((item) => item.id === stage);
-        const overlap = (definition?.statuses ?? []).filter((item) => allowed.has(item));
+        const overlap = statusesForStage(stage).filter((item) => allowed.has(item));
         if (overlap.length) query.set("status__in", overlap.join(","));
         else query.set("status", "draft");
       } else {
@@ -279,8 +280,12 @@ function RegisterInner({
     } else if (status) {
       query.set("status", status);
     } else if (stage) {
-      const definition = WORKFLOW_STAGES.find((item) => item.id === stage);
-      if (definition?.statuses.length) query.set("status__in", definition.statuses.join(","));
+      query.set("stage", stage);
+    }
+    // Queue links from the dashboards (evaluated by the API, same rules as the badges).
+    for (const key of ["waiting_on", "my_turn", "response_overdue", "due_within"]) {
+      const value = searchParams.get(key);
+      if (value) query.set(key, value);
     }
     if (risk) query.set("risk_level", risk);
     if (department && !mine && !departmentOnly) query.set("report__department", department);
@@ -349,7 +354,7 @@ function RegisterInner({
       query.delete("page");
       await downloadFile(
         `/api/recommendations/export/?${query.toString()}`,
-        `recommendations-${new Date().toISOString().slice(0, 10)}.csv`
+        `recommendations-${localISODate()}.csv`
       );
     } catch (err) {
       setExportError(errorMessage(err));

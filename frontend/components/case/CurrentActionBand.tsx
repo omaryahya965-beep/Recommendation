@@ -30,8 +30,20 @@ export function CurrentActionBand({
   useI18n();
   const next = STATUS_NEXT_ACTION[rec.status];
   const stage = stageForStatus(rec.status);
-  const yours = isWaitingOn(rec.status, role);
+  const workflow = rec.workflow;
+  // The server decides whose turn it is (it knows the assignee and the report state).
+  const yours = workflow ? workflow.my_turn : isWaitingOn(rec.status, role);
   const closed = rec.status === "closed";
+  const deadline = workflow?.deadline?.date ?? rec.target_date;
+  const deadlineLabel = workflow?.deadline
+    ? T.workflow.deadlineSource[workflow.deadline.source]
+    : T.common.targetDate;
+  const waitingText =
+    workflow && !closed && workflow.waiting_on !== "none"
+      ? (workflow.days_waiting > 0 ? T.workflow.waitingSince : T.workflow.waitingToday)
+          .replace("{who}", T.workflow.waitingOn[workflow.waiting_on])
+          .replace("{days}", String(workflow.days_waiting))
+      : null;
   const owner =
     rec.action_plan?.responsible_employee_detail?.full_name_ar ?? rec.responsible_employee ?? next.role;
 
@@ -78,6 +90,11 @@ export function CurrentActionBand({
           >
             {next.action}
           </h2>
+          {waitingText ? (
+            <p className={cn("mt-1.5 text-[13px] font-medium", yours ? "text-white/75" : "text-ink-soft")}>
+              {waitingText}
+            </p>
+          ) : null}
 
           <dl className="mt-4 grid gap-4 sm:grid-cols-3 bg-white/5 rounded-lg p-3.5 border border-white/5">
             <div>
@@ -95,11 +112,22 @@ export function CurrentActionBand({
             </div>
             <div>
               <dt className={cn("text-[11px] font-bold uppercase tracking-wider", yours && !closed ? "text-white/60" : "text-muted")}>
-                {T.common.targetDate}
+                {deadlineLabel}
               </dt>
               <dd className={cn("mt-1 text-sm font-bold font-mono", yours && !closed ? "text-white" : "text-ink")} dir="ltr">
-                {formatDate(rec.target_date)}
+                {formatDate(deadline)}
               </dd>
+              {workflow?.is_overdue ? (
+                <dd className={cn("mt-1 text-[12px] font-bold", yours ? "text-warning-light" : "text-danger-dark")}>
+                  {T.workflow.overdueBy.replace("{days}", String(workflow.days_overdue))}
+                </dd>
+              ) : workflow?.due_in_days != null && !closed ? (
+                <dd className={cn("mt-1 text-[12px] font-semibold", yours ? "text-white/75" : "text-ink-soft")}>
+                  {workflow.due_in_days === 0
+                    ? T.workflow.dueToday
+                    : T.workflow.dueIn.replace("{days}", String(workflow.due_in_days))}
+                </dd>
+              ) : null}
             </div>
             <div>
               <dt className={cn("text-[11px] font-bold uppercase tracking-wider", yours && !closed ? "text-white/60" : "text-muted")}>

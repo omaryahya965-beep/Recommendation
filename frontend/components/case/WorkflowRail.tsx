@@ -5,33 +5,35 @@ import { Check, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { T, useI18n } from "@/lib/i18n";
 import type { RecommendationStatus, Role } from "@/lib/types";
-import { isWaitingOn, type StageState, visualSnapshot } from "@/lib/workflow";
+import { isWaitingOn, type StageState, workflowSnapshot } from "@/lib/workflow";
 
 const STATE_DOT: Record<StageState, string> = {
   completed: "border-primary/20 bg-primary text-white shadow-sm",
   current: "border-navy bg-navy text-white ring-4 ring-primary/20 shadow-md",
   returned: "border-danger bg-danger text-white ring-4 ring-danger/15 shadow-md",
   next: "border-line bg-subtle text-muted",
-  skipped: "border-line bg-subtle text-muted",
 };
 
 /**
- * Lifecycle explanation over the real backend statuses. Current beat is large;
- * completed beats stay quiet; future beats stay muted. Required action lives
- * in CurrentActionBand, not here.
+ * The ten business stages for the case's status. The current stage is large;
+ * completed stages stay quiet; future stages stay muted. Required action
+ * lives in the action card, not here.
  */
 export function WorkflowRail({
   status,
   role,
+  myTurn,
   className,
 }: {
   status: RecommendationStatus;
   role?: Role;
+  /** The server's answer (workflow.my_turn); falls back to the status alone. */
+  myTurn?: boolean;
   className?: string;
 }) {
   useI18n();
-  const beats = visualSnapshot(status);
-  const yours = role ? isWaitingOn(status, role) : false;
+  const beats = workflowSnapshot(status);
+  const yours = myTurn ?? (role ? isWaitingOn(status, role) : false);
 
   return (
     <section className={cn("overflow-hidden border-b border-line pb-5", className)}>
@@ -83,7 +85,7 @@ export function WorkflowRail({
       </ol>
 
       <div className="hidden scrollbar-thin overflow-x-auto pb-2 md:block">
-        <ol className="flex min-w-[920px] items-start gap-0 px-2">
+        <ol className="flex min-w-[860px] items-start gap-0 px-2">
           {beats.map((beat, index) => {
             const isLast = index === beats.length - 1;
             const done = beat.state === "completed";

@@ -135,14 +135,24 @@ test("a recommendation travels from issue to council closure", async ({ page, re
   await decide(page, T.case.headReviewAccept, "التنفيذ مكتمل.");
   await expectStatus(request, recId, "submitted_for_verification");
 
-  // --- Audit: verify sufficient, then send the closure package ------------
+  // --- Audit: "Sufficient + send to council" (W4) -------------------------
   await signIn(page, request, "audit");
   await openCase(page, "audit", recId);
-  await page.getByRole("button", { name: T.verify.submit }).click();
-  await page.getByRole("alertdialog").getByRole("button", { name: T.verify.submit }).click();
-  await expectStatus(request, recId, "closure_review");
-  await page.getByRole("button", { name: T.verify.submitForClosure }).click();
+  await expect(page.getByLabel(T.verify.sendToCouncil)).toBeChecked();
+  await page.getByRole("button", { name: T.verify.submitAndSend }).click();
+  const verifyDialog = page.getByRole("alertdialog");
+  await expect(verifyDialog.getByText(T.verify.confirmBoth)).toBeVisible();
+  await verifyDialog.getByRole("button", { name: T.verify.submitAndSend }).click();
   await expectStatus(request, recId, "pending_closure_council");
+  // Both underlying transitions are kept in the audit trail.
+  const { body: verified } = await apiGet<{ trail: Array<{ action: string }> }>(
+    request,
+    "audit",
+    `/api/recommendations/${recId}/`
+  );
+  const actions = verified.trail.map((entry) => entry.action);
+  expect(actions).toContain("verified_sufficient");
+  expect(actions).toContain("closure_submitted_to_council");
 
   // --- Council: close ------------------------------------------------------
   await signIn(page, request, "council");
