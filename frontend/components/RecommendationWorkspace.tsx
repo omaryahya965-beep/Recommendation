@@ -1,8 +1,9 @@
 "use client";
 
-import { CheckCircle2, ClipboardList, Repeat2, Send, Stamp } from "lucide-react";
+import { CheckCircle2, ClipboardList, FilePen, Repeat2, Send, Stamp } from "lucide-react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import {
   ActionPlanBuilder,
@@ -156,6 +157,58 @@ function OverviewTab({ rec }: { rec: RecommendationDetail }) {
 /* Execution controls                                                       */
 /* ----------------------------------------------------------------------- */
 
+const COMMIT_KEYS = new Set([
+  "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown",
+]);
+
+/**
+ * Step progress. Controlled, and committed when the user lets go — pointer
+ * release, a keyboard change or leaving the control — so keyboard users can
+ * record progress too. The last sent value is remembered so one gesture never
+ * posts twice.
+ */
+function ProgressSlider({
+  initial,
+  disabled,
+  label,
+  onCommit,
+}: {
+  initial: number;
+  disabled: boolean;
+  label: string;
+  onCommit: (value: number) => void;
+}) {
+  const [value, setValue] = useState(initial);
+  const lastSent = useRef(initial);
+  const commit = (next: number) => {
+    if (next === lastSent.current) return;
+    lastSent.current = next;
+    onCommit(next);
+  };
+  return (
+    <span className="inline-flex items-center gap-2">
+      <input
+        type="range"
+        min={0}
+        max={100}
+        step={10}
+        value={value}
+        disabled={disabled}
+        onChange={(event) => setValue(Number(event.currentTarget.value))}
+        onPointerUp={(event) => commit(Number(event.currentTarget.value))}
+        onKeyUp={(event) => {
+          if (COMMIT_KEYS.has(event.key)) commit(Number(event.currentTarget.value));
+        }}
+        onBlur={(event) => commit(Number(event.currentTarget.value))}
+        className="h-2 w-36 cursor-pointer appearance-none rounded-lg bg-line accent-primary"
+        aria-label={label}
+        aria-valuetext={`${value}%`}
+      />
+      <span className="w-10 font-mono text-[12px] font-bold text-navy" dir="ltr">{value}%</span>
+    </span>
+  );
+}
+
 function StepControls({
   step,
   state,
@@ -175,17 +228,13 @@ function StepControls({
     <div className="flex flex-wrap items-center gap-4 bg-subtle/50 rounded-lg p-2.5 border border-line/50">
       <label className="flex items-center gap-3 text-xs font-bold text-navy uppercase tracking-wider">
         {T.plan.progress}
-        <input
-          type="range"
-          min={0}
-          max={100}
-          step={10}
-          defaultValue={step.progress_percent}
+        <ProgressSlider
+          // Remounts with the server value whenever it changes.
+          key={`${step.id}:${step.progress_percent}`}
+          initial={step.progress_percent}
           disabled={step.is_done || action.mutation.isPending}
-          onMouseUp={(event) => post({ progress_percent: Number(event.currentTarget.value) })}
-          onTouchEnd={(event) => post({ progress_percent: Number(event.currentTarget.value) })}
-          className="h-2 w-36 accent-primary bg-line rounded-lg appearance-none cursor-pointer"
-          aria-label={`${T.plan.progress}: ${step.title}`}
+          label={`${T.plan.progress}: ${step.title}`}
+          onCommit={(value) => post({ progress_percent: value })}
         />
       </label>
       <Button
@@ -523,7 +572,20 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
       />
       <WorkflowRail status={rec.status} role={role} />
 
-      <SuccessBanner message={action.success} />
+      <SuccessBanner message={action.success ?? (searchParams.get("saved") ? T.create.editSaved : null)} />
+
+      {rec.status === "draft" && role === "audit" ? (
+        <Callout tone="neutral" icon={<FilePen className="size-4.5" />}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span>{T.create.draftNotice}</span>
+            <Link href={`/audit/recommendations/${rec.id}/edit`}>
+              <Button variant="secondary" className="font-bold">
+                {T.create.editAction}
+              </Button>
+            </Link>
+          </div>
+        </Callout>
+      ) : null}
       {can("confirm_recurrence", rec.status, role) ? <RecurrencePanel rec={rec} action={action} /> : null}
 
       <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-sm">

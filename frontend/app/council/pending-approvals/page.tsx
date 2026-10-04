@@ -10,11 +10,14 @@ import { ActionNow } from "@/components/home/ActionNow";
 import { HomeHero } from "@/components/home/HomeHero";
 import { RecommendationTable } from "@/components/RecommendationTable";
 import { Button, Callout, ErrorBanner, Field, TextArea } from "@/components/ui/Base";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { RecordId } from "@/components/ui/Ledger";
 import { DashboardBodySkeleton, EmptyState } from "@/components/ui/EmptyState";
 import { Section } from "@/components/ui/Section";
 import { useDashboard } from "@/lib/hooks";
 import { api, errorMessage } from "@/lib/api";
 import { invalidateRecommendationViews } from "@/lib/queryPolicy";
+import { caseTitle } from "@/lib/finding";
 import { REPORT_TYPE_LABELS, T, useI18n } from "@/lib/i18n";
 import { LIVE } from "@/lib/queryPolicy";
 import type { AuditReport } from "@/lib/types";
@@ -27,6 +30,7 @@ function PendingReportCard({ report }: { report: AuditReport }) {
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   const { data: detail } = useQuery({
     queryKey: ["report", report.id],
@@ -38,11 +42,21 @@ function PendingReportCard({ report }: { report: AuditReport }) {
     mutationFn: () => api(`/api/reports/${report.id}/ratify/`, { method: "POST", body: { notes } }),
     onSuccess: () => {
       setError(null);
+      setConfirming(false);
       // Ratification moves every recommendation in the report at once.
       invalidateRecommendationViews(queryClient, { reportId: report.id, allCases: true });
     },
-    onError: (err) => setError(errorMessage(err)),
+    onError: (err) => {
+      setConfirming(false);
+      setError(errorMessage(err));
+    },
   });
+
+  // Ratification closes every recommendation whose disagreement audit
+  // accepted; the council must see those before it decides.
+  const items = detail?.recommendations ?? [];
+  const closing = items.filter((item) => item.response_decision === "disagree");
+  const implementing = items.length - closing.length;
 
   return (
     <li className="border-b border-line px-4 py-4 last:border-b-0">
@@ -72,11 +86,47 @@ function PendingReportCard({ report }: { report: AuditReport }) {
             <TextArea value={notes} onChange={(event) => setNotes(event.target.value)} rows={2} />
           </Field>
           <ErrorBanner message={error} />
-          <Button onClick={() => ratify.mutate()} disabled={ratify.isPending} className="min-h-12 w-full sm:w-auto">
+          <Button
+            onClick={() => setConfirming(true)}
+            disabled={ratify.isPending || !detail}
+            className="min-h-12 w-full sm:w-auto"
+          >
             <Stamp className="size-4" />
             {T.council.ratifyReport}
           </Button>
           <Callout tone="neutral">{T.council.ratifyHint}</Callout>
+          <ConfirmDialog
+            open={confirming}
+            title={T.council.ratifyConfirmTitle}
+            body={
+              <div className="space-y-3 text-[13.5px] leading-relaxed">
+                <p className="font-bold text-navy">{report.title}</p>
+                <p>{T.council.ratifyConfirmImplement.replace("{count}", String(implementing))}</p>
+                {closing.length ? (
+                  <div>
+                    <p className="font-semibold text-warning-dark">
+                      {T.council.ratifyConfirmClose.replace("{count}", String(closing.length))}
+                    </p>
+                    <ul className="mt-2 space-y-1.5">
+                      {closing.map((item) => (
+                        <li key={item.id} className="flex items-baseline gap-2">
+                          <RecordId id={item.id} />
+                          <span className="min-w-0 truncate">{caseTitle(item.text, 70)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <p className="text-ink-soft">{T.council.ratifyConfirmNoClose}</p>
+                )}
+                <p className="text-[12px] text-ink-soft">{T.confirm.irreversible}</p>
+              </div>
+            }
+            confirmLabel={T.council.ratifyReport}
+            busy={ratify.isPending}
+            onConfirm={() => ratify.mutate()}
+            onCancel={() => setConfirming(false)}
+          />
         </div>
       ) : null}
     </li>

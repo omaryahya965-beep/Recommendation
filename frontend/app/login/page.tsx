@@ -21,7 +21,7 @@ import { PanelOrnaments } from "@/components/login/LoginOrnaments";
 import { RaqeebWordmark } from "@/components/brand/RaqeebWordmark";
 import { MunicipalityMark } from "@/components/login/MunicipalityMark";
 import { ErrorBanner } from "@/components/ui/Base";
-import { login, ROLE_HOME } from "@/lib/api";
+import { classifyLoginError, login, ROLE_HOME } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { ROLE_LABELS, T, useI18n } from "@/lib/i18n";
 import type { Role } from "@/lib/types";
@@ -72,6 +72,8 @@ export default function LoginPage() {
   const [remember, setRemember] = useState(false);
   const [showDemo, setShowDemo] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Only a credentials failure marks the fields invalid.
+  const [credentialsFailed, setCredentialsFailed] = useState(false);
   const [usernameError, setUsernameError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -90,6 +92,7 @@ export default function LoginPage() {
     if (busy) return;
     setBusy(true);
     setError(null);
+    setCredentialsFailed(false);
     setUsernameError(null);
     setPasswordError(null);
     try {
@@ -101,8 +104,20 @@ export default function LoginPage() {
       if (remember) localStorage.setItem(REMEMBER_KEY, user);
       else localStorage.removeItem(REMEMBER_KEY);
       router.replace(ROLE_HOME[auth.user.role] ?? "/login");
-    } catch {
-      setError(T.login.error);
+    } catch (err) {
+      const failure = classifyLoginError(err);
+      setCredentialsFailed(failure.kind === "credentials");
+      setError(
+        failure.kind === "credentials"
+          ? T.login.error
+          : failure.kind === "throttled"
+            ? failure.retryAfter
+              ? T.login.errorThrottled.replace("{seconds}", String(failure.retryAfter))
+              : T.login.errorThrottledShort
+            : failure.kind === "server"
+              ? T.login.errorServer
+              : T.login.errorNetwork
+      );
       setBusy(false);
       setActiveDemo(null);
       usernameRef.current?.focus();
@@ -130,7 +145,7 @@ export default function LoginPage() {
     await signIn(account.username, DEMO_PASSWORD);
   };
 
-  const credentialsInvalid = Boolean(error);
+  const credentialsInvalid = Boolean(error) && credentialsFailed;
   const passwordToggleLabel = showPassword
     ? T.login.hidePassword
     : T.login.showPassword;

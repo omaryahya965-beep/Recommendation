@@ -35,7 +35,9 @@ function sortOptions() {
     { value: "-priority_score", label: T.register.sortPriority },
     { value: "-created_at", label: T.register.sortNewest },
     { value: "created_at", label: T.register.sortOldest },
-    { value: "risk_level", label: T.register.sortRisk },
+    // Severity, highest first (the API sorts risk by rank, not alphabetically).
+    { value: "-risk_level", label: T.register.sortRisk },
+    { value: "target_date", label: T.register.sortDeadline },
   ] as const;
 }
 

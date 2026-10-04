@@ -241,6 +241,23 @@ export function parseFinding(text: string): ParsedFinding {
   };
 }
 
+/**
+ * Wizard fields from stored text, for editing a draft. Sections map 1:1;
+ * text written before any heading (older free-text records) becomes the
+ * condition when there is none, otherwise it is kept in the notes so no
+ * wording is ever lost on save.
+ */
+export function findingDraftFromText(text: string): FindingDraft {
+  const parsed = parseFinding(text);
+  const draft: FindingDraft = { ...EMPTY_FINDING };
+  for (const section of parsed.sections) draft[section.id] = section.body;
+  if (parsed.preamble) {
+    if (!draft.condition.trim()) draft.condition = parsed.preamble;
+    else draft.notes = [parsed.preamble, draft.notes].filter((part) => part.trim()).join("\n\n");
+  }
+  return draft;
+}
+
 /** Short one-line title for headers, tables and search results. */
 export function caseTitle(text: string, max = 90): string {
   const parsed = parseFinding(text);

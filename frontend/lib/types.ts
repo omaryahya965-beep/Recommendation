@@ -173,7 +173,12 @@ export interface AuditReport {
   council_approval_date: string | null;
   recommendations_count: number;
   created_at: string;
-  recommendations?: RecommendationListItem[];
+  recommendations?: ReportRecommendationItem[];
+}
+
+/** A recommendation as listed inside its report (adds the response decision). */
+export interface ReportRecommendationItem extends RecommendationListItem {
+  response_decision?: "agree" | "disagree" | null;
 }
 
 export interface Department {

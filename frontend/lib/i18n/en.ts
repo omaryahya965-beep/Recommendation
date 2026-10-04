@@ -200,6 +200,10 @@ export const T = {
     forgotPassword: "Forgot password",
     submit: "Sign in",
     error: "Username or password is incorrect.",
+    errorThrottled: "Too many sign-in attempts. Wait {seconds} seconds and try again.",
+    errorThrottledShort: "Too many sign-in attempts. Wait a moment and try again.",
+    errorServer: "The server is unavailable right now. Please try again shortly.",
+    errorNetwork: "Cannot reach the server. Check your internet connection and try again.",
     errorUsername: "Enter your username.",
     errorPassword: "Enter your password.",
     requiredHint: "Required",
@@ -895,6 +899,13 @@ export const T = {
   },
   /** Create recommendation wizard */
   create: {
+    editTitle: "Edit draft recommendation",
+    editIntro: "Revise the recommendation before the report is sent to the department. Every edit is recorded in the audit trail.",
+    editAction: "Edit draft",
+    saveChanges: "Save changes",
+    editSaved: "Draft changes saved.",
+    draftNotice: "This recommendation is an audit draft and has not been sent to the department yet.",
+    notEditable: "A recommendation can no longer be edited once its report has been sent to the department.",
     title: "New Audit Recommendation",
     intro: "Record the finding and recommendation within an existing audit report.",
     stepOf: "Step {n} of {total}",
@@ -985,6 +996,7 @@ export const T = {
     sortOldest: "Oldest",
     sortPriority: "Highest priority",
     sortRisk: "Risk",
+    sortDeadline: "Nearest deadline",
     departmentHint: "Your department's recommendations only: responses, action plans, and implementation. Other departments are not shown.",
     employeeHint: "Your recommendations only: what is assigned to you and that you are implementing or have completed. Colleagues' recommendations are not shown.",
   },
@@ -1167,6 +1179,10 @@ export const T = {
     emptyHint: "Recommendations appear here after the action plan is approved and assigned to staff.",
   },
   council: {
+    ratifyConfirmTitle: "Confirm report ratification",
+    ratifyConfirmImplement: "{count} recommendation(s) will be approved for implementation and the department asked for action plans.",
+    ratifyConfirmClose: "{count} recommendation(s) will be closed by accepting the department's disagreement:",
+    ratifyConfirmNoClose: "No recommendation will be closed by this ratification.",
     ratifyReport: "Ratify the report",
     ratifyHint:
       "After ratification, departments are asked for action plans, and recommendations whose management disagreement Internal Audit accepted are closed.",
@@ -1305,6 +1321,7 @@ export const T = {
     analyze: "AI analysis",
     linkedStep: "Linked to step",
     advisoryNote: "Advisory Analysis does not replace audit verification.",
+    openFailed: "Could not open the file. Please try again.",
   },
   verification: {
     employeeDone: "Implementation completed",

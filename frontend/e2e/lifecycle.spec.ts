@@ -74,10 +74,12 @@ test("a recommendation travels from issue to council closure", async ({ page, re
   const card = page.locator("li", { hasText: reportTitle }).first();
   await card.getByRole("button", { name: T.dashboard.ratifyDecision }).click();
   await card.getByRole("button", { name: T.council.ratifyReport }).click();
+  // Ratification is irreversible: it is always confirmed, with a preview of
+  // what it approves and what it closes.
   const confirm = page.getByRole("alertdialog");
-  if (await confirm.isVisible().catch(() => false)) {
-    await confirm.getByRole("button", { name: T.council.ratifyReport }).click();
-  }
+  await expect(confirm).toBeVisible();
+  await expect(confirm.getByText(T.council.ratifyConfirmNoClose)).toBeVisible();
+  await confirm.getByRole("button", { name: T.council.ratifyReport }).click();
   await expectStatus(request, recId, "action_plan_required");
 
   // --- Head: submit the action plan --------------------------------------
