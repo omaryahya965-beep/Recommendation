@@ -2,21 +2,10 @@
 
 import { useQuery } from "@tanstack/react-query";
 import {
-  BarChart3,
   Bell,
-  ClipboardCheck,
-  ClipboardList,
-  FilePlus2,
-  FileText,
-  History,
-  LayoutDashboard,
-  LineChart,
   LogOut,
-  Menu,
   Search,
   Settings,
-  Sparkles,
-  Users,
   ChevronRight
 } from "lucide-react";
 import Image from "next/image";
@@ -29,241 +18,32 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
-  type ComponentType,
   type ReactNode,
 } from "react";
 
 import { MunicipalityLogo } from "@/components/brand/MunicipalityLogo";
 import { DirCollapse } from "@/components/i18n/DirIcon";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
-import { MobileNavDrawer } from "@/components/shell/MobileNavDrawer";
+import { MobileAppBar, MobileBottomNav } from "@/components/shell/MobileChrome";
 import { MobileSearchOverlay } from "@/components/shell/MobileSearchOverlay";
 import { usePrefetchAIInsights } from "@/lib/ai";
 import { Skeleton } from "@/components/ui/EmptyState";
 import { StatusBadge } from "@/components/ui/StampBadge";
-import { api, loadAuth, logout, ROLE_HOME, ROLE_PROFILE } from "@/lib/api";
-import { useNavCounts, type NavCounts } from "@/lib/hooks";
+import { api, loadAuth, logout, ROLE_HOME } from "@/lib/api";
+import { useNavCounts } from "@/lib/hooks";
+import { useIsTablet } from "@/lib/useMediaQuery";
+import {
+  navFor,
+  navItemActive,
+  pageTitle,
+  profileHref,
+  searchBase,
+  settingsFor,
+} from "@/components/shell/navigation";
 import { cn } from "@/lib/cn";
 import { clipTitle } from "@/lib/finding";
 import { ROLE_LABELS, T, useI18n } from "@/lib/i18n";
 import type { Paginated, RecommendationListItem, Role, User } from "@/lib/types";
-
-interface NavItem {
-  href: string;
-  label: string;
-  icon: ComponentType<{ className?: string }>;
-  /** Badge from /api/nav-counts/ (the viewer's own turn, or a council queue). */
-  count?: keyof NavCounts;
-}
-
-interface NavGroup {
-  id: string;
-  label?: string;
-  items: NavItem[];
-}
-
-/** Only routes the backend actually serves for this role appear here. */
-function navFor(role: Role): NavGroup[] {
-  const groups: Record<Role, NavGroup[]> = {
-    audit: [
-      {
-        id: "home",
-        items: [{ href: "/audit/dashboard", label: T.nav.dashboard, icon: LayoutDashboard }],
-      },
-      {
-        id: "oversight",
-        label: T.nav.groupOversight,
-        items: [
-          { href: "/audit/recommendations", label: T.nav.recommendations, icon: ClipboardList, count: "recommendations" },
-          { href: "/audit/reports", label: T.nav.reports, icon: FileText, count: "reports" },
-          { href: "/audit/reports/new", label: T.reports.addReport, icon: FilePlus2 },
-          { href: "/audit/followup-reports", label: T.nav.followups, icon: BarChart3 },
-        ],
-      },
-      {
-        id: "intelligence",
-        label: T.nav.groupIntelligence,
-        items: [
-          { href: "/audit/analytics", label: T.nav.analytics, icon: LineChart },
-          { href: "/audit/assistant", label: T.nav.assistant, icon: Sparkles },
-        ],
-      },
-    ],
-    department_head: [
-      {
-        id: "home",
-        items: [{ href: "/department/dashboard", label: T.nav.dashboard, icon: LayoutDashboard }],
-      },
-      {
-        id: "work",
-        label: T.nav.groupWork,
-        items: [
-          { href: "/department/recommendations", label: T.register.title, icon: ClipboardList, count: "recommendations" },
-          { href: "/department/team-progress", label: T.nav.teamProgress, icon: Users },
-        ],
-      },
-      {
-        id: "intelligence",
-        label: T.nav.groupIntelligence,
-        items: [
-          { href: "/department/analytics", label: T.nav.analytics, icon: LineChart },
-          { href: "/department/assistant", label: T.nav.assistant, icon: Sparkles },
-        ],
-      },
-    ],
-    employee: [
-      {
-        id: "home",
-        items: [{ href: "/employee/my-tasks", label: T.nav.dashboard, icon: LayoutDashboard }],
-      },
-      {
-        id: "work",
-        label: T.nav.groupWork,
-        items: [
-          {
-            href: "/employee/recommendations",
-            label: T.dashboard.myRecommendations,
-            icon: ClipboardList,
-            count: "recommendations",
-          },
-        ],
-      },
-      {
-        id: "intelligence",
-        label: T.nav.groupIntelligence,
-        items: [
-          { href: "/employee/analytics", label: T.nav.analytics, icon: LineChart },
-          { href: "/employee/assistant", label: T.nav.assistant, icon: Sparkles },
-        ],
-      },
-    ],
-    council: [
-      {
-        id: "decisions",
-        label: T.nav.groupDecisions,
-        items: [
-          { href: "/council/pending-approvals", label: T.nav.pendingApprovals, icon: ClipboardCheck, count: "pending_approvals" },
-          { href: "/council/closure-reviews", label: T.nav.closureReviews, icon: ClipboardList, count: "closure_reviews" },
-          { href: "/council/approved-history", label: T.nav.approvedHistory, icon: History },
-        ],
-      },
-      {
-        id: "oversight",
-        label: T.nav.groupOversight,
-        items: [
-          { href: "/council/recommendations", label: T.nav.recommendations, icon: ClipboardList },
-          { href: "/council/followup-reports", label: T.nav.followups, icon: BarChart3 },
-        ],
-      },
-      {
-        id: "intelligence",
-        label: T.nav.groupIntelligence,
-        items: [
-          { href: "/council/analytics", label: T.nav.analytics, icon: LineChart },
-          { href: "/council/assistant", label: T.nav.assistant, icon: Sparkles },
-        ],
-      },
-    ],
-  };
-  return groups[role];
-}
-
-function settingsFor(role: Role): NavItem {
-  const href =
-    role === "audit"
-      ? "/audit/settings"
-      : role === "department_head"
-        ? "/department/settings"
-        : role === "employee"
-          ? "/employee/settings"
-          : "/council/settings";
-  return { href, label: T.nav.settings, icon: Settings };
-}
-
-function profileHref(role: Role) {
-  return ROLE_PROFILE[role];
-}
-
-function pageTitles(): Record<string, string> {
-  return {
-    "/audit/dashboard": T.nav.dashboard,
-    "/audit/profile": T.nav.profile,
-    "/audit/settings": T.nav.settings,
-    "/audit/notifications": T.nav.notifications,
-    "/audit/analytics": T.nav.analytics,
-    "/audit/recommendations/new": T.create.title,
-    "/audit/recommendations": T.register.title,
-    "/audit/reports/new": T.reports.create,
-    "/audit/reports": T.nav.reports,
-    "/audit/followup-reports": T.nav.followups,
-    "/audit/assistant": T.nav.assistant,
-    "/department/dashboard": T.nav.dashboard,
-    "/department/profile": T.nav.profile,
-    "/department/settings": T.nav.settings,
-    "/department/notifications": T.nav.notifications,
-    "/department/analytics": T.nav.analytics,
-    "/department/recommendations": T.nav.recommendations,
-    "/department/team-progress": T.nav.teamProgress,
-    "/department/assistant": T.nav.assistant,
-    "/employee/my-tasks": T.nav.dashboard,
-    "/employee/recommendations": T.dashboard.myRecommendations,
-    "/employee/profile": T.nav.profile,
-    "/employee/settings": T.nav.settings,
-    "/employee/notifications": T.nav.notifications,
-    "/employee/analytics": T.nav.analytics,
-    "/employee/assistant": T.nav.assistant,
-    "/council/pending-approvals": T.nav.pendingApprovals,
-    "/council/profile": T.nav.profile,
-    "/council/settings": T.nav.settings,
-    "/council/notifications": T.nav.notifications,
-    "/council/analytics": T.nav.analytics,
-    "/council/closure-reviews": T.nav.closureReviews,
-    "/council/approved-history": T.nav.approvedHistory,
-    "/council/followup-reports": T.nav.followups,
-    "/council/recommendations": T.nav.recommendations,
-    "/council/assistant": T.nav.assistant,
-  };
-}
-
-function pageTitle(pathname: string) {
-  const titles = pageTitles();
-  const exact = titles[pathname];
-  if (exact) return exact;
-  const match = Object.keys(titles)
-    .sort((a, b) => b.length - a.length)
-    .find((key) => pathname.startsWith(key));
-  return match ? titles[match] : T.appName;
-}
-
-function searchBase(role: Role) {
-  if (role === "audit") return "/audit/recommendations";
-  if (role === "department_head") return "/department/recommendations";
-  if (role === "employee") return "/employee/my-tasks";
-  return "/council/recommendations";
-}
-
-function splitHref(href: string) {
-  const q = href.indexOf("?");
-  if (q === -1) return { path: href, params: new URLSearchParams() };
-  return { path: href.slice(0, q), params: new URLSearchParams(href.slice(q + 1)) };
-}
-
-function navItemActive(pathname: string, searchParams: URLSearchParams, href: string) {
-  const { path, params } = splitHref(href);
-  if (href.endsWith("/new")) return pathname === href;
-
-  const onPath = pathname === path || (pathname.startsWith(`${path}/`) && !pathname.endsWith("/new"));
-  if (!onPath) return false;
-
-  const keys = [...params.keys()];
-  if (!keys.length) {
-    const stage = searchParams.get("stage");
-    const status = searchParams.get("status");
-    if (pathname === path && (stage || status)) return false;
-    return true;
-  }
-  return keys.every((key) => searchParams.get(key) === params.get(key));
-}
 
 function GlobalSearch({ role }: { role: Role }) {
   useI18n();
@@ -386,7 +166,6 @@ interface SidebarNavProps {
   role: Role;
   pathname: string;
   collapsed: boolean;
-  onNavigate?: () => void;
 }
 
 const NO_SEARCH_PARAMS = new URLSearchParams();
@@ -413,7 +192,6 @@ function SidebarNavView({
   role,
   pathname,
   collapsed,
-  onNavigate,
   searchParams,
 }: SidebarNavProps & { searchParams: URLSearchParams }) {
   useI18n();
@@ -451,7 +229,6 @@ function SidebarNavView({
                   key={item.href}
                   href={item.href}
                   title={collapsed ? item.label : undefined}
-                  onClick={onNavigate}
                   className={itemCls(active)}
                 >
                   {active ? (
@@ -583,8 +360,11 @@ function ShellFrame({
 }) {
   useI18n();
   usePrefetchAIInsights(role, user !== null);
-  const [collapsed, toggleCollapsed] = useSidebarCollapsed();
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [savedCollapsed, toggleCollapsed] = useSidebarCollapsed();
+  // Tablets (768–1023px) always get the icon rail: a full sidebar would leave
+  // too little room for the page.
+  const tablet = useIsTablet();
+  const collapsed = savedCollapsed || tablet;
   const [searchOpen, setSearchOpen] = useState(false);
   const settings = settingsFor(role);
   const profile = profileHref(role);
@@ -620,14 +400,13 @@ function ShellFrame({
         </div>
       </div>
       
-      <SidebarNav role={role} pathname={pathname} collapsed={collapsed} onNavigate={() => setMobileOpen(false)} />
+      <SidebarNav role={role} pathname={pathname} collapsed={collapsed} />
       
       {/* Footer Zone */}
       <div className="shrink-0 border-t border-sidebar-muted/10 bg-sidebar/95 p-3">
         <Link
           href={settings.href}
           title={collapsed ? settings.label : undefined}
-          onClick={() => setMobileOpen(false)}
           className={cn(
             "group relative flex min-h-12 items-center gap-3 rounded-md px-3 py-2.5 text-[14px] transition-colors",
             collapsed && "justify-center px-2",
@@ -647,7 +426,6 @@ function ShellFrame({
             title={user ? user.full_name_ar || user.username : undefined}
             aria-label={T.nav.profile}
             aria-current={profileActive ? "page" : undefined}
-            onClick={() => setMobileOpen(false)}
             className={cn(
               "flex min-w-0 flex-1 items-center gap-3 rounded-md p-1.5 transition-colors",
               collapsed && "flex-none justify-center p-0",
@@ -698,13 +476,6 @@ function ShellFrame({
         {sidebar}
       </aside>
 
-      <MobileNavDrawer
-        open={mobileOpen}
-        onClose={() => setMobileOpen(false)}
-      >
-        {sidebar}
-      </MobileNavDrawer>
-
       <MobileSearchOverlay
         open={searchOpen}
         onClose={() => setSearchOpen(false)}
@@ -712,37 +483,20 @@ function ShellFrame({
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-40 min-w-0 border-b border-line bg-surface/95 pt-[env(safe-area-inset-top)] shadow-sm backdrop-blur-md print:hidden">
+        <MobileAppBar role={role} user={user} pathname={pathname} onSearch={() => setSearchOpen(true)} />
+        <header className="sticky top-0 z-40 hidden min-w-0 border-b border-line bg-surface/95 shadow-sm backdrop-blur-md md:block print:hidden">
           <div className="flex h-14 min-w-0 items-center gap-1 px-2 md:justify-between md:gap-3 md:px-6">
             <div className="flex min-w-0 flex-1 items-center gap-1 md:gap-3">
-              <button
-                type="button"
-                className="flex size-12 shrink-0 items-center justify-center rounded-md text-ink-soft hover:bg-subtle md:hidden"
-                onClick={() => {
-                  setSearchOpen(false);
-                  setMobileOpen(true);
-                }}
-                aria-label={T.nav.menu}
-              >
-                <Menu className="size-5" />
-              </button>
-              <button
-                type="button"
-                className="hidden size-11 items-center justify-center rounded-md text-ink-soft hover:bg-subtle md:inline-flex"
-                onClick={toggleCollapsed}
-                aria-label={collapsed ? T.nav.expand : T.nav.collapse}
-              >
-                <DirCollapse collapsed={collapsed} className="size-5" />
-              </button>
-
-              <div className="flex min-w-0 flex-1 items-center gap-2 md:hidden">
-                <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-navy text-white">
-                  <MunicipalityLogo size="sm" className="!size-7" />
-                </div>
-                <p className="min-w-0 truncate font-heading text-[15px] font-bold text-navy">
-                  {pageTitle(pathname)}
-                </p>
-              </div>
+              {tablet ? null : (
+                <button
+                  type="button"
+                  className="inline-flex size-11 items-center justify-center rounded-md text-ink-soft hover:bg-subtle"
+                  onClick={toggleCollapsed}
+                  aria-label={collapsed ? T.nav.expand : T.nav.collapse}
+                >
+                  <DirCollapse collapsed={collapsed} className="size-5" />
+                </button>
+              )}
 
               <div className="hidden min-w-0 items-center gap-2 text-[13px] text-muted lg:flex">
                 <span>{T.appName}</span>
@@ -752,17 +506,6 @@ function ShellFrame({
             </div>
 
             <div className="flex shrink-0 items-center gap-0.5 md:gap-4">
-              <button
-                type="button"
-                className="flex size-12 items-center justify-center rounded-md text-ink-soft hover:bg-subtle md:hidden"
-                onClick={() => {
-                  setMobileOpen(false);
-                  setSearchOpen(true);
-                }}
-                aria-label={T.nav.search}
-              >
-                <Search className="size-5" />
-              </button>
               <div className="hidden w-72 md:block lg:w-96">
                 <GlobalSearch role={role} />
               </div>
@@ -779,9 +522,10 @@ function ShellFrame({
           </div>
         </header>
 
-        <main className="mx-auto w-full max-w-[90rem] min-w-0 flex-1 px-3 py-4 sm:px-6 md:py-6 lg:px-8 xl:py-8">
+        <main className="mx-auto w-full max-w-[90rem] min-w-0 flex-1 px-4 py-4 sm:px-6 md:py-6 lg:px-8 xl:py-8">
           <div className="animate-fade-in min-w-0">{children}</div>
         </main>
+        <MobileBottomNav role={role} user={user} pathname={pathname} />
       </div>
     </div>
   );

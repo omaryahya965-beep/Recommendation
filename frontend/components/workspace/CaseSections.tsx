@@ -22,7 +22,8 @@ export function CaseSection({
   onToggle,
   children,
 }: {
-  id: SectionId;
+  /** A record section, or an extra one (the phone's "details"). */
+  id: SectionId | "details";
   title: string;
   summary?: string | null;
   count?: number | null;

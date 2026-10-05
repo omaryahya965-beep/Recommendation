@@ -5,6 +5,7 @@ import {
   createElement,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useSyncExternalStore,
   type ReactNode,
@@ -12,7 +13,7 @@ import {
 
 import * as ar from "./ar";
 import * as en from "./en";
-import { getLocale, localeDir, setLocale, subscribeLocale, type Locale } from "./store";
+import { applyDocumentLocale, getLocale, localeDir, setLocale, subscribeLocale, type Locale } from "./store";
 
 export type { Locale } from "./store";
 export { getLocale, setLocale, applyDocumentLocale, localeDateTag, LOCALE_STORAGE_KEY } from "./store";
@@ -131,5 +132,11 @@ export function useI18n(): I18nBundle {
 /** Subscribe the React tree to locale changes without remounting routes. */
 export function LocaleBridge({ children }: { children: ReactNode }) {
   const locale = useSyncExternalStore(subscribeLocale, getLocale, () => "ar" as Locale);
+  // React 19 re-applies <html>'s rendered props (lang="ar" dir="rtl") when it
+  // hydrates the root, overwriting what the pre-paint script set: English
+  // text then ran right-to-left. Re-assert the saved locale once hydrated.
+  useEffect(() => {
+    applyDocumentLocale(locale);
+  }, [locale]);
   return createElement(LocaleContext.Provider, { value: locale }, children);
 }

@@ -7,6 +7,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 
 import { CaseDue } from "@/components/home/Queues";
+import { Sheet } from "@/components/mobile/Sheet";
 import { SavedViews, viewQuery } from "@/components/register/SavedViews";
 import { Button, ProgressBar, Select, TextInput } from "@/components/ui/Base";
 import { EmptyState, TableSkeleton } from "@/components/ui/EmptyState";
@@ -21,6 +22,7 @@ import { formatDate, localISODate } from "@/lib/format";
 import { useDepartments, usePrefetchRecommendation } from "@/lib/hooks";
 import { RISK_LABELS, STATUS_LABELS, T, useI18n } from "@/lib/i18n";
 import { LIVE } from "@/lib/queryPolicy";
+import { useIsPhone } from "@/lib/useMediaQuery";
 import type { Paginated, RecommendationListItem, RecommendationStatus } from "@/lib/types";
 import {
   EMPLOYEE_WORK_STATUSES,
@@ -104,7 +106,7 @@ function RegisterCard({
           item.overdue && "border-danger/30"
         )}
       >
-        <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex flex-col-reverse gap-2.5 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-3">
               <RecordId id={item.id} />
@@ -128,7 +130,7 @@ function RegisterCard({
           </div>
         </div>
 
-        <dl className="mt-4 grid gap-x-6 gap-y-3 border-t border-line pt-4 text-[13px] sm:grid-cols-2 lg:grid-cols-4 bg-subtle/30 rounded-lg p-3">
+        <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 rounded-lg border-t border-line bg-subtle/30 p-3 pt-4 text-[13px] lg:grid-cols-4">
           {mine ? null : (
             <div>
               <dt className="text-muted font-semibold text-[11px] uppercase tracking-wider mb-0.5">{T.common.responsible}</dt>
@@ -319,6 +321,7 @@ function RegisterInner({
   const searchParams = useSearchParams();
 
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const phone = useIsPhone();
   const [view, setView] = useState<"list" | "compact">("compact");
 
   // Old nine-stage ids in saved links still resolve.
@@ -458,10 +461,122 @@ function RegisterInner({
   const DirForward = locale === "ar" ? ChevronLeft : ChevronRight;
   const DirBack = locale === "ar" ? ChevronRight : ChevronLeft;
 
+  // The same filter controls inline on desktop and in a sheet on phones.
+  const filterSelects = (
+    <>
+    <label className="block text-sm">
+      <span className="mb-2 block text-[13px] font-bold text-navy">{T.register.stage}</span>
+      <Select value={stage} onChange={(event) => setParams({ stage: event.target.value || null, status: null })}>
+        <option value="">{T.common.all}</option>
+        {stages.map((item) => (
+          <option key={item.id} value={item.id}>
+            {item.label}
+          </option>
+        ))}
+      </Select>
+    </label>
+
+    <label className="block text-sm">
+      <span className="mb-2 block text-[13px] font-bold text-navy">{T.common.status}</span>
+      <Select value={status} onChange={(event) => setParams({ status: event.target.value || null, stage: null })}>
+        <option value="">{T.common.all}</option>
+        {statusOptions.map(([value, label]) => (
+          <option key={value} value={value}>
+            {label}
+          </option>
+        ))}
+      </Select>
+    </label>
+
+    <label className="block text-sm">
+      <span className="mb-2 block text-[13px] font-bold text-navy">{T.common.risk}</span>
+      <Select value={risk} onChange={(event) => setParams({ risk_level: event.target.value || null })}>
+        <option value="">{T.common.all}</option>
+        {Object.entries(RISK_LABELS).map(([value, label]) => (
+          <option key={value} value={value}>
+            {label}
+          </option>
+        ))}
+      </Select>
+    </label>
+
+    <label className="block text-sm">
+      <span className="mb-2 block text-[13px] font-bold text-navy">{T.register.waitingColumn}</span>
+      <Select
+        value={(WAITING_SIDES as readonly string[]).includes(waitingOn) ? waitingOn : ""}
+        onChange={(event) => setParams({ waiting_on: event.target.value || null })}
+      >
+        <option value="">{T.common.all}</option>
+        {WAITING_SIDES.map((side) => (
+          <option key={side} value={side}>
+            {T.workflow.waitingOn[side]}
+          </option>
+        ))}
+      </Select>
+    </label>
+
+    {showDepartmentFilter && !mine && !departmentOnly ? (
+      <label className="block text-sm">
+        <span className="mb-2 block text-[13px] font-bold text-navy">{T.common.department}</span>
+        <Select
+          value={department}
+          onChange={(event) => setParams({ report__department: event.target.value || null })}
+        >
+          <option value="">{T.common.all}</option>
+          {departments?.results.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.name}
+            </option>
+          ))}
+        </Select>
+      </label>
+    ) : null}
+
+    
+    </>
+  );
+  const filterChecks = (
+    <>
+    <label className="flex min-h-11 items-center gap-2.5 text-[14px] font-bold text-navy cursor-pointer select-none">
+      <input
+        type="checkbox"
+        checked={overdueOnly}
+        onChange={(event) => setParams({ overdue: event.target.checked ? "1" : null })}
+        className="size-4.5 rounded border-line text-primary focus:ring-primary accent-primary"
+      />
+      {T.filters.overdueOnly}
+    </label>
+    <label className="flex min-h-11 items-center gap-2.5 text-[14px] font-bold text-navy cursor-pointer select-none">
+      <input
+        type="checkbox"
+        checked={recurringOnly}
+        onChange={(event) => setParams({ is_recurring: event.target.checked ? "true" : null })}
+        className="size-4.5 rounded border-line text-primary focus:ring-primary accent-primary"
+      />
+      {T.filters.recurringOnly}
+    </label>
+    <label className="flex min-h-11 items-center gap-2.5 text-[14px] font-bold text-navy cursor-pointer select-none">
+      <input
+        type="checkbox"
+        checked={searchParams.get("my_turn") === "true"}
+        onChange={(event) => setParams({ my_turn: event.target.checked ? "true" : null })}
+        className="size-4.5 rounded border-line text-primary focus:ring-primary accent-primary"
+      />
+      {T.register.chipMyTurn}
+    </label>
+    
+    </>
+  );
+  const resetFilters = () => {
+    setSearchDraft("");
+    router.replace(pathname);
+  };
+
+
   return (
     <div className="space-y-6">
       {/* Toolbar */}
-      <div className="flex flex-col gap-3 rounded-xl border border-line bg-surface p-4 shadow-sm md:flex-row md:flex-wrap md:items-center">
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-surface p-3 shadow-sm md:gap-3 md:p-4">
         <form
           className="flex min-w-0 flex-1 items-center gap-2"
           onSubmit={(event) => {
@@ -485,17 +600,18 @@ function RegisterInner({
           type="button"
           variant={filtersOpen || chips.length ? "secondary" : "ghost"}
           onClick={() => setFiltersOpen((value) => !value)}
-          className="font-bold gap-2"
+          className="font-bold gap-2 max-md:size-12 max-md:p-0"
+          aria-label={T.filters.title}
         >
           <SlidersHorizontal className="size-4" />
-          {T.filters.title}
+          <span className="max-md:sr-only">{T.filters.title}</span>
           {chips.length ? <span className="flex size-5 items-center justify-center rounded-full bg-primary/20 text-primary-dark text-[11px] font-bold font-mono">{chips.length}</span> : null}
         </Button>
 
         <Select
           value={ordering}
           onChange={(event) => setParams({ ordering: event.target.value })}
-          className="w-auto font-medium"
+          className="w-auto font-medium max-md:hidden"
           aria-label={T.register.sortBy}
         >
           {sortOptions().map((sort) => (
@@ -526,9 +642,16 @@ function RegisterInner({
           </button>
         </div>
 
-        <Button type="button" variant="ghost" onClick={exportCsv} disabled={exporting || !data?.count} className="font-bold gap-1.5">
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={exportCsv}
+          disabled={exporting || !data?.count}
+          className="font-bold gap-1.5 max-md:size-12 max-md:p-0"
+          aria-label={T.register.export}
+        >
           <Download className="size-4" />
-          {T.register.export}
+          <span className="max-md:sr-only">{T.register.export}</span>
         </Button>
 
         {createHref ? (
@@ -538,118 +661,50 @@ function RegisterInner({
         ) : null}
       </div>
 
-      {/* Filter panel */}
-      {filtersOpen ? (
-        <div className="grid grid-cols-1 gap-5 rounded-xl border border-line bg-surface p-5 shadow-inner ring-1 ring-inset ring-line/50 md:grid-cols-2 lg:grid-cols-4 animate-scale-in">
-          <label className="block text-sm">
-            <span className="mb-2 block text-[13px] font-bold text-navy">{T.register.stage}</span>
-            <Select value={stage} onChange={(event) => setParams({ stage: event.target.value || null, status: null })}>
-              <option value="">{T.common.all}</option>
-              {stages.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.label}
-                </option>
-              ))}
-            </Select>
-          </label>
-
-          <label className="block text-sm">
-            <span className="mb-2 block text-[13px] font-bold text-navy">{T.common.status}</span>
-            <Select value={status} onChange={(event) => setParams({ status: event.target.value || null, stage: null })}>
-              <option value="">{T.common.all}</option>
-              {statusOptions.map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </Select>
-          </label>
-
-          <label className="block text-sm">
-            <span className="mb-2 block text-[13px] font-bold text-navy">{T.common.risk}</span>
-            <Select value={risk} onChange={(event) => setParams({ risk_level: event.target.value || null })}>
-              <option value="">{T.common.all}</option>
-              {Object.entries(RISK_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </Select>
-          </label>
-
-          <label className="block text-sm">
-            <span className="mb-2 block text-[13px] font-bold text-navy">{T.register.waitingColumn}</span>
-            <Select
-              value={(WAITING_SIDES as readonly string[]).includes(waitingOn) ? waitingOn : ""}
-              onChange={(event) => setParams({ waiting_on: event.target.value || null })}
-            >
-              <option value="">{T.common.all}</option>
-              {WAITING_SIDES.map((side) => (
-                <option key={side} value={side}>
-                  {T.workflow.waitingOn[side]}
-                </option>
-              ))}
-            </Select>
-          </label>
-
-          {showDepartmentFilter && !mine && !departmentOnly ? (
+      {/* Filter panel: inline on desktop, a sheet on phones */}
+      {phone ? (
+        <Sheet
+          open={filtersOpen}
+          onClose={() => setFiltersOpen(false)}
+          title={T.mobile.filters}
+          size="full"
+          testId="filter-sheet"
+          footer={
+            <div className="flex gap-2">
+              <Button type="button" className="min-h-12 flex-1" onClick={() => setFiltersOpen(false)}>
+                {T.mobile.showResults.replace("{n}", String(data?.count ?? 0))}
+              </Button>
+              <Button type="button" variant="ghost" className="min-h-12 ring-1 ring-line" onClick={resetFilters}>
+                {T.filters.reset}
+              </Button>
+            </div>
+          }
+        >
+          <div className="space-y-5">
             <label className="block text-sm">
-              <span className="mb-2 block text-[13px] font-bold text-navy">{T.common.department}</span>
-              <Select
-                value={department}
-                onChange={(event) => setParams({ report__department: event.target.value || null })}
-              >
-                <option value="">{T.common.all}</option>
-                {departments?.results.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
+              <span className="mb-2 block text-[13px] font-bold text-navy">{T.mobile.sortBy}</span>
+              <Select value={ordering} onChange={(event) => setParams({ ordering: event.target.value })}>
+                {sortOptions().map((sort) => (
+                  <option key={sort.value} value={sort.value}>
+                    {sort.label}
                   </option>
                 ))}
               </Select>
             </label>
-          ) : null}
-
+            {filterSelects}
+            <div className="flex flex-col gap-1 border-t border-line/60 pt-3">{filterChecks}</div>
+          </div>
+        </Sheet>
+      ) : filtersOpen ? (
+        <div className="grid grid-cols-1 gap-5 rounded-xl border border-line bg-surface p-5 shadow-inner ring-1 ring-inset ring-line/50 md:grid-cols-2 lg:grid-cols-4 animate-scale-in">
+          {filterSelects}
           <div className="flex flex-col gap-3 border-t border-line/60 pt-4 mt-1 md:col-span-2 md:flex-row md:flex-wrap md:items-center md:gap-6 lg:col-span-4">
-            <label className="flex min-h-11 items-center gap-2.5 text-[14px] font-bold text-navy cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={overdueOnly}
-                onChange={(event) => setParams({ overdue: event.target.checked ? "1" : null })}
-                className="size-4.5 rounded border-line text-primary focus:ring-primary accent-primary"
-              />
-              {T.filters.overdueOnly}
-            </label>
-            <label className="flex min-h-11 items-center gap-2.5 text-[14px] font-bold text-navy cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={recurringOnly}
-                onChange={(event) => setParams({ is_recurring: event.target.checked ? "true" : null })}
-                className="size-4.5 rounded border-line text-primary focus:ring-primary accent-primary"
-              />
-              {T.filters.recurringOnly}
-            </label>
-            <label className="flex min-h-11 items-center gap-2.5 text-[14px] font-bold text-navy cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={searchParams.get("my_turn") === "true"}
-                onChange={(event) => setParams({ my_turn: event.target.checked ? "true" : null })}
-                className="size-4.5 rounded border-line text-primary focus:ring-primary accent-primary"
-              />
-              {T.register.chipMyTurn}
-            </label>
+            {filterChecks}
             <div className="flex w-full flex-col gap-2 md:ms-auto md:w-auto md:flex-row">
               <Button type="button" className="min-h-12 w-full md:w-auto" onClick={() => setFiltersOpen(false)}>
                 {T.filters.apply}
               </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                className="min-h-12 w-full md:w-auto"
-                onClick={() => {
-                  setSearchDraft("");
-                  router.replace(pathname);
-                }}
-              >
+              <Button type="button" variant="ghost" className="min-h-12 w-full md:w-auto" onClick={resetFilters}>
                 {T.filters.reset}
               </Button>
             </div>

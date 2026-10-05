@@ -244,6 +244,14 @@ select {
   outline-offset: 2px;
 }
 
+/* Horizontal chip rows on phones scroll by touch; no bar needed. */
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 .scrollbar-thin {
   scrollbar-width: thin;
   scrollbar-color: var(--color-line) transparent;
@@ -309,46 +317,20 @@ select {
   }
 }
 
+/* Entrance animations fill BACKWARDS only: a transform kept after the
+   animation (fill "forwards") turns the element into the containing block of
+   every position:fixed descendant, which pinned the phone's sticky action
+   bars to the end of the page instead of the screen. */
 .animate-fade-in {
-  animation: fade-in 280ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: fade-in 280ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
 .animate-slide-up {
-  animation: slide-up 250ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: slide-up 250ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
 .animate-scale-in {
-  animation: scale-in 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-@keyframes drawer-in {
-  from {
-    opacity: 0.4;
-    transform: translateX(-1.25rem);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-[dir="rtl"] .animate-drawer-in {
-  animation: drawer-in-rtl 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-@keyframes drawer-in-rtl {
-  from {
-    opacity: 0.4;
-    transform: translateX(1.25rem);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-.animate-drawer-in {
-  animation: drawer-in 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: scale-in 200ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
 .touch-target {
@@ -380,6 +362,23 @@ select {
 }
 
 /* Dashboard visual redesign utilities */
+
+/* Upload in progress (the browser does not report progress for fetch). */
+@keyframes indeterminate {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(320%); }
+}
+[dir="rtl"] .animate-\[indeterminate_1\.2s_ease-in-out_infinite\] {
+  animation-direction: reverse;
+}
+
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.animate-sheet-up {
+  animation: sheet-up 260ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
 
 @keyframes subtle-lift {
   from { transform: translateY(0); }

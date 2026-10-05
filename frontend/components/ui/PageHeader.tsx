@@ -17,7 +17,7 @@ export function PageHeader({
   children?: never;
 }) {
   return (
-    <div className="mb-6 flex flex-col gap-4">
+    <div className="mb-4 flex flex-col gap-4 md:mb-6">
       {breadcrumbs?.length ? (
         <nav aria-label="breadcrumb" className="flex flex-wrap items-center gap-1.5 text-[12.5px] font-medium text-ink-soft">
           {breadcrumbs.map((crumb, index) => (
@@ -37,10 +37,15 @@ export function PageHeader({
       
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex items-start gap-3 min-w-0 flex-1">
-          <div className="mt-1.5 h-6 w-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
+          <div className="mt-1.5 hidden h-6 w-1.5 shrink-0 rounded-full bg-primary md:block" aria-hidden />
           <div className="min-w-0">
-            <h1 className="font-heading text-[1.375rem] font-bold leading-tight text-navy md:text-[1.75rem]">{title}</h1>
-            {description ? <p className="mt-1.5 max-w-3xl text-[15px] leading-relaxed text-ink-soft md:text-[14px]">{description}</p> : null}
+            {/* Phones show the title in the app bar; the heading stays for assistive tech. */}
+            <h1 className="font-heading text-[1.375rem] font-bold leading-tight text-navy max-md:sr-only md:text-[1.75rem]">
+              {title}
+            </h1>
+            {description ? (
+              <p className="max-w-3xl text-[13px] leading-relaxed text-ink-soft md:mt-1.5 md:text-[14px]">{description}</p>
+            ) : null}
           </div>
         </div>
         {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2.5 pb-1">{actions}</div> : null}

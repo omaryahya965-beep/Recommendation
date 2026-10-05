@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { cn } from "@/lib/cn";
+import { useIsPhone } from "@/lib/useMediaQuery";
 import { loadAuth } from "@/lib/api";
 import { formatLongDate } from "@/lib/format";
 import { ROLE_LABELS, T, useI18n } from "@/lib/i18n";
@@ -39,11 +40,57 @@ export function HomeHero({
   const { locale } = useI18n();
   const [name, setName] = useState<string | null>(null);
 
+  // Pages mount after the session check (never in the static HTML), so this
+  // is the real viewport on first render: phones never request the photo.
+  const phone = useIsPhone();
+
   useEffect(() => {
     const auth = loadAuth();
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setName(auth?.user.full_name_ar || auth?.user.username || null);
   }, []);
+
+  if (phone) {
+    return (
+      <section className="rounded-2xl border border-line bg-surface px-4 pb-4 pt-3.5" data-testid="home-hero-compact">
+        <p className="truncate text-[13px] text-ink-soft">
+          {greeting()}
+          {name ? (
+            <>
+              {locale === "ar" ? "، " : ", "}
+              <span className="font-bold text-ink">{name}</span>
+            </>
+          ) : null}
+          <span className="text-muted"> · {ROLE_LABELS[role]}</span>
+        </p>
+        <h1 className="mt-1 font-heading text-[1.3rem] font-bold leading-tight text-navy">{title}</h1>
+        <p className="mt-0.5 text-[12.5px] text-muted">{formatLongDate()}</p>
+        {actions.length ? (
+          <div
+            className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-0.5 scrollbar-none"
+            aria-label={T.dashboard.quickActions}
+          >
+            {actions.map((action) => {
+              const Icon = action.icon;
+              return (
+                <Link
+                  key={action.href + action.label}
+                  href={action.href}
+                  className={cn(
+                    "inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full px-4 text-[13.5px] font-bold active:scale-[0.98]",
+                    action.primary ? "bg-primary text-white" : "bg-surface text-ink ring-1 ring-line"
+                  )}
+                >
+                  <Icon className="size-4 shrink-0" aria-hidden />
+                  {action.label}
+                </Link>
+              );
+            })}
+          </div>
+        ) : null}
+      </section>
+    );
+  }
 
   return (
     <section className="relative overflow-hidden section-elevated bg-[#062b3d] min-h-[15rem] md:min-h-[21rem] lg:min-h-[23rem]">
