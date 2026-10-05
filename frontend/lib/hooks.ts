@@ -65,6 +65,18 @@ export function useDashboard() {
   });
 }
 
+/** Navigation badge counts (whose turn it is, council queues). */
+export type NavCounts = Partial<Record<"recommendations" | "reports" | "pending_approvals" | "closure_reviews", number>>;
+
+export function useNavCounts(enabled = true) {
+  return useQuery({
+    queryKey: ["nav-counts"],
+    queryFn: () => api<NavCounts>("/api/nav-counts/"),
+    enabled,
+    ...LIVE,
+  });
+}
+
 export interface WorkflowActionInput {
   path: string;
   body?: unknown;

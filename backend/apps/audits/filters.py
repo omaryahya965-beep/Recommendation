@@ -35,17 +35,22 @@ class RecommendationOrderingFilter(OrderingFilter):
     """`?ordering=` for the register and its CSV export.
 
     Public names stay stable while the SQL behind them is corrected:
-    `risk_level`/`risk` order by severity, `target_date`/`deadline` by the
-    action-plan deadline with undated cases last. A deterministic tie-break
-    is always appended so pagination never shows a row twice.
+    `risk_level`/`risk` order by severity, `target_date` by the action plan's
+    own date, `deadline` by the binding deadline (the row's `deadline` field:
+    plan, audit-set after verification, or response) and `waiting` by the
+    time the case entered its current status (`waiting` = longest first).
+    Undated cases sort last. A deterministic tie-break is always appended so
+    pagination never shows a row twice.
     """
 
     ALIASES = {
         "risk_level": "risk_rank",
         "risk": "risk_rank",
         "target_date": "action_plan__target_date",
-        "deadline": "action_plan__target_date",
+        "deadline": "binding_deadline",
+        "waiting": "status_entered_at",
     }
+    WORKFLOW_ANNOTATIONS = {"binding_deadline", "status_entered_at"}
     TIEBREAK = ("-priority_score", "-created_at", "-id")
 
     def filter_queryset(self, request, queryset, view):
@@ -63,6 +68,10 @@ class RecommendationOrderingFilter(OrderingFilter):
             used.add(name)
             if name == "risk_rank" and "risk_rank" not in queryset.query.annotations:
                 queryset = queryset.annotate(risk_rank=RISK_RANK)
+            if name in self.WORKFLOW_ANNOTATIONS:
+                from apps.workflow.presentation import annotate_workflow
+
+                queryset = annotate_workflow(queryset)
             field = F(name)
             expressions.append(
                 field.desc(nulls_last=True) if descending else field.asc(nulls_last=True)

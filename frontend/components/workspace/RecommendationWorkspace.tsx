@@ -6,6 +6,7 @@ import {
   FolderOpen,
   History,
   MessageSquareText,
+  Printer,
   Repeat2,
   ShieldCheck,
   Stamp,
@@ -217,12 +218,27 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
       open: { ...(current.recId === id ? current.open : {}), [section]: open },
     }));
   const allOpen = SECTION_IDS.every(isOpen);
+  // The whole record on paper: open every section, let it render, then print.
+  const printCase = () => {
+    setAll(true);
+    window.setTimeout(() => window.print(), 150);
+  };
   const setAll = (open: boolean) =>
     setToggled({ recId: id, open: Object.fromEntries(SECTION_IDS.map((section) => [section, open])) });
 
   return (
     <div className="space-y-5">
-      <CaseHeaderBar rec={rec} backHref={back.href} backLabel={back.label} />
+      <CaseHeaderBar
+        rec={rec}
+        backHref={back.href}
+        backLabel={back.label}
+        actions={
+          <Button type="button" variant="ghost" className="min-h-10 gap-1.5 font-bold" onClick={printCase}>
+            <Printer className="size-4" aria-hidden />
+            {T.caseView.print}
+          </Button>
+        }
+      />
       <CaseTimeline rec={rec} />
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_18.5rem] xl:grid-cols-[minmax(0,1fr)_20rem]">
@@ -238,7 +254,7 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
           ) : null}
 
           <div>
-            <div className="mb-2.5 flex items-center justify-end">
+            <div className="mb-2.5 flex items-center justify-end" data-print="hide">
               <button
                 type="button"
                 onClick={() => setAll(!allOpen)}

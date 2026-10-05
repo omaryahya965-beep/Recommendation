@@ -452,3 +452,48 @@ select {
 .snap-scroll-x > * {
   scroll-snap-align: start;
 }
+
+/* ---------------------------------------------------------------------- */
+/* Print: the page content only, on white, with status colours kept.      */
+/* ---------------------------------------------------------------------- */
+@media print {
+  @page {
+    margin: 14mm 12mm;
+  }
+  html,
+  body {
+    background: #fff !important;
+    color: #111 !important;
+  }
+  * {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+  section,
+  li,
+  tr,
+  .section-elevated {
+    break-inside: avoid;
+  }
+  h1,
+  h2,
+  h3 {
+    break-after: avoid;
+  }
+  a {
+    text-decoration: none !important;
+  }
+  /* Interactive controls carry no information on paper. */
+  [data-print="hide"],
+  button[aria-expanded] svg {
+    display: none !important;
+  }
+}

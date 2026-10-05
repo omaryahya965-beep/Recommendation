@@ -42,6 +42,7 @@ import { usePrefetchAIInsights } from "@/lib/ai";
 import { Skeleton } from "@/components/ui/EmptyState";
 import { StatusBadge } from "@/components/ui/StampBadge";
 import { api, loadAuth, logout, ROLE_HOME, ROLE_PROFILE } from "@/lib/api";
+import { useNavCounts, type NavCounts } from "@/lib/hooks";
 import { cn } from "@/lib/cn";
 import { clipTitle } from "@/lib/finding";
 import { ROLE_LABELS, T, useI18n } from "@/lib/i18n";
@@ -51,6 +52,8 @@ interface NavItem {
   href: string;
   label: string;
   icon: ComponentType<{ className?: string }>;
+  /** Badge from /api/nav-counts/ (the viewer's own turn, or a council queue). */
+  count?: keyof NavCounts;
 }
 
 interface NavGroup {
@@ -71,8 +74,8 @@ function navFor(role: Role): NavGroup[] {
         id: "oversight",
         label: T.nav.groupOversight,
         items: [
-          { href: "/audit/recommendations", label: T.nav.recommendations, icon: ClipboardList },
-          { href: "/audit/reports", label: T.nav.reports, icon: FileText },
+          { href: "/audit/recommendations", label: T.nav.recommendations, icon: ClipboardList, count: "recommendations" },
+          { href: "/audit/reports", label: T.nav.reports, icon: FileText, count: "reports" },
           { href: "/audit/reports/new", label: T.reports.addReport, icon: FilePlus2 },
           { href: "/audit/followup-reports", label: T.nav.followups, icon: BarChart3 },
         ],
@@ -95,7 +98,7 @@ function navFor(role: Role): NavGroup[] {
         id: "work",
         label: T.nav.groupWork,
         items: [
-          { href: "/department/recommendations", label: T.register.title, icon: ClipboardList },
+          { href: "/department/recommendations", label: T.register.title, icon: ClipboardList, count: "recommendations" },
           { href: "/department/team-progress", label: T.nav.teamProgress, icon: Users },
         ],
       },
@@ -116,7 +119,14 @@ function navFor(role: Role): NavGroup[] {
       {
         id: "work",
         label: T.nav.groupWork,
-        items: [{ href: "/employee/recommendations", label: T.dashboard.myRecommendations, icon: ClipboardList }],
+        items: [
+          {
+            href: "/employee/recommendations",
+            label: T.dashboard.myRecommendations,
+            icon: ClipboardList,
+            count: "recommendations",
+          },
+        ],
       },
       {
         id: "intelligence",
@@ -132,8 +142,8 @@ function navFor(role: Role): NavGroup[] {
         id: "decisions",
         label: T.nav.groupDecisions,
         items: [
-          { href: "/council/pending-approvals", label: T.nav.pendingApprovals, icon: ClipboardCheck },
-          { href: "/council/closure-reviews", label: T.nav.closureReviews, icon: ClipboardList },
+          { href: "/council/pending-approvals", label: T.nav.pendingApprovals, icon: ClipboardCheck, count: "pending_approvals" },
+          { href: "/council/closure-reviews", label: T.nav.closureReviews, icon: ClipboardList, count: "closure_reviews" },
           { href: "/council/approved-history", label: T.nav.approvedHistory, icon: History },
         ],
       },
@@ -408,6 +418,7 @@ function SidebarNavView({
 }: SidebarNavProps & { searchParams: URLSearchParams }) {
   useI18n();
   const groups = navFor(role);
+  const { data: counts } = useNavCounts();
 
   const itemCls = (active: boolean) =>
     cn(
@@ -434,6 +445,7 @@ function SidebarNavView({
             {group.items.map((item) => {
               const active = navItemActive(pathname, searchParams, item.href);
               const Icon = item.icon;
+              const badge = item.count ? (counts?.[item.count] ?? 0) : 0;
               return (
                 <Link
                   key={item.href}
@@ -445,8 +457,29 @@ function SidebarNavView({
                   {active ? (
                     <span className="absolute inset-y-1.5 start-0 w-[4px] rounded-r-md bg-primary-dark shadow-[0_0_8px_rgba(15,79,73,0.6)]" aria-hidden />
                   ) : null}
-                  <Icon className={cn("size-5 shrink-0 transition-colors", active ? "text-primary-dark" : "text-sidebar-muted group-hover:text-sidebar-text")} />
-                  {collapsed ? <span className="sr-only">{item.label}</span> : item.label}
+                  <span className="relative shrink-0">
+                    <Icon className={cn("size-5 transition-colors", active ? "text-primary-dark" : "text-sidebar-muted group-hover:text-sidebar-text")} />
+                    {collapsed && badge ? (
+                      <span aria-hidden className="absolute -end-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-warning px-1 font-mono text-[10px] font-bold text-white">
+                        {badge > 99 ? "99+" : badge}
+                      </span>
+                    ) : null}
+                  </span>
+                  {collapsed ? <span className="sr-only">{item.label}</span> : <span className="min-w-0 flex-1 truncate">{item.label}</span>}
+                  {badge ? (
+                    <>
+                      {!collapsed ? (
+                        <span
+                          aria-hidden
+                          className="ms-auto rounded-full bg-warning/90 px-2 py-0.5 font-mono text-[11px] font-bold leading-none text-white"
+                          dir="ltr"
+                        >
+                          {badge > 99 ? "99+" : badge}
+                        </span>
+                      ) : null}
+                      <span className="sr-only">{T.nav.badgeLabel.replace("{n}", String(badge))}</span>
+                    </>
+                  ) : null}
                 </Link>
               );
             })}
@@ -658,7 +691,7 @@ function ShellFrame({
       {/* Desktop Sidebar */}
       <aside
         className={cn(
-          "sticky top-0 hidden h-screen shrink-0 flex-col border-e border-sidebar-muted/10 bg-sidebar text-sidebar-text shadow-xl transition-all duration-300 md:flex z-50",
+          "sticky top-0 hidden h-screen shrink-0 flex-col border-e border-sidebar-muted/10 bg-sidebar text-sidebar-text shadow-xl transition-all duration-300 md:flex z-50 print:hidden",
           collapsed ? "w-[72px]" : "w-64"
         )}
       >
@@ -679,7 +712,7 @@ function ShellFrame({
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-40 min-w-0 border-b border-line bg-surface/95 pt-[env(safe-area-inset-top)] shadow-sm backdrop-blur-md">
+        <header className="sticky top-0 z-40 min-w-0 border-b border-line bg-surface/95 pt-[env(safe-area-inset-top)] shadow-sm backdrop-blur-md print:hidden">
           <div className="flex h-14 min-w-0 items-center gap-1 px-2 md:justify-between md:gap-3 md:px-6">
             <div className="flex min-w-0 flex-1 items-center gap-1 md:gap-3">
               <button

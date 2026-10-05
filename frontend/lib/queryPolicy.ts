@@ -73,6 +73,7 @@ export function invalidateRecommendationViews(
   else if (id !== undefined) queryClient.invalidateQueries({ queryKey: ["recommendation", id] });
   queryClient.invalidateQueries({ queryKey: ["recommendations"] });
   queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+  queryClient.invalidateQueries({ queryKey: ["nav-counts"] });
   queryClient.invalidateQueries({ queryKey: ["analytics"] });
   queryClient.invalidateQueries({ queryKey: ["pending-approvals"] });
   if (reportId !== undefined) queryClient.invalidateQueries({ queryKey: ["report", reportId] });

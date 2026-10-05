@@ -170,10 +170,11 @@ class RecommendationViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter, RecommendationOrderingFilter]
     filterset_class = RecommendationFilterSet
     search_fields = ["text", "root_cause"]
-    # risk_level/risk sort by severity; target_date/deadline by plan deadline.
+    # risk_level/risk sort by severity; target_date by the plan's date;
+    # deadline by the binding deadline; waiting by queue age.
     ordering_fields = [
         "priority_score", "created_at", "risk_level", "risk", "status",
-        "target_date", "deadline", "id",
+        "target_date", "deadline", "waiting", "id",
     ]
 
     def get_queryset(self, detail=None):

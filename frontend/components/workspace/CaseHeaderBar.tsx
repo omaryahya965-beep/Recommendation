@@ -2,6 +2,7 @@
 
 import { ChevronLeft, ChevronRight, Repeat2 } from "lucide-react";
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 import { RiskBadge } from "@/components/ui/RiskBadge";
 import { StatusBadge } from "@/components/ui/StampBadge";
@@ -15,23 +16,34 @@ export function CaseHeaderBar({
   rec,
   backHref,
   backLabel,
+  actions,
 }: {
   rec: RecommendationDetail;
   backHref: string;
   backLabel: string;
+  /** Page-level tools (print), shown beside the back link. */
+  actions?: ReactNode;
 }) {
   const { locale } = useI18n();
   const DirBack = locale === "ar" ? ChevronRight : ChevronLeft;
 
   return (
     <header>
-      <Link
-        href={backHref}
-        className="inline-flex min-h-11 items-center gap-1.5 text-[14px] font-bold text-primary-dark hover:underline"
-      >
-        <DirBack className="size-4" aria-hidden />
-        {backLabel}
-      </Link>
+      <div className="flex items-center justify-between gap-3">
+        <Link
+          href={backHref}
+          data-print="hide"
+          className="inline-flex min-h-11 items-center gap-1.5 text-[14px] font-bold text-primary-dark hover:underline"
+        >
+          <DirBack className="size-4" aria-hidden />
+          {backLabel}
+        </Link>
+        {actions ? (
+          <div className="flex items-center gap-2" data-print="hide">
+            {actions}
+          </div>
+        ) : null}
+      </div>
 
       <div className="mt-2 flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
         <div className="min-w-0 flex-1">

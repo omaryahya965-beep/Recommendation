@@ -297,6 +297,7 @@ export const T = {
     groupIntelligence: "Intelligence",
     groupDecisions: "Decisions",
     groupAdmin: "Administration",
+    badgeLabel: "({n} waiting on you)",
   },
   actionCenter: {
     title: "Action Required Now",
@@ -1024,6 +1025,13 @@ export const T = {
     chipReport: "One report",
     listSeparator: ", ",
     chipUnconfirmedRecurrence: "Recurrence not yet confirmed",
+    sortWaiting: "Longest waiting",
+    sortPlanDate: "Earliest plan date",
+    waitingColumn: "Waiting on",
+    savedViews: "Saved views",
+    saveView: "Save this view",
+    viewName: "View name",
+    deleteView: "Delete the view “{name}”",
   },
   /** Role dashboards */
   dashboard: {
@@ -1791,6 +1799,7 @@ export const T = {
     draftEditHint: "The recommendation is still a draft. Edit it, then send the report to the department from the report page.",
     clearFile: "Remove the selected file",
     chooseFile: "Choose a file",
+    print: "Print",
   },
   /** Role homes (dashboard v2 blocks) */
   home: {

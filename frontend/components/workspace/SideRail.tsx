@@ -118,7 +118,7 @@ export function SideRail({ rec, role }: { rec: RecommendationDetail; role: Role 
         ) : null}
       </RailCard>
 
-      <section className="rounded-2xl border border-ai/20 bg-ai/[0.04] px-4 py-1">
+      <section className="rounded-2xl border border-ai/20 bg-ai/[0.04] px-4 py-1" data-print="hide">
         <ExpandableSection summary={T.caseView.aiSummary}>
           <div className="pb-3">
             <p className="mb-3 inline-flex items-center gap-1.5 text-[11.5px] text-ai-dark">

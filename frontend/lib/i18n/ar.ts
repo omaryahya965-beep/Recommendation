@@ -298,6 +298,7 @@ export const T = {
     groupIntelligence: "الذكاء",
     groupDecisions: "القرارات",
     groupAdmin: "الإدارة",
+    badgeLabel: "({n} بانتظارك)",
   },
   actionCenter: {
     title: "تحتاج إلى إجراء الآن",
@@ -1015,6 +1016,13 @@ export const T = {
     chipReport: "تقرير محدد",
     listSeparator: "، ",
     chipUnconfirmedRecurrence: "تكرار غير مؤكد بعد",
+    sortWaiting: "الأطول انتظاراً",
+    sortPlanDate: "الأقرب في تاريخ الخطة",
+    waitingColumn: "بانتظار",
+    savedViews: "العروض المحفوظة",
+    saveView: "حفظ هذا العرض",
+    viewName: "اسم العرض",
+    deleteView: "حذف العرض «{name}»",
   },
   /** Role dashboards */
   dashboard: {
@@ -1779,6 +1787,7 @@ export const T = {
     draftEditHint: "التوصية ما زالت مسودة. عدّلها، ثم أرسل التقرير إلى الدائرة من صفحة التقرير.",
     clearFile: "إزالة الملف المختار",
     chooseFile: "اختر ملفاً",
+    print: "طباعة",
   },
   /** الصفحات الرئيسية للأدوار (كتل لوحة المتابعة v2) */
   home: {

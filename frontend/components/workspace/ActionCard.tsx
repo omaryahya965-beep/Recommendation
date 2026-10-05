@@ -218,7 +218,7 @@ export function ActionCard({
       </div>
 
       {children ? (
-        <div id="case-action-panel" role="region" aria-label={T.caseView.actionPanelLabel} className="scroll-mt-24 border-t border-line bg-surface px-4 py-5 md:px-6 md:py-6">
+        <div id="case-action-panel" data-print="hide" role="region" aria-label={T.caseView.actionPanelLabel} className="scroll-mt-24 border-t border-line bg-surface px-4 py-5 md:px-6 md:py-6">
           {children}
         </div>
       ) : null}

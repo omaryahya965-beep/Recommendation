@@ -152,6 +152,44 @@ class RegisterOrderingTests(TestCase):
         ids = [row["id"] for row in res.data["results"]]
         self.assertEqual(ids[0], self.rec.id)
 
+    def test_deadline_ordering_follows_the_binding_deadline(self):
+        import datetime
+
+        from django.utils import timezone
+
+        from apps.workflow import services
+
+        drive_to_in_progress(self.users, self.report, self.rec)  # plan due in 30 days
+        urgent_report = AuditReport.objects.create(
+            municipality=self.muni, department=self.dept, title="Urgent",
+            engagement_type="assurance", created_by=self.users["audit"],
+            response_deadline=timezone.localdate() + datetime.timedelta(days=5),
+        )
+        urgent = Recommendation.objects.create(report=urgent_report, text="answer soon", risk_level="low")
+        services.submit_report_to_department(urgent_report, self.users["audit"])
+
+        by_deadline = self.client.get("/api/recommendations/?ordering=deadline").data["results"]
+        self.assertEqual([row["id"] for row in by_deadline[:2]], [urgent.id, self.rec.id])
+        self.assertEqual(by_deadline[0]["deadline_source"], "response")
+        by_plan_date = self.client.get("/api/recommendations/?ordering=target_date").data["results"]
+        self.assertEqual(by_plan_date[0]["id"], self.rec.id)
+
+    def test_waiting_ordering_lists_the_longest_wait_first(self):
+        import datetime
+
+        from django.utils import timezone
+
+        AuditTrail.objects.create(
+            user=self.users["audit"], action="status_changed", recommendation=self.rec,
+            metadata={"from_status": "x", "to_status": "draft"},
+        )
+        AuditTrail.objects.filter(recommendation=self.rec).update(
+            created_at=timezone.now() - datetime.timedelta(days=60)
+        )
+        Recommendation.objects.exclude(pk=self.rec.pk).update(created_at=timezone.now())
+        res = self.client.get("/api/recommendations/?ordering=waiting")
+        self.assertEqual(res.data["results"][0]["id"], self.rec.id)
+
 
 class ExportTests(TestCase):
     def setUp(self):

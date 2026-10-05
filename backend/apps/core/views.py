@@ -15,7 +15,7 @@ from apps.accounts.models import User
 from apps.audits.models import OVERDUE_ACTIVE_STATUSES, Recommendation
 from apps.audits.serializers import RecommendationListSerializer
 from apps.core.analytics import cached_analytics
-from apps.core.dashboard import BUILDERS
+from apps.core.dashboard import BUILDERS, nav_counts
 from apps.core.permissions import scope_recommendations
 from apps.workflow.presentation import annotate_workflow, overdue_q
 
@@ -64,6 +64,16 @@ class DashboardView(APIView):
             ).exclude(status=S.DRAFT)
         )
         return Response(builder(request, issued, timezone.localdate()))
+
+
+class NavCountsView(APIView):
+    """Badge counts for the navigation (counts only, cheap enough to poll)."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        scoped = scope_recommendations(Recommendation.objects.all(), request.user)
+        return Response(nav_counts(request.user, scoped))
 
 
 class TeamWorkloadView(APIView):

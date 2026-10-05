@@ -314,3 +314,39 @@ BUILDERS = {
     User.Role.EMPLOYEE: employee_dashboard,
     User.Role.COUNCIL: council_dashboard,
 }
+
+
+# ---------------------------------------------------------------------------
+# Navigation badges
+# ---------------------------------------------------------------------------
+def nav_counts(user, scoped):
+    """Counts only (no rows) for the navigation badges, polled on every page.
+
+    `recommendations` is the viewer's own turn (the register's ?my_turn=true);
+    the council's counts are its two decision queues; audit's `reports` is
+    the reports ready to send to the Council.
+    """
+    from apps.workflow.presentation import my_turn_q
+
+    role = user.role
+    if role == User.Role.COUNCIL:
+        return {
+            "pending_approvals": AuditReport.objects.filter(
+                municipality=user.municipality, status=AuditReport.Status.PENDING_COUNCIL
+            ).count(),
+            "closure_reviews": scoped.filter(status=S.PENDING_CLOSURE_COUNCIL).count(),
+        }
+    counts = {"recommendations": scoped.filter(my_turn_q(user)).count()}
+    if role == User.Role.AUDIT:
+        counts["reports"] = (
+            AuditReport.objects.filter(municipality=user.municipality, status=AuditReport.Status.UNDER_REVIEW)
+            .annotate(
+                total=Count("recommendations", distinct=True),
+                at_gate=Count(
+                    "recommendations", filter=Q(recommendations__status=S.PENDING_COUNCIL), distinct=True
+                ),
+            )
+            .filter(total__gt=0, at_gate=F("total"))
+            .count()
+        )
+    return counts

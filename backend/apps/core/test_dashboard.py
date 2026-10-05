@@ -204,3 +204,45 @@ class DashboardV2Tests(TestCase):
     def test_unknown_waiting_side_is_rejected(self):
         res = client_for(self.users["audit"]).get("/api/recommendations/?waiting_on=audit,nobody")
         self.assertEqual(res.status_code, 400)
+
+
+class NavCountsTests(TestCase):
+    """Each navigation badge equals the list it stands for."""
+
+    def setUp(self):
+        self.muni, self.dept, self.users, self.report, self.rec = make_world()
+
+    def counts(self, user):
+        res = client_for(self.users[user]).get("/api/nav-counts/")
+        self.assertEqual(res.status_code, 200)
+        return res.data
+
+    def my_turn(self, user):
+        return client_for(self.users[user]).get("/api/recommendations/?my_turn=true").data["count"]
+
+    def test_badges_follow_the_turn_through_the_workflow(self):
+        # A draft is audit's turn.
+        self.assertEqual(self.counts("audit")["recommendations"], self.my_turn("audit"))
+        self.assertEqual(self.counts("audit")["recommendations"], 1)
+
+        services.submit_report_to_department(self.report, self.users["audit"])
+        self.assertEqual(self.counts("head")["recommendations"], 1)
+        self.assertEqual(self.counts("head")["recommendations"], self.my_turn("head"))
+        self.assertEqual(self.counts("audit")["recommendations"], 0)
+
+        self.rec.refresh_from_db()
+        services.submit_response(self.rec, self.users["head"], decision="agree")
+        services.review_response(self.rec, self.users["audit"], accept=True)
+        self.assertEqual(self.counts("audit")["reports"], 1)
+
+        services.submit_report_to_council(self.report, self.users["audit"])
+        council = self.counts("council")
+        self.assertEqual(council["pending_approvals"], 1)
+        self.assertEqual(council["closure_reviews"], 0)
+        self.assertEqual(self.counts("audit")["reports"], 0)
+
+    def test_employee_badge_counts_only_their_own_cases(self):
+        drive_to_in_progress(self.users, self.report, self.rec)
+        self.assertEqual(self.counts("emp")["recommendations"], 1)
+        self.assertEqual(self.counts("emp")["recommendations"], self.my_turn("emp"))
+        self.assertEqual(self.counts("emp2")["recommendations"], 0)

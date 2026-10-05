@@ -6,11 +6,12 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 
+import { CaseDue } from "@/components/home/Queues";
+import { SavedViews, viewQuery } from "@/components/register/SavedViews";
 import { Button, ProgressBar, Select, TextInput } from "@/components/ui/Base";
 import { EmptyState, TableSkeleton } from "@/components/ui/EmptyState";
 import { LedgerCell, LedgerTable, RecordId } from "@/components/ui/Ledger";
 import { ErrorBanner } from "@/components/ui/Base";
-import { OverdueBadge } from "@/components/ui/OverdueBadge";
 import { RiskBadge } from "@/components/ui/RiskBadge";
 import { StatusBadge } from "@/components/ui/StampBadge";
 import { api, downloadFile, errorMessage, loadAuth } from "@/lib/api";
@@ -38,7 +39,10 @@ function sortOptions() {
     { value: "created_at", label: T.register.sortOldest },
     // Severity, highest first (the API sorts risk by rank, not alphabetically).
     { value: "-risk_level", label: T.register.sortRisk },
-    { value: "target_date", label: T.register.sortDeadline },
+    // The binding deadline (plan, audit-set after verification, or response).
+    { value: "deadline", label: T.register.sortDeadline },
+    { value: "waiting", label: T.register.sortWaiting },
+    { value: "target_date", label: T.register.sortPlanDate },
   ] as const;
 }
 
@@ -49,6 +53,19 @@ function assignedToMe(item: RecommendationListItem) {
   if (!owner) return true;
   const name = (auth.user.full_name_ar || "").trim();
   return owner === name || owner === auth.user.username;
+}
+
+/** Worth a chip: late, response late, or due within a week. */
+function urgent(item: RecommendationListItem) {
+  return item.overdue || item.response_overdue || (item.due_in_days != null && item.due_in_days <= 7);
+}
+
+/** "Internal Audit · 12 days in this queue" — who holds the case and for how long. */
+function waitingText(item: RecommendationListItem) {
+  const who = T.workflow.waitingOn[item.waiting_on];
+  return item.days_waiting > 0
+    ? `${who} · ${T.home.waitingDays.replace("{days}", String(item.days_waiting))}`
+    : `${who} · ${T.home.waitingToday}`;
 }
 
 const RISK_BORDER_TONES: Record<string, string> = {
@@ -119,10 +136,12 @@ function RegisterCard({
             </div>
           )}
           <div>
-            <dt className="text-muted font-semibold text-[11px] uppercase tracking-wider mb-0.5">{T.common.targetDate}</dt>
-            <dd className="flex items-center gap-2 font-medium text-ink">
-              <span className="font-mono text-muted" dir="ltr">{formatDate(item.target_date)}</span>
-              <OverdueBadge targetDate={item.target_date} overdue={item.overdue} />
+            <dt className="text-muted font-semibold text-[11px] uppercase tracking-wider mb-0.5">
+              {item.deadline_source ? T.workflow.deadlineSource[item.deadline_source] : T.workflow.bindingDeadline}
+            </dt>
+            <dd className="flex flex-wrap items-center gap-2 font-medium text-ink">
+              <span className="font-mono text-muted" dir="ltr">{formatDate(item.deadline)}</span>
+              {urgent(item) ? <CaseDue item={item} /> : null}
             </dd>
           </div>
           <div>
@@ -136,6 +155,9 @@ function RegisterCard({
             <dd className="truncate font-bold text-primary-dark uppercase tracking-wide text-[12px]" title={next.action}>
               {next.action}
             </dd>
+            {item.waiting_on !== "none" ? (
+              <dd className="mt-0.5 truncate text-[11.5px] text-muted">{waitingText(item)}</dd>
+            ) : null}
           </div>
         </dl>
       </Link>
@@ -162,8 +184,9 @@ function CompactTable({
         T.table.recommendation,
         ...(hideDepartment ? [] : [T.common.department]),
         T.common.status,
+        T.register.waitingColumn,
         T.common.risk,
-        T.common.targetDate,
+        T.workflow.bindingDeadline,
       ]}
     >
       {items.map((item) => (
@@ -183,10 +206,20 @@ function CompactTable({
             <StatusBadge status={item.status} />
           </LedgerCell>
           <LedgerCell>
+            {item.waiting_on === "none" ? (
+              <span className="text-muted">—</span>
+            ) : (
+              <span className="text-[12.5px] text-ink-soft">{waitingText(item)}</span>
+            )}
+          </LedgerCell>
+          <LedgerCell>
             <RiskBadge level={item.risk_level} />
           </LedgerCell>
           <LedgerCell mono>
-            <span className="font-mono font-medium text-muted" dir="ltr">{formatDate(item.target_date)}</span>
+            <span className="flex flex-col items-start gap-1">
+              <span className="font-mono font-medium text-muted" dir="ltr">{formatDate(item.deadline)}</span>
+              {urgent(item) ? <CaseDue item={item} /> : null}
+            </span>
           </LedgerCell>
         </tr>
       ))}
@@ -208,6 +241,8 @@ export function RecommendationRegister(props: {
     </Suspense>
   );
 }
+
+const WAITING_SIDES = ["department", "audit", "council"] as const;
 
 /** Filters that arrive from dashboard links; the API evaluates them with the same rules as the badges. */
 const LINK_FILTERS = [
@@ -296,6 +331,7 @@ function RegisterInner({
   const page = Number(searchParams.get("page") ?? "1") || 1;
   const overdueOnly = searchParams.get("overdue") === "1";
   const recurringOnly = searchParams.get("is_recurring") === "true";
+  const waitingOn = searchParams.get("waiting_on") ?? "";
 
   const [searchDraft, setSearchDraft] = useState(search);
 
@@ -541,6 +577,21 @@ function RegisterInner({
             </Select>
           </label>
 
+          <label className="block text-sm">
+            <span className="mb-2 block text-[13px] font-bold text-navy">{T.register.waitingColumn}</span>
+            <Select
+              value={(WAITING_SIDES as readonly string[]).includes(waitingOn) ? waitingOn : ""}
+              onChange={(event) => setParams({ waiting_on: event.target.value || null })}
+            >
+              <option value="">{T.common.all}</option>
+              {WAITING_SIDES.map((side) => (
+                <option key={side} value={side}>
+                  {T.workflow.waitingOn[side]}
+                </option>
+              ))}
+            </Select>
+          </label>
+
           {showDepartmentFilter && !mine && !departmentOnly ? (
             <label className="block text-sm">
               <span className="mb-2 block text-[13px] font-bold text-navy">{T.common.department}</span>
@@ -576,6 +627,15 @@ function RegisterInner({
                 className="size-4.5 rounded border-line text-primary focus:ring-primary accent-primary"
               />
               {T.filters.recurringOnly}
+            </label>
+            <label className="flex min-h-11 items-center gap-2.5 text-[14px] font-bold text-navy cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={searchParams.get("my_turn") === "true"}
+                onChange={(event) => setParams({ my_turn: event.target.checked ? "true" : null })}
+                className="size-4.5 rounded border-line text-primary focus:ring-primary accent-primary"
+              />
+              {T.register.chipMyTurn}
             </label>
             <div className="flex w-full flex-col gap-2 md:ms-auto md:w-auto md:flex-row">
               <Button type="button" className="min-h-12 w-full md:w-auto" onClick={() => setFiltersOpen(false)}>
@@ -632,6 +692,16 @@ function RegisterInner({
           </button>
         ) : null}
       </div>
+
+      <SavedViews
+        scope={pathname}
+        currentQuery={viewQuery(searchParams)}
+        canSave={chips.length > 0 || searchParams.has("ordering")}
+        onApply={(query) => {
+          setSearchDraft(new URLSearchParams(query).get("search") ?? "");
+          router.replace(query ? `${pathname}?${query}` : pathname);
+        }}
+      />
 
       {exportError ? <ErrorBanner message={exportError} onRetry={() => void exportCsv()} /> : null}
 

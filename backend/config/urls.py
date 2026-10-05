@@ -21,7 +21,7 @@ from apps.accounts.views import (
     RefreshView,
 )
 from apps.audits.views import AuditReportViewSet, PendingApprovalsView, RecommendationViewSet
-from apps.core.views import AnalyticsView, DashboardView, HealthView, TeamWorkloadView
+from apps.core.views import AnalyticsView, DashboardView, NavCountsView, HealthView, TeamWorkloadView
 from apps.core.media_views import EvidenceDownloadView, MediaSignView
 from apps.followup.views import FollowUpReportViewSet
 from apps.notifications.cron import SendRemindersView
@@ -49,6 +49,7 @@ urlpatterns = [
     path("api/workflow-policy/", WorkflowPolicyView.as_view(), name="workflow-policy"),
     path("api/council/pending-approvals/", PendingApprovalsView.as_view(), name="pending-approvals"),
     path("api/dashboard/", DashboardView.as_view(), name="dashboard"),
+    path("api/nav-counts/", NavCountsView.as_view(), name="nav-counts"),
     path("api/analytics/", AnalyticsView.as_view(), name="analytics"),
     path("api/team/workload/", TeamWorkloadView.as_view(), name="team-workload"),
     path("api/health/", HealthView.as_view(), name="health"),
