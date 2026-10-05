@@ -28,8 +28,10 @@ class NotificationViewSet(mixins.ListModelMixin, mixins.DestroyModelMixin, views
                 "report__department", "action_plan__responsible_employee"
             )
         )
-        return Notification.objects.filter(user=self.request.user).prefetch_related(
-            Prefetch("recommendation", queryset=cases)
+        return (
+            Notification.objects.filter(user=self.request.user)
+            .select_related("report")
+            .prefetch_related(Prefetch("recommendation", queryset=cases))
         )
 
     @action(detail=True, methods=["post"], url_path="mark-read")
@@ -74,6 +76,14 @@ class ReminderRuleViewSet(viewsets.ModelViewSet):
             rule_id=rule.id, offset_days=rule.offset_days,
             recipient_role=rule.recipient_role, enabled=rule.enabled,
         )
+
+    @action(detail=False, methods=["get"], url_path="status")
+    def status(self, request):
+        """Is the reminder engine running? Last run, last success, and how
+        many default rules this municipality is missing."""
+        from .services import reminder_status
+
+        return Response(reminder_status(request.user.municipality))
 
     def perform_destroy(self, instance):
         log_action(

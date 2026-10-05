@@ -178,6 +178,32 @@ or 07:00 `Asia/Gaza`). Hobby plans allow one run per day.
 The endpoint returns 401 unless `Authorization: Bearer <CRON_SECRET>` matches.
 It is never public. The job is idempotent.
 
+Since Raqeeb V2 the engine **catches up**: if a day is missed, the next run
+sends the latest reminder that is due for each case and recipient and records
+earlier ones as superseded (never a burst, never a stale "days left"). Every
+milestone is recorded in `ReminderDispatch`, so a reminder is never repeated —
+even if the user deleted its notification. Each run is logged in
+`ReminderRun`; the audit reminder settings page shows the last run and warns
+when no run has succeeded for 36 hours.
+
+### Default reminder rules for an existing municipality
+
+New municipalities get the default schedule automatically, including the
+department-head reminders added in V2 (−3, 0, +3, +7 days). Existing
+municipalities are **not** changed by the deployment. To add only the missing
+default rules (never editing or removing rules an administrator configured):
+
+```bash
+# 1. Preview — changes nothing
+python manage.py ensure_reminder_defaults
+# 2. Apply when satisfied (optionally one municipality)
+python manage.py ensure_reminder_defaults --apply
+python manage.py ensure_reminder_defaults --municipality "بلدية البيرة" --apply
+```
+
+Run it with production settings and `DATABASE_URL` only after the V2
+migrations are applied, and only when you decide to.
+
 ---
 
 ## Static files

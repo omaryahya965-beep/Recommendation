@@ -169,6 +169,13 @@ export function notificationHref(item: AppNotification, role: Role): string {
     const tab = notificationTab(item);
     return `${recBase(role)}/${item.recommendation}?tab=${tab}`;
   }
+  if (item.report) {
+    if (role === "audit") return `/audit/reports/${item.report}`;
+    if (role === "council") {
+      return item.type === "action_required" ? "/council/pending-approvals" : `${recBase(role)}?report=${item.report}`;
+    }
+    return `${recBase(role)}?report=${item.report}`;
+  }
   if (role === "council") return "/council/pending-approvals";
   if (role === "department_head") return "/department/recommendations";
   if (role === "audit") return "/audit/reports";

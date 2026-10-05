@@ -38,6 +38,7 @@ class NotificationSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "recommendation",
+            "report",
             "recommendation_text",
             "department_name",
             "report_title",
@@ -54,20 +55,23 @@ class NotificationSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_recommendation_text(self, obj):
+        # The title, not the full stored text: the inbox shows one line.
+        from apps.audits.finding import case_title
+
         rec = _rec(obj)
-        return rec.text if rec else None
+        return case_title(rec.text) if rec else None
 
     def get_department_name(self, obj):
         rec = _rec(obj)
-        if rec is None:
-            return None
-        return rec.report.department.name
+        if rec is not None:
+            return rec.report.department.name
+        return obj.report.department.name if obj.report_id else None
 
     def get_report_title(self, obj):
         rec = _rec(obj)
-        if rec is None:
-            return None
-        return rec.report.title
+        if rec is not None:
+            return rec.report.title
+        return obj.report.title if obj.report_id else None
 
     def get_status(self, obj):
         rec = _rec(obj)

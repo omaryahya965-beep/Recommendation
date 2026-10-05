@@ -186,6 +186,7 @@ class RecommendationViewSet(viewsets.ModelViewSet):
                 "approvals__approved_by", "evidence_files__uploaded_by",
                 "verifications__reviewed_by", "verifications__assigned_to",
                 "trail_entries__user", "response__submitted_by",
+                "reminder_dispatches__recipient",
             )
         # Stage, binding deadline, overdue and queue age, computed in SQL so
         # filters, ordering and every row agree (apps.workflow.presentation).

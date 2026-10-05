@@ -40,20 +40,20 @@ class ReminderEngineTest(TestCase):
         self.assertEqual(third, 0)
         self.assertEqual(Notification.objects.filter(dedupe_key__isnull=False).count(), 1)
 
-    def test_overdue_escalates_to_audit(self):
-        self._set_target(-7)  # matches +7 rules: employee AND audit escalation
+    def test_overdue_escalates_to_head_and_audit(self):
+        self._set_target(-7)  # +7 rules: employee, department head and audit escalation
         created = run_reminders()
         recipients = set(
             Notification.objects.filter(dedupe_key__isnull=False).values_list(
                 "user__role", flat=True
             )
         )
-        self.assertEqual(created, 2)
-        self.assertEqual(recipients, {User.Role.EMPLOYEE, User.Role.AUDIT})
+        self.assertEqual(created, 3)
+        self.assertEqual(recipients, {User.Role.EMPLOYEE, User.Role.DEPARTMENT_HEAD, User.Role.AUDIT})
 
-    def test_disabled_rule_does_not_fire(self):
+    def test_disabled_rules_do_not_fire(self):
         self._set_target(7)
-        ReminderRule.objects.filter(offset_days=-7).update(enabled=False)
+        ReminderRule.objects.filter(offset_days__in=(-14, -7)).update(enabled=False)
         self.assertEqual(run_reminders(), 0)
 
     def test_no_reminders_for_closed_recommendations(self):

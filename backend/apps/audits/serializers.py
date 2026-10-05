@@ -142,15 +142,35 @@ class RecommendationDetailSerializer(RecommendationListSerializer):
     trail = TrailEntrySerializer(source="trail_entries", many=True, read_only=True)
     similar_recommendation_text = serializers.SerializerMethodField()
     workflow = serializers.SerializerMethodField()
+    reminders = serializers.SerializerMethodField()
 
     class Meta(RecommendationListSerializer.Meta):
         fields = RecommendationListSerializer.Meta.fields + [
             "root_cause", "similar_recommendation",
             "similar_recommendation_text", "similarity_score",
             "response", "action_plan", "approvals", "evidence_files",
-            "verifications", "trail", "workflow", "updated_at",
+            "verifications", "trail", "workflow", "reminders", "updated_at",
         ]
         read_only_fields = fields
+
+    def get_reminders(self, obj):
+        """Reminders the engine sent on this case (superseded ones omitted)."""
+        sent = [
+            dispatch for dispatch in obj.reminder_dispatches.all()
+            if dispatch.outcome == "sent"
+        ]
+        return [
+            {
+                "id": dispatch.id,
+                "recipient": dispatch.recipient.full_name_ar or dispatch.recipient.username,
+                "recipient_role": dispatch.recipient_role,
+                "offset_days": dispatch.offset_days,
+                "anchor": dispatch.anchor,
+                "deadline": dispatch.deadline.isoformat(),
+                "sent_at": dispatch.created_at.isoformat(),
+            }
+            for dispatch in sorted(sent, key=lambda item: item.created_at, reverse=True)
+        ]
 
     def get_workflow(self, obj):
         """Stage, owner, deadline, overdue and the actions this user may take

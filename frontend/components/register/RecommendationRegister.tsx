@@ -283,7 +283,7 @@ function RegisterInner({
       query.set("stage", stage);
     }
     // Queue links from the dashboards (evaluated by the API, same rules as the badges).
-    for (const key of ["waiting_on", "my_turn", "response_overdue", "due_within"]) {
+    for (const key of ["waiting_on", "my_turn", "response_overdue", "due_within", "report"]) {
       const value = searchParams.get(key);
       if (value) query.set(key, value);
     }

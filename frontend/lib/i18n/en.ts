@@ -373,6 +373,14 @@ export const T = {
     managedHelp: "Reminder rules are managed by Internal Audit.",
     managedBody:
       "Reminders reach you as notifications based on the action-plan target date. Review them on the Notifications tab. Only Internal Audit can change the rules.",
+    engineTitle: "Reminder engine status",
+    engineHealthy: "Running normally. Last successful run: {when}.",
+    engineStale: "The reminder engine has not completed a run in over 36 hours. Last successful run: {when}.",
+    engineNever: "The reminder engine has not run yet.",
+    engineFailed: "The last run failed. Reminders that are due will be sent on the next successful run.",
+    engineLastRun: "Last run: {sent} reminder(s) sent, {superseded} older one(s) superseded.",
+    engineCatchUp: "If a day is missed, the next run sends only the latest reminder that is due, and a reminder already sent is never repeated, even if its notification was deleted.",
+    missingDefaults: "{count} default rule(s) are missing for this municipality (including department head reminders). A system administrator can add them with: ensure_reminder_defaults --apply",
   },
   /** Full-page failure and not-found states. */
   errors: {

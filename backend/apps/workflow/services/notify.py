@@ -13,7 +13,7 @@ _VERIFICATION_LABELS_AR = {
 }
 
 
-def _notify(users, recommendation, ntype, message):
+def _notify(users, recommendation, ntype, message, report=None):
     seen = set()
     rows = []
     for user in users or []:
@@ -23,10 +23,26 @@ def _notify(users, recommendation, ntype, message):
             continue
         seen.add(user.pk)
         rows.append(
-            Notification(user=user, recommendation=recommendation, type=ntype, message=message)
+            Notification(
+                user=user, recommendation=recommendation, report=report, type=ntype, message=message
+            )
         )
     if rows:
         Notification.objects.bulk_create(rows)
+
+
+def _notify_report(users, report, recommendations, ntype, message):
+    """One notification per person for a report-level event, instead of one
+    per recommendation. A single-recommendation report still links to it."""
+    recommendations = list(recommendations)
+    if not recommendations:
+        return
+    only = recommendations[0] if len(recommendations) == 1 else None
+    _notify(users, only, ntype, message, report=report)
+
+
+def _count_phrase(count):
+    return "توصية واحدة" if count == 1 else f"{count} توصيات"
 
 
 def _rec_ref(recommendation):

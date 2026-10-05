@@ -289,6 +289,8 @@ export interface Department {
 export interface AppNotification {
   id: number;
   recommendation: number | null;
+  /** Report-level events: one notification per report. */
+  report?: number | null;
   recommendation_text: string | null;
   department_name: string | null;
   report_title: string | null;

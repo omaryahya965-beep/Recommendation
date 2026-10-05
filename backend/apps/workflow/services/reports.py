@@ -17,8 +17,10 @@ from .common import _policy
 from .notify import (
     _audit_users,
     _council_users,
+    _count_phrase,
     _department_heads,
     _notify,
+    _notify_report,
     _rec_ref,
 )
 
@@ -34,15 +36,19 @@ def submit_report_to_department(report, user):
     if not recommendations:
         raise WorkflowError("The report has no recommendations to send.", code="report_empty")
 
+    issued = []
     for rec in recommendations:
         if rec.status == S.DRAFT:
             transition(rec, S.PENDING_RESPONSE, user, "report_submitted_to_department")
-            _notify(
-                _department_heads(report.department),
-                rec,
-                Notification.Type.RESPONSE_NEEDED,
-                f"توصية جديدة بانتظار رد الإدارة — {_rec_ref(rec)} في التقرير: {report.title}",
-            )
+            issued.append(rec)
+    deadline = f" — موعد الرد {report.response_deadline}" if report.response_deadline else ""
+    _notify_report(
+        _department_heads(report.department),
+        report,
+        issued,
+        Notification.Type.RESPONSE_NEEDED,
+        f"تقرير رقابي جديد بانتظار رد الدائرة: {report.title} ({_count_phrase(len(issued))}){deadline}.",
+    )
 
     report.status = AuditReport.Status.PENDING_RESPONSE
     report.save(update_fields=["status", "updated_at"])
@@ -68,13 +74,14 @@ def submit_report_to_council(report, user):
     report.status = AuditReport.Status.PENDING_COUNCIL
     report.save(update_fields=["status", "updated_at"])
     log_action(user, "report_submitted_to_council", report=report)
-    for rec in report.recommendations.all():
-        _notify(
-            _council_users(report.municipality),
-            rec,
-            Notification.Type.ACTION_REQUIRED,
-            f"توصية بانتظار مصادقة المجلس — {_rec_ref(rec)} في التقرير: {report.title}",
-        )
+    recommendations = list(report.recommendations.all())
+    _notify_report(
+        _council_users(report.municipality),
+        report,
+        recommendations,
+        Notification.Type.ACTION_REQUIRED,
+        f"تقرير بانتظار مصادقة المجلس: {report.title} ({_count_phrase(len(recommendations))}).",
+    )
     return report
 
 
@@ -92,6 +99,7 @@ def ratify_report(report, user, notes=""):
     policy = _policy(report)
     require_plan_with_response = bool(policy and policy.require_plan_with_response)
 
+    plans_needed, started, disagreements = [], [], []
     for rec in report.recommendations.select_related("response").all():
         ApprovalRecord.objects.create(
             recommendation=rec,
@@ -104,12 +112,7 @@ def ratify_report(report, user, notes=""):
             rec.resolution = Recommendation.Resolution.DISAGREEMENT_ACCEPTED
             rec.save(update_fields=["resolution", "updated_at"])
             transition(rec, S.CLOSED, user, "council_ratified_disagreement")
-            _notify(
-                list(_department_heads(report.department)) + list(_audit_users(report.municipality)),
-                rec,
-                Notification.Type.STATUS_CHANGE,
-                f"أغلق المجلس التوصية {_rec_ref(rec)} بعد قبول عدم الاتفاق.",
-            )
+            disagreements.append(rec)
             continue
 
         transition(rec, S.APPROVED_FOR_IMPLEMENTATION, user, "council_ratification")
@@ -123,20 +126,33 @@ def ratify_report(report, user, notes=""):
                 Notification.Type.ACTION_REQUIRED,
                 f"بدأ تنفيذ التوصية المسندة إليك — {_rec_ref(rec)}.",
             )
-            _notify(
-                _department_heads(report.department),
-                rec,
-                Notification.Type.STATUS_CHANGE,
-                f"صادق المجلس على {_rec_ref(rec)} وبدأ التنفيذ.",
-            )
+            started.append(rec)
         else:
             transition(rec, S.ACTION_PLAN_REQUIRED, user, "action_plan_requested", system=True)
-            _notify(
-                _department_heads(report.department),
-                rec,
-                Notification.Type.ACTION_REQUIRED,
-                f"صادق المجلس على {_rec_ref(rec)} — المطلوب تقديم خطة العمل.",
-            )
+            plans_needed.append(rec)
+
+    heads = list(_department_heads(report.department))
+    _notify_report(
+        heads,
+        report,
+        plans_needed,
+        Notification.Type.ACTION_REQUIRED,
+        f"صادق المجلس على التقرير {report.title} — المطلوب تقديم خطة العمل لـ {_count_phrase(len(plans_needed))}.",
+    )
+    _notify_report(
+        heads,
+        report,
+        started,
+        Notification.Type.STATUS_CHANGE,
+        f"صادق المجلس على التقرير {report.title} وبدأ تنفيذ {_count_phrase(len(started))}.",
+    )
+    _notify_report(
+        heads + list(_audit_users(report.municipality)),
+        report,
+        disagreements,
+        Notification.Type.STATUS_CHANGE,
+        f"أغلق المجلس {_count_phrase(len(disagreements))} في التقرير {report.title} بعد قبول عدم الاتفاق.",
+    )
 
     report.status = AuditReport.Status.RATIFIED
     report.council_approval_date = now

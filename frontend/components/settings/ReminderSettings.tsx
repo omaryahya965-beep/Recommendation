@@ -4,9 +4,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Info, Plus, Trash2 } from "lucide-react";
 
-import { Button, Card, ErrorBanner, Field, Select, TextInput, ToggleSwitch } from "@/components/ui/Base";
+import { Button, Callout, Card, ErrorBanner, Field, Select, TextInput, ToggleSwitch } from "@/components/ui/Base";
 import { CardSkeleton } from "@/components/ui/EmptyState";
 import { api, errorMessage } from "@/lib/api";
+import { formatDateTime } from "@/lib/format";
 import { RECIPIENT_ROLE_LABELS, T, useI18n } from "@/lib/i18n";
 import type { Paginated, ReminderRule, Role, WorkflowPolicy } from "@/lib/types";
 
@@ -95,6 +96,44 @@ export function ReminderSettings({ role }: { role: Role }) {
   return <AuditReminderEditor />;
 }
 
+interface ReminderEngineStatus {
+  healthy: boolean;
+  last_run: { started_at: string; status: string; trigger: string; sent: number; superseded: number } | null;
+  last_success_at: string | null;
+  missing_defaults: number;
+}
+
+function EngineStatus({ status }: { status: ReminderEngineStatus }) {
+  useI18n();
+  const when = formatDateTime(status.last_success_at);
+  const message = !status.last_run
+    ? T.reminders.engineNever
+    : status.healthy
+      ? T.reminders.engineHealthy.replace("{when}", when)
+      : T.reminders.engineStale.replace("{when}", when);
+  return (
+    <Card title={T.reminders.engineTitle} className="rounded-2xl border border-line bg-surface shadow-sm">
+      <div className="space-y-3 text-[13.5px] leading-relaxed" data-testid="reminder-engine-status">
+        <Callout tone={status.healthy ? "success" : "warning"}>{message}</Callout>
+        {status.last_run?.status === "failed" ? <Callout tone="danger">{T.reminders.engineFailed}</Callout> : null}
+        {status.last_run ? (
+          <p className="text-ink-soft">
+            {T.reminders.engineLastRun
+              .replace("{sent}", String(status.last_run.sent))
+              .replace("{superseded}", String(status.last_run.superseded))}
+          </p>
+        ) : null}
+        <p className="text-ink-soft">{T.reminders.engineCatchUp}</p>
+        {status.missing_defaults ? (
+          <p className="text-[12.5px] text-muted">
+            {T.reminders.missingDefaults.replace("{count}", String(status.missing_defaults))}
+          </p>
+        ) : null}
+      </div>
+    </Card>
+  );
+}
+
 function AuditReminderEditor() {
   useI18n();
   const queryClient = useQueryClient();
@@ -111,6 +150,10 @@ function AuditReminderEditor() {
   const { data: policy } = useQuery({
     queryKey: ["workflow-policy"],
     queryFn: () => api<WorkflowPolicy>("/api/workflow-policy/"),
+  });
+  const { data: engine } = useQuery({
+    queryKey: ["reminder-rules", "status"],
+    queryFn: () => api<ReminderEngineStatus>("/api/reminder-rules/status/"),
   });
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["reminder-rules"] });
@@ -163,6 +206,8 @@ function AuditReminderEditor() {
   return (
     <div className="space-y-6">
       <ErrorBanner message={error} />
+
+      {engine ? <EngineStatus status={engine} /> : null}
 
       <Card title={T.reminders.rulesTitle} className="rounded-2xl border border-line bg-surface shadow-sm">
         <p className="mb-5 text-sm font-medium leading-relaxed text-ink-soft">{T.reminders.rulesHelp}</p>
