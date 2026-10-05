@@ -103,7 +103,8 @@ export function DecisionPanel({
     </>
   );
 
-  if (plain) return <section aria-label={title}>{body}</section>;
+  // Plain: inside a container that already names it (the action card or sheet).
+  if (plain) return <div>{body}</div>;
   return (
     <Card title={title} className="overflow-hidden border-t-4 border-t-primary">
       {body}
