@@ -4,7 +4,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Download, LayoutList, Rows3, Search, SlidersHorizontal, X, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 
 import { CaseDue } from "@/components/home/Queues";
 import { Sheet } from "@/components/mobile/Sheet";
@@ -338,16 +338,19 @@ function RegisterInner({
 
   const [searchDraft, setSearchDraft] = useState(search);
 
-  const setParams = (patch: Record<string, string | null>) => {
-    const next = new URLSearchParams(searchParams.toString());
-    for (const [key, value] of Object.entries(patch)) {
-      if (!value) next.delete(key);
-      else next.set(key, value);
-    }
-    if (!("page" in patch)) next.set("page", "1");
-    const query = next.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname);
-  };
+  const setParams = useCallback(
+    (patch: Record<string, string | null>) => {
+      const next = new URLSearchParams(searchParams.toString());
+      for (const [key, value] of Object.entries(patch)) {
+        if (!value) next.delete(key);
+        else next.set(key, value);
+      }
+      if (!("page" in patch)) next.set("page", "1");
+      const query = next.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname);
+    },
+    [searchParams, router, pathname]
+  );
 
   useEffect(() => {
     const next = searchDraft.trim();
@@ -356,7 +359,7 @@ function RegisterInner({
       setParams({ search: next || null });
     }, 220);
     return () => window.clearTimeout(timer);
-  }, [searchDraft, search]);
+  }, [searchDraft, search, setParams]);
 
   const params = useMemo(() => {
     const query = new URLSearchParams();

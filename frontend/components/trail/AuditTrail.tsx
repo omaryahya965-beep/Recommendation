@@ -1,6 +1,6 @@
 "use client";
 
-import { Lock, Shield } from "lucide-react";
+import { Shield } from "lucide-react";
 import { useState } from "react";
 
 import { DirForward } from "@/components/i18n/DirIcon";

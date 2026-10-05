@@ -41,12 +41,6 @@ export function evidenceByStep(rec: RecommendationDetail) {
   return map;
 }
 
-/** Most recent trail entry — used as "last activity" across the UI. */
-export function lastActivity(rec: RecommendationDetail) {
-  const trail = rec.trail ?? [];
-  return trail.length ? trail[trail.length - 1] : null;
-}
-
 export function latestVerification(rec: RecommendationDetail) {
   const list = rec.verifications ?? [];
   return list.length ? list[list.length - 1] : null;

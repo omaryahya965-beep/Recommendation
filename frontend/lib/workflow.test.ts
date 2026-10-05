@@ -9,7 +9,6 @@ import {
   normalizeStageId,
   stageForStatus,
   stageIndexForStatus,
-  workflowSnapshot,
 } from "./workflow";
 
 describe("workflow view-model", () => {
@@ -22,19 +21,6 @@ describe("workflow view-model", () => {
     expect(stageIndexForStatus("closed")).toBe(9);
     expect(stageForStatus("submitted_for_verification").id).toBe("verification");
     expect(stageForStatus("closure_review").id).toBe("verification");
-  });
-
-  it("marks every stage completed when the recommendation is closed", () => {
-    const snap = workflowSnapshot("closed");
-    expect(snap).toHaveLength(10);
-    expect(snap.every((stage) => stage.state === "completed")).toBe(true);
-  });
-
-  it("flags returned statuses on the current stage instead of treating them as progress", () => {
-    const snap = workflowSnapshot("returned_insufficient");
-    expect(snap.find((stage) => stage.id === "execution")?.state).toBe("returned");
-    expect(snap.find((stage) => stage.id === "preparation")?.state).toBe("completed");
-    expect(snap.find((stage) => stage.id === "closure")?.state).toBe("next");
   });
 
   it("knows who a status waits on", () => {

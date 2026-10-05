@@ -111,7 +111,7 @@ export async function api<T>(
   if (res.status === 401 && token) {
     token = await tryRefresh();
     if (token) res = await doFetch(token);
-    else if (typeof window !== "undefined") window.location.href = "/login";
+    else if (typeof window !== "undefined") window.location.replace("/login");
   }
 
   if (!res.ok) {
@@ -333,7 +333,7 @@ export async function logout() {
     }
   }
   saveAuth(null);
-  if (typeof window !== "undefined") window.location.href = "/login";
+  if (typeof window !== "undefined") window.location.replace("/login");
 }
 
 export const ROLE_HOME: Record<string, string> = {

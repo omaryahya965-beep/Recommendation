@@ -15,7 +15,7 @@ import { cn } from "@/lib/cn";
 import { daysUntil, formatDate, recordCode } from "@/lib/format";
 import { REPORT_STATUS_LABELS, REPORT_TYPE_LABELS, T, useI18n } from "@/lib/i18n";
 import { MODERATE } from "@/lib/queryPolicy";
-import type { AuditReport, Paginated } from "@/lib/types";
+import type { AuditReport } from "@/lib/types";
 
 const STATUS_FILTERS: Array<ReportStatus | "all"> = [
   "all",

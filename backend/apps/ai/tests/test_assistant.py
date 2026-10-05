@@ -72,7 +72,7 @@ class AssistantToolLoopTests(TestCase):
 
     def _run(self, user, message, script, language="en", conversation_id=None):
         chat = ScriptedChat(script)
-        with patch("apps.ai.services.audit_assistant.get_chat_llm", return_value=chat):
+        with patch("apps.ai.services.assistant.runner.get_chat_llm", return_value=chat):
             result = run_assistant(user, message, language, conversation_id)
         return result, chat
 
@@ -214,7 +214,7 @@ class AssistantToolLoopTests(TestCase):
             def chat(self, *args, **kwargs):
                 raise AIUnavailable(USER_SAFE_UNAVAILABLE)
 
-        with patch("apps.ai.services.audit_assistant.get_chat_llm", return_value=Boom()):
+        with patch("apps.ai.services.assistant.runner.get_chat_llm", return_value=Boom()):
             res = self.client.post(
                 "/api/ai/assistant/",
                 {"message": "Which recommendations are overdue?", "language": "en"},
@@ -229,7 +229,7 @@ class AssistantToolLoopTests(TestCase):
     def test_http_strips_tool_results(self):
         self.client.force_authenticate(self.users["audit"])
         chat = ScriptedChat([text_reply("Here is a scoped overview.")])
-        with patch("apps.ai.services.audit_assistant.get_chat_llm", return_value=chat):
+        with patch("apps.ai.services.assistant.runner.get_chat_llm", return_value=chat):
             res = self.client.post(
                 "/api/ai/assistant/",
                 {"message": "Hello", "language": "en"},
@@ -243,7 +243,7 @@ class AssistantToolLoopTests(TestCase):
     def test_clear_conversation(self):
         self.client.force_authenticate(self.users["audit"])
         chat = ScriptedChat([text_reply("one"), text_reply("two")])
-        with patch("apps.ai.services.audit_assistant.get_chat_llm", return_value=chat):
+        with patch("apps.ai.services.assistant.runner.get_chat_llm", return_value=chat):
             first = self.client.post(
                 "/api/ai/assistant/", {"message": "Hello", "language": "en"}
             )

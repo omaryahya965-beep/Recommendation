@@ -125,33 +125,8 @@ export function normalizeStageId(value: string | null | undefined): StageId | nu
   return LEGACY_STAGE_IDS[value] ?? null;
 }
 
-/** Lifecycle stages this role actually owns or waits on — used by analytics. */
-export function analyticsStageIds(role: Role): StageId[] | null {
-  if (role === "employee") return ["execution", "head_review", "verification", "closure"];
-  if (role === "department_head") {
-    return ["response", "audit_review", "council", "plan", "execution", "head_review", "verification", "closure"];
-  }
-  if (role === "council") return ["council", "closure"];
-  return null;
-}
-
 export function isReturned(status: RecommendationStatus): boolean {
   return RETURNED_STATUSES.has(status);
-}
-
-/** The ten stages with their state for a case in `status`. */
-export function workflowSnapshot(
-  status: RecommendationStatus
-): Array<WorkflowStage & { state: StageState }> {
-  const current = stageIndexForStatus(status);
-  const returned = isReturned(status);
-  return WORKFLOW_STAGES.map((stage, index) => {
-    let state: StageState = "next";
-    if (status === "closed") state = "completed";
-    else if (index < current) state = "completed";
-    else if (index === current) state = returned ? "returned" : "current";
-    return { ...hydrateStage(stage), state };
-  });
 }
 
 /** Statuses the assigned employee actually works or has already worked. */

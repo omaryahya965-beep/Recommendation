@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight, Check, Eye, Trash2 } from "lucide-react";
+import { ArrowUpRight, Eye, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/Base";
 import { RiskBadge } from "@/components/ui/RiskBadge";

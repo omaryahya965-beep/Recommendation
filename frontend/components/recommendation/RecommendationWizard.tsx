@@ -33,7 +33,7 @@ import {
 } from "@/lib/finding";
 import { formatDate } from "@/lib/format";
 import { REPORT_TYPE_LABELS, RISK_LABELS, T, useI18n } from "@/lib/i18n";
-import type { AuditReport, Paginated, RecommendationDetail } from "@/lib/types";
+import type { AuditReport, RecommendationDetail } from "@/lib/types";
 import { useUnsavedChanges } from "@/lib/useUnsavedChanges";
 
 type StepId = "context" | "finding" | "recommendation" | "risk" | "review";

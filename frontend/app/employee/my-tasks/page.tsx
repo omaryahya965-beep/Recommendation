@@ -4,7 +4,6 @@ import { CalendarClock, CheckCircle2, ClipboardList } from "lucide-react";
 import Link from "next/link";
 
 import { rank, type ActionSource } from "@/components/dashboard/queues";
-import { EmployeeEvidence, EmployeePlans } from "@/components/dashboard/EmployeeDesk";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { HomeHero } from "@/components/home/HomeHero";
 import { CaseDue, QueuePanel } from "@/components/home/Queues";
@@ -62,7 +61,6 @@ export default function MyTasksPage() {
   ].filter((source) => source.block);
   const next = rank(sources)[0];
   const nextAction = next ? STATUS_NEXT_ACTION[next.item.status] : null;
-  const tasks = data.active_tasks?.items ?? [];
 
   return (
     <div className="animate-fade-in space-y-5">
@@ -168,11 +166,6 @@ export default function MyTasksPage() {
         emptyLabel={T.home.noActiveTasks}
         testId="active-tasks"
       />
-
-      <div className="grid items-stretch gap-4 xl:grid-cols-2">
-        <EmployeePlans items={tasks} detailBase={HOME} />
-        <EmployeeEvidence items={tasks} detailBase={HOME} />
-      </div>
 
       <RecentActivity detailBase={HOME} compact />
     </div>
