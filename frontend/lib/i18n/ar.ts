@@ -458,6 +458,8 @@ export const T = {
     daysAccusative: "يومًا",
     yes: "نعم",
     no: "لا",
+    loadMore: "عرض المزيد",
+    showingOf: "معروض {loaded} من {total}",
   },
   ai: {
     title: "تحليل الذكاء الاصطناعي",
@@ -1176,6 +1178,14 @@ export const T = {
     nearest: "أقرب موعد",
     empty: "لا توجد توصيات قيد التنفيذ لدى الدائرة حالياً.",
     emptyHint: "تظهر هنا التوصيات بعد اعتماد خطة التنفيذ وإسنادها إلى الموظفين.",
+    active: "قيد التنفيذ",
+    dueSoon: "تستحق خلال 7 أيام",
+    returned: "مُعادة للاستكمال",
+    awaitingHead: "بانتظار مراجعتك",
+    inReview: "لدى الرقابة أو المجلس",
+    allCases: "كل توصيات {name}",
+    noCases: "لا توجد توصيات مفتوحة مسندة.",
+    moreThanShown: "تُعرض أقرب {shown} من {total}.",
   },
   council: {
     ratifyReport: "المصادقة على التقرير",

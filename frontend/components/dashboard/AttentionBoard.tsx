@@ -23,7 +23,7 @@ import { RiskBadge } from "@/components/ui/RiskBadge";
 import { Section } from "@/components/ui/Section";
 import { StatusBadge } from "@/components/ui/StampBadge";
 import { cn } from "@/lib/cn";
-import { caseTitle } from "@/lib/finding";
+import { clipTitle } from "@/lib/finding";
 import { daysUntil, formatDate } from "@/lib/format";
 import { T, useI18n } from "@/lib/i18n";
 import type { ActionCenterBlock, RecommendationListItem } from "@/lib/types";
@@ -178,7 +178,7 @@ function ActionRow({ item, reason, href }: { item: RecommendationListItem; reaso
             <OverdueBadge targetDate={item.target_date} overdue={item.overdue} />
           </div>
           <Link href={href} className="mt-1 block font-medium leading-snug text-ink hover:text-primary-dark">
-            {caseTitle(item.text, 110)}
+            {clipTitle(item.title, 110)}
           </Link>
           <dl className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-soft">
             <div>

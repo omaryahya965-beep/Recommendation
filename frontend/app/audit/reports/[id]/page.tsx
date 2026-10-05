@@ -17,7 +17,7 @@ import { RiskBadge } from "@/components/ui/RiskBadge";
 import { StatusBadge } from "@/components/ui/StampBadge";
 import { api, errorMessage } from "@/lib/api";
 import { invalidateRecommendationViews } from "@/lib/queryPolicy";
-import { caseTitle } from "@/lib/finding";
+import { clipTitle } from "@/lib/finding";
 import { formatDate, recordCode } from "@/lib/format";
 import { REPORT_STATUS_LABELS, REPORT_TYPE_LABELS, RISK_LABELS, T, useI18n } from "@/lib/i18n";
 import { MODERATE } from "@/lib/queryPolicy";
@@ -184,7 +184,7 @@ export default function ReportDetailPage() {
                           {String(index + 1).padStart(2, "0")} · {recordCode(item.id)}
                         </p>
                         <p className="mt-1 font-heading text-[15px] font-semibold text-ink group-hover:text-primary-dark">
-                          {caseTitle(item.text, 140)}
+                          {clipTitle(item.title, 140)}
                         </p>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">

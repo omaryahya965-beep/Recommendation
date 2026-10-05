@@ -7,7 +7,7 @@ import { LedgerCell, LedgerTable, RecordId } from "@/components/ui/Ledger";
 import { OverdueBadge } from "@/components/ui/OverdueBadge";
 import { RiskBadge } from "@/components/ui/RiskBadge";
 import { StatusBadge } from "@/components/ui/StampBadge";
-import { caseTitle } from "@/lib/finding";
+import { clipTitle } from "@/lib/finding";
 import { formatDate } from "@/lib/format";
 import { T, useI18n } from "@/lib/i18n";
 import type { RecommendationListItem } from "@/lib/types";
@@ -43,7 +43,7 @@ export function RecommendationTable({
             <MobileRecordCard
               href={detailHref(item)}
               id={item.id}
-              title={caseTitle(item.text, 120)}
+              title={clipTitle(item.title, 120)}
               status={item.status}
               risk={item.risk_level}
               owner={item.responsible_employee}
@@ -69,7 +69,7 @@ export function RecommendationTable({
               </LedgerCell>
               <LedgerCell className="max-w-md">
                 <Link href={detailHref(item)} className="block hover:text-primary-dark hover:underline">
-                  <span className="line-clamp-2">{caseTitle(item.text, 120)}</span>
+                  <span className="line-clamp-2">{clipTitle(item.title, 120)}</span>
                 </Link>
                 {item.is_recurring && !item.recurrence_confirmed ? (
                   <span className="mt-1 inline-flex rounded-md bg-ai-light px-1.5 py-0.5 text-[10px] font-medium text-ai-dark">

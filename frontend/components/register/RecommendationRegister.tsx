@@ -15,7 +15,7 @@ import { RiskBadge } from "@/components/ui/RiskBadge";
 import { StatusBadge } from "@/components/ui/StampBadge";
 import { api, downloadFile, errorMessage, loadAuth } from "@/lib/api";
 import { cn } from "@/lib/cn";
-import { caseTitle } from "@/lib/finding";
+import { clipTitle } from "@/lib/finding";
 import { formatDate, localISODate } from "@/lib/format";
 import { useDepartments, usePrefetchRecommendation } from "@/lib/hooks";
 import { RISK_LABELS, STATUS_LABELS, T, useI18n } from "@/lib/i18n";
@@ -98,7 +98,7 @@ function RegisterCard({
               ) : null}
             </div>
             <h3 className="mt-3 font-heading text-[16px] font-semibold leading-snug text-navy group-hover:text-primary transition-colors">
-              {caseTitle(item.text, 130)}
+              {clipTitle(item.title, 130)}
             </h3>
             <p className="mt-1 text-[13px] text-ink-soft">
               {hideDepartment ? item.report_title : `${item.department_name} • ${item.report_title}`}
@@ -175,7 +175,7 @@ function CompactTable({
           </LedgerCell>
           <LedgerCell>
             <Link href={`${detailBase}/${item.id}`} className="font-medium text-ink group-hover:text-primary transition-colors">
-              {caseTitle(item.text, 80)}
+              {clipTitle(item.title, 80)}
             </Link>
           </LedgerCell>
           {hideDepartment ? null : <LedgerCell>{item.department_name}</LedgerCell>}
@@ -283,7 +283,7 @@ function RegisterInner({
       query.set("stage", stage);
     }
     // Queue links from the dashboards (evaluated by the API, same rules as the badges).
-    for (const key of ["waiting_on", "my_turn", "response_overdue", "due_within", "report"]) {
+    for (const key of ["waiting_on", "my_turn", "response_overdue", "due_within", "report", "responsible_employee"]) {
       const value = searchParams.get(key);
       if (value) query.set(key, value);
     }

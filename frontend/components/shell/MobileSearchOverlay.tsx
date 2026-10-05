@@ -8,7 +8,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useFocusTrap } from "@/components/mobile/useFocusTrap";
 import { StatusBadge } from "@/components/ui/StampBadge";
 import { api } from "@/lib/api";
-import { caseTitle } from "@/lib/finding";
+import { clipTitle } from "@/lib/finding";
 import { T, useI18n } from "@/lib/i18n";
 import type { Paginated, RecommendationListItem, Role } from "@/lib/types";
 
@@ -122,7 +122,7 @@ export function MobileSearchOverlay({
                         <StatusBadge status={item.status} />
                       </span>
                       <span className="mt-2 block text-[15px] font-medium leading-snug text-ink">
-                        {caseTitle(item.text, 80)}
+                        {clipTitle(item.title, 80)}
                       </span>
                       <span className="mt-1 block truncate text-[13px] text-muted">
                         {role === "department_head"

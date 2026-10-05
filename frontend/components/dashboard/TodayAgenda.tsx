@@ -7,7 +7,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { RecordId } from "@/components/ui/Ledger";
 import { Section } from "@/components/ui/Section";
 import { cn } from "@/lib/cn";
-import { caseTitle } from "@/lib/finding";
+import { clipTitle } from "@/lib/finding";
 import { daysUntil, formatDate, formatDayParts } from "@/lib/format";
 import { splitAgenda } from "@/lib/home";
 import { T, useI18n } from "@/lib/i18n";
@@ -69,7 +69,7 @@ function AgendaGroup({
                   {formatDate(item.target_date)}
                 </span>
               </div>
-              <p className="mt-2.5 text-[14px] font-semibold leading-snug text-ink">{caseTitle(item.text, 90)}</p>
+              <p className="mt-2.5 text-[14px] font-semibold leading-snug text-ink">{clipTitle(item.title, 90)}</p>
               <p className="mt-1.5 text-[12.5px] font-medium text-ink-soft">
                 {showDepartment ? item.department_name : item.responsible_employee ?? T.team.unassigned}
               </p>

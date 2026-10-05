@@ -9,7 +9,7 @@ import { OverdueBadge } from "@/components/ui/OverdueBadge";
 import { RiskBadge } from "@/components/ui/RiskBadge";
 import { StatusBadge } from "@/components/ui/StampBadge";
 import { planProgress } from "@/lib/case";
-import { caseTitle } from "@/lib/finding";
+import { clipTitle } from "@/lib/finding";
 import { formatDate, recordCode } from "@/lib/format";
 import { RESOLUTION_LABELS, T, useI18n } from "@/lib/i18n";
 import type { RecommendationDetail } from "@/lib/types";
@@ -45,7 +45,7 @@ export function CaseHeader({
 }) {
   const { locale } = useI18n();
   const progress = planProgress(rec.action_plan);
-  const title = caseTitle(rec.text, 120);
+  const title = clipTitle(rec.title, 120);
   const stage = stageForStatus(rec.status);
   const owner =
     rec.action_plan?.responsible_employee_detail?.full_name_ar ?? rec.responsible_employee ?? T.common.none;

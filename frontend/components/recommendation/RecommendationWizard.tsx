@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/Base";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { api, errorMessage } from "@/lib/api";
+import { api, errorMessage, fetchAllPages } from "@/lib/api";
 import { invalidateRecommendationViews } from "@/lib/queryPolicy";
 import {
   composeFinding,
@@ -134,7 +134,7 @@ export function RecommendationWizard({
   const { data: reports, isLoading } = useQuery({
     queryKey: ["reports", "draft"],
     // Draft reports are few; the larger page keeps the picker complete.
-    queryFn: () => api<Paginated<AuditReport>>("/api/reports/?status=draft&page_size=100"),
+    queryFn: async () => ({ results: await fetchAllPages<AuditReport>("/api/reports/?status=draft") }),
     enabled: !editing,
   });
 

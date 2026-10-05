@@ -17,7 +17,7 @@ import { Section } from "@/components/ui/Section";
 import { useDashboard } from "@/lib/hooks";
 import { api, errorMessage } from "@/lib/api";
 import { invalidateRecommendationViews } from "@/lib/queryPolicy";
-import { caseTitle } from "@/lib/finding";
+import { clipTitle } from "@/lib/finding";
 import { REPORT_TYPE_LABELS, T, useI18n } from "@/lib/i18n";
 import { LIVE } from "@/lib/queryPolicy";
 import type { AuditReport } from "@/lib/types";
@@ -111,7 +111,7 @@ function PendingReportCard({ report }: { report: AuditReport }) {
                       {closing.map((item) => (
                         <li key={item.id} className="flex items-baseline gap-2">
                           <RecordId id={item.id} />
-                          <span className="min-w-0 truncate">{caseTitle(item.text, 70)}</span>
+                          <span className="min-w-0 truncate">{clipTitle(item.title, 70)}</span>
                         </li>
                       ))}
                     </ul>

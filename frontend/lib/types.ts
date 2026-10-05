@@ -130,7 +130,6 @@ export interface RecommendationListItem {
   /** One-line title derived from the stored text (never the full text). */
   title: string;
   excerpt: string;
-  text: string;
   risk_level: "high" | "medium" | "low";
   priority_score: number;
   status: RecommendationStatus;
@@ -245,6 +244,8 @@ export interface TrailEntry {
 }
 
 export interface RecommendationDetail extends RecommendationListItem {
+  /** The full stored finding text (detail only). */
+  text: string;
   root_cause: string;
   similar_recommendation: number | null;
   similar_recommendation_text: string | null;

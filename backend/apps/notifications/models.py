@@ -81,7 +81,11 @@ class Notification(models.Model):
 
     class Meta:
         ordering = ["-sent_at"]
-        indexes = [models.Index(fields=["user", "is_read"])]
+        indexes = [
+            models.Index(fields=["user", "is_read"]),
+            # The inbox lists a user's notifications newest first.
+            models.Index(fields=["user", "-sent_at"], name="notif_user_sent_idx"),
+        ]
 
     def __str__(self):
         return f"{self.get_type_display()} -> {self.user}"

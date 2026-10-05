@@ -11,7 +11,7 @@ import { OverdueBadge } from "@/components/ui/OverdueBadge";
 import { RiskBadge } from "@/components/ui/RiskBadge";
 import { Section } from "@/components/ui/Section";
 import { cn } from "@/lib/cn";
-import { caseTitle } from "@/lib/finding";
+import { clipTitle } from "@/lib/finding";
 import { formatDate } from "@/lib/format";
 import { T, useI18n } from "@/lib/i18n";
 import { STATUS_NEXT_ACTION, stageForStatus } from "@/lib/workflow";
@@ -113,7 +113,7 @@ export function ActionNow({
                         href={`${detailBase}/${item.id}`}
                         className="mt-1 block font-heading text-[16px] font-semibold leading-snug text-navy group-hover:text-primary transition-colors"
                       >
-                        {caseTitle(item.text, 110)}
+                        {clipTitle(item.title, 110)}
                       </Link>
                       <div className="mt-2.5 flex min-w-0 flex-wrap items-center gap-2 text-[13px] text-ink-soft">
                         <span className="font-medium">{showDepartment ? item.department_name : item.responsible_employee ?? T.team.unassigned}</span>

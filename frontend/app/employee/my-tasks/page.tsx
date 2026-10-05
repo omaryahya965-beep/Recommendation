@@ -14,7 +14,7 @@ import { RecordId } from "@/components/ui/Ledger";
 import { OverdueBadge } from "@/components/ui/OverdueBadge";
 import { RiskBadge } from "@/components/ui/RiskBadge";
 import { useDashboard } from "@/lib/hooks";
-import { caseTitle } from "@/lib/finding";
+import { clipTitle } from "@/lib/finding";
 import { T, useI18n } from "@/lib/i18n";
 import { STATUS_NEXT_ACTION } from "@/lib/workflow";
 
@@ -76,7 +76,7 @@ export default function MyTasksPage() {
             <h2 className="mt-4 font-heading text-[1.375rem] font-bold leading-snug drop-shadow-sm">
               {nextAction?.action ?? T.dashboard.open}
             </h2>
-            <p className="mt-2 text-[15px] leading-relaxed text-white/90">{caseTitle(next.item.text, 140)}</p>
+            <p className="mt-2 text-[15px] leading-relaxed text-white/90">{clipTitle(next.item.title, 140)}</p>
             <Link
               href={`${HOME}/${next.item.id}`}
               className="mt-5 flex min-h-12 w-full sm:w-auto sm:px-8 sm:inline-flex items-center justify-center rounded-lg bg-white text-[15px] font-bold text-inverse shadow-md transition-all hover:bg-white/90 hover:shadow-lg active:scale-95"

@@ -7,7 +7,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { RecordId } from "@/components/ui/Ledger";
 import { OverdueBadge } from "@/components/ui/OverdueBadge";
 import { Section } from "@/components/ui/Section";
-import { caseTitle } from "@/lib/finding";
+import { clipTitle } from "@/lib/finding";
 import { formatDate } from "@/lib/format";
 import { T, useI18n } from "@/lib/i18n";
 import type { RecommendationListItem } from "@/lib/types";
@@ -56,7 +56,7 @@ export function ExecutionNow({
                       <OverdueBadge targetDate={item.target_date} overdue={item.overdue} />
                     </div>
                     <Link href={detailHref(item)} className="mt-2 block font-heading text-[16px] font-semibold leading-snug text-navy group-hover:text-primary transition-colors">
-                      {caseTitle(item.text, 100)}
+                      {clipTitle(item.title, 100)}
                     </Link>
                     <div className="mt-2.5 flex flex-wrap items-center gap-2 text-[13px] text-ink-soft">
                       <span className="font-bold text-ink">{item.responsible_employee ?? T.team.unassigned}</span>

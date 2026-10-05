@@ -279,6 +279,23 @@ export function classifyLoginError(err: unknown): { kind: LoginFailure; retryAft
   return { kind: "network", retryAfter: null };
 }
 
+/**
+ * Every page of a paginated endpoint, for small complete lists that a page
+ * computes on (e.g. report counts by stage). Bounded by `maxPages` so a
+ * runaway list can never loop forever.
+ */
+export async function fetchAllPages<T>(path: string, pageSize = 100, maxPages = 50): Promise<T[]> {
+  const items: T[] = [];
+  for (let page = 1; page <= maxPages; page += 1) {
+    const data = await api<{ results: T[]; next: string | null }>(
+      `${path}${path.includes("?") ? "&" : "?"}page=${page}&page_size=${pageSize}`
+    );
+    items.push(...data.results);
+    if (!data.next) break;
+  }
+  return items;
+}
+
 export async function login(username: string, password: string): Promise<AuthState> {
   const res = await fetch(`${API_BASE}/api/auth/login/`, {
     method: "POST",

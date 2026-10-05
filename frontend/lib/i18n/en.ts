@@ -457,6 +457,8 @@ export const T = {
     daysAccusative: "days",
     yes: "Yes",
     no: "No",
+    loadMore: "Load more",
+    showingOf: "Showing {loaded} of {total}",
   },
   ai: {
     title: "Advisory Analysis",
@@ -1186,6 +1188,14 @@ export const T = {
     nearest: "Nearest deadline",
     empty: "There are currently no recommendations in implementation in the department.",
     emptyHint: "Recommendations appear here after the action plan is approved and assigned to staff.",
+    active: "In execution",
+    dueSoon: "Due within 7 days",
+    returned: "Returned for more work",
+    awaitingHead: "Awaiting your review",
+    inReview: "With audit or the Council",
+    allCases: "All cases of {name}",
+    noCases: "No open cases assigned.",
+    moreThanShown: "Showing the nearest {shown} of {total}.",
   },
   council: {
     ratifyConfirmTitle: "Confirm report ratification",

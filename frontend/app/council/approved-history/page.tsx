@@ -1,25 +1,23 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import { Archive } from "lucide-react";
 
 import { Card, DataField, ErrorBanner } from "@/components/ui/Base";
 import { EmptyState, TableSkeleton } from "@/components/ui/EmptyState";
+import { LoadMore } from "@/components/ui/LoadMore";
 import { RecordId } from "@/components/ui/Ledger";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { api } from "@/lib/api";
 import { formatDate } from "@/lib/format";
 import { REPORT_TYPE_LABELS, T, useI18n } from "@/lib/i18n";
-import type { AuditReport, Paginated } from "@/lib/types";
+import { usePagedList } from "@/lib/hooks";
+import type { AuditReport } from "@/lib/types";
 
 export default function ApprovedHistoryPage() {
   useI18n();
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["reports", "ratified"],
-    queryFn: () => api<Paginated<AuditReport>>("/api/reports/?status=ratified&page_size=100"),
+  const list = usePagedList<AuditReport>(["reports", "ratified"], "/api/reports/?status=ratified", {
+    live: false,
   });
-
-  const reports = data?.results ?? [];
+  const { items: reports, isLoading, isError, refetch } = list;
 
   return (
     <div className="animate-fade-in space-y-4">
@@ -62,6 +60,13 @@ export default function ApprovedHistoryPage() {
               </dl>
             </Card>
           ))}
+          <LoadMore
+            loaded={reports.length}
+            total={list.total}
+            hasMore={Boolean(list.hasNextPage)}
+            loading={list.isFetchingNextPage}
+            onMore={() => list.fetchNextPage()}
+          />
         </div>
       ) : (
         <EmptyState

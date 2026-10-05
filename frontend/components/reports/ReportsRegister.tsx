@@ -10,7 +10,7 @@ import { Button, ErrorBanner, Select, TextInput } from "@/components/ui/Base";
 import { EmptyState, TableSkeleton } from "@/components/ui/EmptyState";
 import { LedgerCell, LedgerTable, RecordId } from "@/components/ui/Ledger";
 import { StatusBadge } from "@/components/ui/StampBadge";
-import { api } from "@/lib/api";
+import { fetchAllPages } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { daysUntil, formatDate, recordCode } from "@/lib/format";
 import { REPORT_STATUS_LABELS, REPORT_TYPE_LABELS, T, useI18n } from "@/lib/i18n";
@@ -144,13 +144,15 @@ export function ReportsRegister() {
   const [sort, setSort] = useState<SortId>("newest");
   const [view, setView] = useState<"list" | "compact">("compact");
 
+  // Every report, page by page: the stage counts and filters below are
+  // computed over the complete list (it used to stop at the first 100).
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["reports"],
-    queryFn: () => api<Paginated<AuditReport>>("/api/reports/?page_size=100"),
+    queryKey: ["reports", "all"],
+    queryFn: () => fetchAllPages<AuditReport>("/api/reports/"),
     ...MODERATE,
   });
 
-  const all = data?.results ?? [];
+  const all = useMemo(() => data ?? [], [data]);
   const departments = useMemo(() => {
     const names = [...new Set(all.map((item) => item.department_name))].sort((a, b) => a.localeCompare(b, "ar"));
     return names;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { api, errorMessage } from "./api";
@@ -190,4 +190,29 @@ export function useDeleteNotification() {
     mutationFn: (id: number) => api(`/api/notifications/${id}/`, { method: "DELETE" }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
   });
+}
+
+/**
+ * A server-paginated list that loads further pages on request. Lists used to
+ * ask for page_size=100 and silently drop everything after it; this keeps
+ * the total from the API (`count`) and shows how many are loaded.
+ */
+export function usePagedList<T>(
+  queryKey: readonly unknown[],
+  path: string,
+  options: { pageSize?: number; enabled?: boolean; live?: boolean } = {}
+) {
+  const { pageSize = 25, enabled = true, live = true } = options;
+  const query = useInfiniteQuery({
+    queryKey: [...queryKey, pageSize],
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) =>
+      api<Paginated<T>>(`${path}${path.includes("?") ? "&" : "?"}page=${pageParam}&page_size=${pageSize}`),
+    getNextPageParam: (last, pages) => (last.next ? pages.length + 1 : undefined),
+    enabled,
+    ...(live ? LIVE : {}),
+  });
+  const items = query.data?.pages.flatMap((page) => page.results) ?? [];
+  const total = query.data?.pages[0]?.count ?? 0;
+  return { ...query, items, total };
 }

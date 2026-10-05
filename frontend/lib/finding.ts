@@ -272,3 +272,12 @@ export function caseTitle(text: string, max = 90): string {
   const clean = firstLine.trim();
   return clean.length > max ? `${clean.slice(0, max).trimEnd()}…` : clean;
 }
+
+/**
+ * A server-derived title (list rows carry `title`, never the full text),
+ * shortened for one line.
+ */
+export function clipTitle(title: string | null | undefined, max = 90): string {
+  const clean = (title ?? "").trim();
+  return clean.length > max ? `${clean.slice(0, max).trimEnd()}…` : clean;
+}

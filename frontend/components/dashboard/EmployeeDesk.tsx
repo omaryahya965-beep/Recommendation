@@ -10,7 +10,7 @@ import { ProgressBar } from "@/components/ui/Base";
 import { Section } from "@/components/ui/Section";
 import { api } from "@/lib/api";
 import { evidenceByStep, evidenceReviewState, planProgress, sortSteps, stepState } from "@/lib/case";
-import { caseTitle } from "@/lib/finding";
+import { clipTitle } from "@/lib/finding";
 import { fileNameFromUrl, formatDate, formatDateTime } from "@/lib/format";
 import { T, useI18n } from "@/lib/i18n";
 import { parseStep } from "@/lib/planStep";
@@ -45,7 +45,7 @@ export function EmployeePlans({ items, detailBase }: { items: RecommendationList
               return (
                 <li key={rec.id} className="rounded-xl border border-line p-4 bg-subtle/30">
                   <RecordId id={rec.id} />
-                  <p className="mt-2 text-[14px] font-semibold text-ink">{caseTitle(rec.text, 90)}</p>
+                  <p className="mt-2 text-[14px] font-semibold text-ink">{clipTitle(rec.title, 90)}</p>
                   <p className="mt-1.5 text-[12.5px] font-medium text-muted">{T.dashboard.noPlanYet}</p>
                 </li>
               );
@@ -62,7 +62,7 @@ export function EmployeePlans({ items, detailBase }: { items: RecommendationList
                   <div className="flex-1 min-w-0">
                     <RecordId id={rec.id} />
                     <Link href={`${detailBase}/${rec.id}`} className="mt-2 block font-heading text-[16px] font-semibold leading-snug text-navy hover:text-primary transition-colors">
-                      {caseTitle(rec.text, 90)}
+                      {clipTitle(rec.title, 90)}
                     </Link>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">

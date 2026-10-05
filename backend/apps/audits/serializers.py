@@ -65,7 +65,9 @@ class RecommendationListSerializer(serializers.ModelSerializer):
         model = Recommendation
         fields = [
             "id", "report", "report_title", "engagement_type", "department", "department_name",
-            "title", "excerpt", "text", "risk_level", "priority_score", "status", "resolution",
+            # `title`/`excerpt` only: the full stored text (often several KB)
+            # is sent with the case detail, never with every list row.
+            "title", "excerpt", "risk_level", "priority_score", "status", "resolution",
             "is_recurring", "recurrence_confirmed", "target_date", "responsible_employee",
             "overdue", "stage", "waiting_on", "next_role", "deadline", "deadline_source",
             "days_overdue", "due_in_days", "response_overdue", "days_waiting", "my_turn",
@@ -146,7 +148,7 @@ class RecommendationDetailSerializer(RecommendationListSerializer):
 
     class Meta(RecommendationListSerializer.Meta):
         fields = RecommendationListSerializer.Meta.fields + [
-            "root_cause", "similar_recommendation",
+            "text", "root_cause", "similar_recommendation",
             "similar_recommendation_text", "similarity_score",
             "response", "action_plan", "approvals", "evidence_files",
             "verifications", "trail", "workflow", "reminders", "updated_at",

@@ -41,7 +41,9 @@ class InsightsAndSummaryTests(TestCase):
         self.client.force_authenticate(self.users["head"])
         res = self.client.get("/api/ai/dashboard/insights/")
         texts = " ".join(
-            item["text"] for bucket in res.data["cards"].values() for item in bucket["items"]
+            f'{item["title"]} {item["excerpt"]}'
+            for bucket in res.data["cards"].values()
+            for item in bucket["items"]
         )
         self.assertNotIn("Engineering only", texts)
 

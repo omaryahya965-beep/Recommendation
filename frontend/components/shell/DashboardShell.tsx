@@ -43,7 +43,7 @@ import { Skeleton } from "@/components/ui/EmptyState";
 import { StatusBadge } from "@/components/ui/StampBadge";
 import { api, loadAuth, logout, ROLE_HOME, ROLE_PROFILE } from "@/lib/api";
 import { cn } from "@/lib/cn";
-import { caseTitle } from "@/lib/finding";
+import { clipTitle } from "@/lib/finding";
 import { ROLE_LABELS, T, useI18n } from "@/lib/i18n";
 import type { Paginated, RecommendationListItem, Role, User } from "@/lib/types";
 
@@ -353,7 +353,7 @@ function GlobalSearch({ role }: { role: Role }) {
                       </span>
                       <StatusBadge status={item.status} />
                     </span>
-                    <span className="mt-1.5 line-clamp-1 block text-[13px] font-medium text-ink">{caseTitle(item.text, 80)}</span>
+                    <span className="mt-1.5 line-clamp-1 block text-[13px] font-medium text-ink">{clipTitle(item.title, 80)}</span>
                     <span className="mt-1 block text-[11px] text-muted">
                       {role === "department_head"
                         ? item.responsible_employee || item.report_title
