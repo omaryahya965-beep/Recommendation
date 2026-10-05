@@ -63,12 +63,19 @@ class AnalyticsCacheTests(TestCase):
             engagement_type="assurance", created_by=self.users["audit"],
         )
         Recommendation.objects.create(report=draft_report, text="Unissued", risk_level="low")
-        self.assertEqual(self._totals(self.users["audit"])["total"], 2)
-        self.assertEqual(self._totals(self.users["council"])["total"], 1)
+        # Drafts never count in the operational total; audit sees them apart.
+        audit = self._totals(self.users["audit"])
+        self.assertEqual((audit["total"], audit["drafts"]), (1, 1))
+        council = self._totals(self.users["council"])
+        self.assertEqual((council["total"], council["drafts"]), (1, 0))
 
     def test_new_recommendation_is_visible_immediately(self):
-        self.assertEqual(self._totals(self.users["audit"])["total"], 1)
+        self.assertEqual(self._totals(self.users["audit"])["drafts"], 0)
         Recommendation.objects.create(report=self.report, text="Another", risk_level="low")
+        self.assertEqual(self._totals(self.users["audit"])["drafts"], 1)
+        Recommendation.objects.create(
+            report=self.report, text="Issued", risk_level="low", status=S.PENDING_RESPONSE
+        )
         self.assertEqual(self._totals(self.users["audit"])["total"], 2)
 
     def test_status_change_is_visible_immediately(self):

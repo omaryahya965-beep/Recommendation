@@ -19,7 +19,7 @@ from apps.audits.models import (
     Recommendation,
 )
 from apps.audits.serializers import RecommendationListSerializer
-from apps.core.analytics import cached_analytics
+from apps.core.analytics import cached_analytics, portfolio_totals
 from apps.core.permissions import scope_recommendations
 from apps.workflow.presentation import annotate_workflow, overdue_q
 
@@ -67,16 +67,13 @@ def _overdue_qs(queryset):
 
 
 def _stats(queryset):
-    total_open = queryset.filter(status__in=OPEN_STATUSES).count()
-    closed = queryset.filter(status=S.CLOSED).count()
-    total = total_open + closed
+    """The dashboard KPIs: the same function and definitions as
+    /api/analytics/ (apps.core.analytics.portfolio_totals), so a dashboard
+    tile and the analytics page can never disagree."""
+    totals = portfolio_totals(queryset.exclude(status=S.DRAFT))
     return {
-        "total": total,
-        "open": total_open,
-        "closed": closed,
-        "completion_rate": round(closed / total * 100, 1) if total else 0.0,
-        "overdue": _overdue_qs(queryset).count(),
-        "by_status": dict(queryset.values_list("status").annotate(c=Count("id"))),
+        **totals,
+        "by_status": dict(queryset.exclude(status=S.DRAFT).values_list("status").annotate(c=Count("id"))),
         "by_risk": dict(
             queryset.filter(status__in=OPEN_STATUSES)
             .values_list("risk_level").annotate(c=Count("id"))

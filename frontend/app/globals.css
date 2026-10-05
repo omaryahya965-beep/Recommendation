@@ -45,6 +45,13 @@
   --color-on-inverse: #f7fbfa;
   --color-overlay: rgb(20 32 30 / 0.45);
 
+  /* Chart series (validated: lightness band, chroma, CVD and contrast against
+     the light surface). Series 1 teal, series 2 amber; text never wears them. */
+  --color-chart-1: #00897b;
+  --color-chart-1-track: #d9efec;
+  --color-chart-2: #b26b00;
+  --color-chart-grid: #e4ebe8;
+
   --color-olive: #176b63;
   --color-olive-dark: #0f4f49;
   --color-olive-tint: #e7f3f0;
@@ -127,6 +134,11 @@
   --color-inverse: #243542;
   --color-on-inverse: #eef4f6;
   --color-overlay: rgb(6 10 12 / 0.62);
+  /* Chart series re-validated against the dark surface (#1a2329). */
+  --color-chart-1: #169a8b;
+  --color-chart-1-track: #1f3b3a;
+  --color-chart-2: #c27a1c;
+  --color-chart-grid: #2c3a42;
   --color-olive: #3ea396;
   --color-olive-dark: #8ed4cb;
   --color-olive-tint: #1c3533;

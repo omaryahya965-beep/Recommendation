@@ -53,6 +53,20 @@ export function formatDate(value: string | null | undefined): string {
   );
 }
 
+/** "سبتمبر 2026" / "Sep 2026" for a YYYY-MM-DD month key. */
+export function formatMonth(value: string, style: "short" | "long" = "short"): string {
+  const [year, month] = value.split("-").map(Number);
+  if (!year || !month) return value;
+  const date = new Date(year, month - 1, 1);
+  return isolate(
+    date.toLocaleDateString(localeDateTag(getLocale()), {
+      month: getLocale() === "ar" ? "long" : style,
+      year: style === "long" ? "numeric" : "2-digit",
+      numberingSystem: "latn",
+    })
+  );
+}
+
 export function formatDateTime(value: string | null | undefined): string {
   if (!value) return "—";
   const date = new Date(value);

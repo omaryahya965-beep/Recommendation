@@ -1,145 +1,69 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  departmentPressure,
-  portfolioRates,
-  stagePressure,
-  type AnalyticsPayload,
-} from "./analytics";
+import { decisionSeries, departmentPressure, stagePressure, type DepartmentRow } from "./analytics";
 
-/** A payload shaped exactly like GET /api/analytics/. */
-function payload(overrides: Partial<AnalyticsPayload> = {}): AnalyticsPayload {
-  return {
-    generated_at: "2026-09-20T10:00:00Z",
-    totals: {
-      total: 10,
-      open: 6,
-      closed: 4,
-      overdue: 3,
-      high_risk_open: 2,
-      recurring_confirmed: 1,
-      recurring_flagged: 2,
-      with_plan: 5,
-      completion_rate: 40,
-      overdue_rate: 50,
-    },
-    by_status: { in_progress: 4, closed: 4, pending_response: 2 },
-    by_risk: { high: 2, medium: 3, low: 1 },
-    by_engagement_type: { assurance: 7, advisory: 3 },
-    by_department: [
-      {
-        department: 1,
-        name: "Finance",
-        total: 6,
-        open: 4,
-        closed: 2,
-        overdue: 1,
-        in_progress: 3,
-        high_risk: 1,
-        recurring: 0,
-        execution_rate: 33.3,
-      },
-      {
-        department: 2,
-        name: "Engineering",
-        total: 4,
-        open: 2,
-        closed: 2,
-        overdue: 2,
-        in_progress: 1,
-        high_risk: 1,
-        recurring: 1,
-        execution_rate: 50,
-      },
-    ],
-    volume: [{ month: "2026-09-01", created: 3, closed: 1 }],
-    implementation: {
-      average_step_progress: 42.5,
-      steps_total: 8,
-      steps_done: 3,
-      steps_completion_rate: 37.5,
-    },
-    recurrence: { confirmed: 1, awaiting_confirmation: 2 },
-    ...overrides,
-  };
-}
+const row = (overrides: Partial<DepartmentRow>): DepartmentRow => ({
+  department: 1,
+  name: "المالية",
+  total: 10,
+  open: 5,
+  closed: 5,
+  closed_implemented: 4,
+  overdue: 0,
+  overdue_rate: 0,
+  in_progress: 3,
+  high_risk: 1,
+  recurring: 0,
+  execution_rate: 40,
+  ...overrides,
+});
 
-describe("portfolioRates", () => {
-  it("reads the server's rates rather than recomputing them", () => {
-    const rates = portfolioRates(payload());
-    expect(rates.total).toBe(10);
-    expect(rates.open).toBe(6);
-    expect(rates.closed).toBe(4);
-    expect(rates.completionRate).toBe(40);
-    expect(rates.overdueRate).toBe(50);
+describe("stagePressure", () => {
+  it("lists the nine open stages in lifecycle order, closed excluded", () => {
+    const rows = stagePressure({ by_stage: { execution: 4, closed: 9 } });
+    expect(rows).toHaveLength(9);
+    expect(rows[0].id).toBe("preparation");
+    expect(rows.find((item) => item.id === "execution")?.count).toBe(4);
+    expect(rows.some((item) => item.id === "closed")).toBe(false);
   });
 
-  it("reports high risk among OPEN items only", () => {
-    // A closed high-risk finding is history, not present exposure.
-    expect(portfolioRates(payload()).highRisk).toBe(2);
-  });
-
-  it("counts only human-confirmed recurrences", () => {
-    // Flagged-but-unconfirmed is a suggestion, and must not be presented
-    // as an established recurring finding.
-    expect(portfolioRates(payload()).recurring).toBe(1);
-  });
-
-  it("survives an empty portfolio without dividing by zero", () => {
-    const empty = portfolioRates(
-      payload({
-        totals: {
-          total: 0,
-          open: 0,
-          closed: 0,
-          overdue: 0,
-          high_risk_open: 0,
-          recurring_confirmed: 0,
-          recurring_flagged: 0,
-          with_plan: 0,
-          completion_rate: 0,
-          overdue_rate: 0,
-        },
-      })
-    );
-    expect(empty.completionRate).toBe(0);
-    expect(empty.overdueRate).toBe(0);
+  it("shows zero for stages with nothing waiting", () => {
+    expect(stagePressure({ by_stage: {} }).every((item) => item.count === 0)).toBe(true);
   });
 });
 
 describe("departmentPressure", () => {
-  it("maps every column the table renders", () => {
-    const [first] = departmentPressure(payload());
-    expect(first).toMatchObject({
-      name: "Engineering",
-      inProgress: 1,
-      highRisk: 1,
-      overdue: 2,
+  it("puts the most overdue department first, then open high risk", () => {
+    const rows = departmentPressure({
+      by_department: [
+        row({ department: 1, overdue: 1, high_risk: 0 }),
+        row({ department: 2, overdue: 3 }),
+        row({ department: 3, overdue: 1, high_risk: 4 }),
+      ],
     });
-  });
-
-  it("puts the most overdue department first", () => {
-    const rows = departmentPressure(payload());
-    expect(rows.map((row) => row.name)).toEqual(["Engineering", "Finance"]);
-  });
-
-  it("rounds the execution rate for display", () => {
-    const finance = departmentPressure(payload()).find((r) => r.name === "Finance");
-    expect(finance?.executionRate).toBe(33);
+    expect(rows.map((item) => item.department)).toEqual([2, 3, 1]);
   });
 });
 
-describe("stagePressure", () => {
-  it("excludes closed work, which is not stuck anywhere", () => {
-    const total = stagePressure(payload()).reduce((sum, row) => sum + row.count, 0);
-    // 4 in_progress + 2 pending_response; the 4 closed are dropped.
-    expect(total).toBe(6);
-  });
-
-  it("returns one row per workflow stage even when empty", () => {
-    const rows = stagePressure(payload({ by_status: {} }));
-    expect(rows.length).toBeGreaterThan(0);
-    expect(rows.every((row) => row.count === 0)).toBe(true);
-    expect(rows.every((row) => row.label.length > 0)).toBe(true);
+describe("decisionSeries", () => {
+  it("aligns council decisions to the volume months, zero-filling gaps", () => {
+    const series = decisionSeries({
+      volume: [
+        { month: "2026-08-01", created: 1, closed: 0 },
+        { month: "2026-09-01", created: 0, closed: 2 },
+      ],
+      decisions: {
+        closure_decisions: 3,
+        closed: 2,
+        reopened: 1,
+        reopen_rate: 33.3,
+        ratified: 1,
+        per_month: [{ month: "2026-09-01", closed: 2, reopened: 1, ratified: 0 }],
+      },
+    });
+    expect(series).toEqual([
+      { month: "2026-08-01", closed: 0, reopened: 0 },
+      { month: "2026-09-01", closed: 2, reopened: 1 },
+    ]);
   });
 });
