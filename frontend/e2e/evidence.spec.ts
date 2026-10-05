@@ -4,7 +4,7 @@ import { T } from "../lib/i18n/ar";
 import { apiGet, firstRecommendationOf } from "./support/api";
 import { signIn } from "./support/auth";
 import { FIXTURES, uniqueSuffix } from "./support/env";
-import { openCase, openTab } from "./support/workspace";
+import { actionPanel, openCase, openSection } from "./support/workspace";
 
 /**
  * Evidence files are served by the authenticated API endpoint. The browser
@@ -24,15 +24,15 @@ test("an employee uploads evidence, then views and downloads it", async ({ page,
 
   await signIn(page, request, "employee");
   await openCase(page, "employee", rec.id);
-  await openTab(page, T.case.evidence);
-
-  await page.locator('input[type="file"]').first().setInputFiles({
+  await actionPanel(page).locator('input[type="file"]').first().setInputFiles({
     name: fileName,
     mimeType: "image/png",
     buffer: PNG,
   });
-  await page.getByRole("button", { name: T.evidenceRegister.upload }).click();
+  await actionPanel(page).getByRole("button", { name: T.evidenceRegister.upload }).click();
 
+  // The uploaded file is listed in the evidence section of the record.
+  await openSection(page, "evidence");
   const stem = fileName.replace(/\.png$/, "");
   const item = page.getByTestId("evidence-item").filter({ hasText: stem, visible: true }).first();
   await expect(item).toBeVisible();

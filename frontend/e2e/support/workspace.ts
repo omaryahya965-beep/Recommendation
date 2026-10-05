@@ -29,18 +29,28 @@ export async function openCase(page: Page, role: RoleKey, id: number) {
   await expect(page.getByText(new RegExp(`REC-0*${id}(?!\\d)`)).first()).toBeVisible();
 }
 
-/** Selects a workspace tab (desktop tablist). */
-export async function openTab(page: Page, label: string) {
-  await page.getByRole("tab", { name: new RegExp(label) }).first().click();
+export type SectionId = "finding" | "response" | "plan" | "evidence" | "verification" | "decisions" | "history";
+
+/** Expands one record section of the case (no-op when already open). */
+export async function openSection(page: Page, id: SectionId) {
+  const toggle = page.locator(`#section-${id} button[aria-expanded]`).first();
+  if ((await toggle.getAttribute("aria-expanded")) !== "true") await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
 }
 
-/** Clicks a decision button, then confirms it in the dialog. */
+/** The form for the user's current action, inside the action card. */
+export function actionPanel(page: Page) {
+  return page.locator("#case-action-panel");
+}
+
+/** Clicks a decision button in the action card, then confirms it in the dialog. */
 export async function decide(page: Page, label: string, notes?: string, notesLabel?: string) {
+  const panel = actionPanel(page);
   if (notes) {
-    const field = notesLabel ? page.getByLabel(notesLabel).first() : page.locator("textarea").last();
+    const field = notesLabel ? panel.getByLabel(notesLabel).first() : panel.locator("textarea").last();
     await field.fill(notes);
   }
-  await page.getByRole("button", { name: label, exact: true }).first().click();
+  await panel.getByRole("button", { name: label, exact: true }).first().click();
   const dialog = page.getByRole("alertdialog");
   await expect(dialog).toBeVisible();
   await dialog.getByRole("button", { name: label, exact: true }).click();

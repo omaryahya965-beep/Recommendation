@@ -37,14 +37,6 @@ const STATE_TONE: Record<PresentState, string> = {
   delayed: "text-warning-dark",
 };
 
-const STATE_DOT: Record<PresentState, string> = {
-  done: "bg-success ring-success/20",
-  active: "bg-primary ring-primary/20",
-  pending: "bg-line ring-line",
-  blocked: "bg-muted/30 ring-line",
-  delayed: "bg-warning ring-warning/20",
-};
-
 const STATE_LINE: Record<PresentState, string> = {
   done: "bg-success/30",
   active: "bg-primary/20",

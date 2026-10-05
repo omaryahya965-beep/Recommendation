@@ -4,7 +4,7 @@ import { T } from "../lib/i18n/ar";
 import { apiGet, findReport, tryFindReport } from "./support/api";
 import { signIn } from "./support/auth";
 import { uniqueSuffix } from "./support/env";
-import { decide, expectStatus, isoDate, openCase, openTab } from "./support/workspace";
+import { actionPanel, decide, expectStatus, isoDate, openCase } from "./support/workspace";
 
 /**
  * The whole lifecycle, every action taken through the UI by the role that owns
@@ -109,24 +109,23 @@ test("a recommendation travels from issue to council closure", async ({ page, re
   // --- Employee: complete the step, upload evidence, submit ---------------
   await signIn(page, request, "employee");
   await openCase(page, "employee", recId);
-  await openTab(page, T.case.plan);
-  await page.getByRole("button", { name: T.plan.markDone }).first().click();
-  await expect(page.getByRole("button", { name: T.plan.markUndone }).first()).toBeVisible();
+  // Steps, evidence and submission share one desk in the action card.
+  const desk = actionPanel(page);
+  await desk.getByRole("button", { name: T.plan.markDone }).first().click();
+  await expect(desk.getByRole("button", { name: T.plan.markUndone }).first()).toBeVisible();
 
-  await openTab(page, T.case.evidence);
-  await page.locator('input[type="file"]').first().setInputFiles({
+  await desk.locator('input[type="file"]').first().setInputFiles({
     name: "inventory-count.pdf",
     mimeType: "application/pdf",
     buffer: Buffer.from("%PDF-1.4 e2e inventory evidence"),
   });
-  await page.getByLabel(T.evidenceRegister.description).fill("محضر الجرد الموقع");
-  await page.getByRole("button", { name: T.evidenceRegister.upload }).click();
+  await desk.getByLabel(T.evidenceRegister.description).fill("محضر الجرد الموقع");
+  await desk.getByRole("button", { name: T.evidenceRegister.upload }).click();
   await expect
     .poll(async () => (await apiGet<{ evidence_files: unknown[] }>(request, "audit", `/api/recommendations/${recId}/`)).body.evidence_files.length)
     .toBe(1);
 
-  await openTab(page, T.case.plan);
-  await page.getByRole("button", { name: T.plan.markImplemented }).click();
+  await desk.getByRole("button", { name: T.plan.markImplemented }).click();
   await expectStatus(request, recId, "pending_head_review");
 
   // --- Head: send the implementation to audit -----------------------------

@@ -44,7 +44,7 @@ const DECISION_STYLE = {
   insufficient: "border-danger/25 bg-danger/8 text-danger-dark",
 } as const;
 
-function DecisionRecord({ decision }: { decision: VerificationDecision }) {
+export function DecisionRecord({ decision }: { decision: VerificationDecision }) {
   useI18n();
   const Icon = DECISION_ICON[decision.decision];
   return (
@@ -173,10 +173,13 @@ export function VerificationPanel({
   rec,
   action,
   canVerify,
+  showHistory = true,
 }: {
   rec: RecommendationDetail;
   action?: WorkflowAction;
   canVerify: boolean;
+  /** The workspace shows the history in its own section. */
+  showHistory?: boolean;
 }) {
   useI18n();
   const [decision, setDecision] = useState<Decision>("sufficient");
@@ -193,7 +196,6 @@ export function VerificationPanel({
   const [sendToCouncil, setSendToCouncil] = useState(true);
   const [closureNotes, setClosureNotes] = useState("");
 
-  const decisions = rec.verifications ?? [];
   const outstanding = latestVerification(rec);
   const structuredRequired = decision !== "sufficient";
   const combined = combinedAvailable && decision === "sufficient" && sendToCouncil;
@@ -395,29 +397,37 @@ export function VerificationPanel({
 
       <Callout tone="ai">{T.verify.aiCannotVerify}</Callout>
 
-      {/* Decision history */}
-      <section className="border-t border-line pt-6">
-        <h3 className="mb-4 flex items-center gap-2 font-heading text-[15px] font-bold text-navy">
-          {T.verify.history}
-          <span className="rounded-full bg-primary/10 px-2.5 py-0.5 font-mono text-[11px] font-bold text-primary-dark" dir="ltr">
-            {decisions.length}
-          </span>
-        </h3>
-        {decisions.length ? (
-          <ul className="space-y-3">
-            {[...decisions].reverse().map((item) => (
-              <DecisionRecord key={item.id} decision={item} />
-            ))}
-          </ul>
-        ) : (
-          <EmptyState
-            icon={<ShieldCheck className="size-6" />}
-            title={T.case.noVerificationYet}
-            description={T.verification.dutyNote}
-            className="border-dashed shadow-none"
-          />
-        )}
-      </section>
+      {showHistory ? <VerificationHistory rec={rec} className="border-t border-line pt-6" /> : null}
     </div>
+  );
+}
+
+/** Every verification decision on the case, newest first. */
+export function VerificationHistory({ rec, className }: { rec: RecommendationDetail; className?: string }) {
+  useI18n();
+  const decisions = rec.verifications ?? [];
+  return (
+    <section className={className}>
+      <h3 className="mb-4 flex items-center gap-2 font-heading text-[15px] font-bold text-navy">
+        {T.verify.history}
+        <span className="rounded-full bg-primary/10 px-2.5 py-0.5 font-mono text-[11px] font-bold text-primary-dark" dir="ltr">
+          {decisions.length}
+        </span>
+      </h3>
+      {decisions.length ? (
+        <ul className="space-y-3">
+          {[...decisions].reverse().map((item) => (
+            <DecisionRecord key={item.id} decision={item} />
+          ))}
+        </ul>
+      ) : (
+        <EmptyState
+          icon={<ShieldCheck className="size-6" />}
+          title={T.case.noVerificationYet}
+          description={T.verification.dutyNote}
+          className="border-dashed shadow-none"
+        />
+      )}
+    </section>
   );
 }

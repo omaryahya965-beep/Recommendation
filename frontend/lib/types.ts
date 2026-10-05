@@ -258,7 +258,20 @@ export interface RecommendationDetail extends RecommendationListItem {
   trail: TrailEntry[];
   /** Null only when the response was not built for a signed-in user. */
   workflow: WorkflowBlock | null;
+  /** Deadline reminders the engine sent on this case, newest first. */
+  reminders?: CaseReminder[];
   updated_at: string;
+}
+
+export interface CaseReminder {
+  id: number;
+  recipient: string;
+  recipient_role: string;
+  /** Days relative to the deadline: negative before, 0 on the day, positive after. */
+  offset_days: number;
+  anchor: "plan" | "verification" | "response";
+  deadline: string;
+  sent_at: string;
 }
 
 export interface AuditReport {

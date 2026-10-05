@@ -26,6 +26,7 @@ export function DecisionPanel({
   notesLabel,
   notesHint,
   requireNotesOnReject = true,
+  plain = false,
   children,
 }: {
   title: string;
@@ -37,6 +38,8 @@ export function DecisionPanel({
   notesLabel?: string;
   notesHint?: string;
   requireNotesOnReject?: boolean;
+  /** Render without its own card (inside the workspace action card). */
+  plain?: boolean;
   children?: React.ReactNode;
 }) {
   useI18n();
@@ -59,12 +62,12 @@ export function DecisionPanel({
     setPending(null);
   };
 
-  return (
-    <Card title={title} className="overflow-hidden border-t-4 border-t-primary">
+  const body = (
+    <>
       {intro ? <p className="mb-4 text-[13.5px] leading-relaxed text-ink-soft">{intro}</p> : null}
       {children}
 
-      <div className="mt-5 space-y-4 border-t border-line pt-5">
+      <div className={cn("space-y-4", children ? "mt-5 border-t border-line pt-5" : "mt-1")}>
         <p className="font-heading text-sm font-bold text-navy uppercase tracking-wider">{T.case.officialDecision}</p>
         <Field label={notesLabel ?? T.common.notes}>
           <TextArea rows={4} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder={notesHint} />
@@ -97,6 +100,13 @@ export function DecisionPanel({
         onConfirm={submit}
         onCancel={() => setPending(null)}
       />
+    </>
+  );
+
+  if (plain) return <section aria-label={title}>{body}</section>;
+  return (
+    <Card title={title} className="overflow-hidden border-t-4 border-t-primary">
+      {body}
     </Card>
   );
 }
@@ -173,7 +183,15 @@ export function ResponseComparison({ rec }: { rec: RecommendationDetail }) {
 }
 
 /** Audit accepts the response (sending the report to council) or returns it. */
-export function AuditReviewPanel({ rec, action }: { rec: RecommendationDetail; action: WorkflowAction }) {
+export function AuditReviewPanel({
+  rec,
+  action,
+  plain = false,
+}: {
+  rec: RecommendationDetail;
+  action: WorkflowAction;
+  plain?: boolean;
+}) {
   useI18n();
   return (
     <DecisionPanel
@@ -181,6 +199,7 @@ export function AuditReviewPanel({ rec, action }: { rec: RecommendationDetail; a
       intro={T.auditReview.intro}
       path="review/"
       action={action}
+      plain={plain}
       acceptLabel={T.auditReview.accept}
       rejectLabel={T.auditReview.reject}
       notesLabel={T.auditReview.notes}

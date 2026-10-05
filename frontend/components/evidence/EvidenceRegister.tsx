@@ -1,22 +1,21 @@
 "use client";
 
-import { FileCheck2, FolderOpen, Info, Trash2, Upload } from "lucide-react";
+import { FileCheck2, FolderOpen, Info, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { EvidenceCard } from "@/components/evidence/EvidenceCard";
 import { EvidenceFileActions, evidenceFileName } from "@/components/evidence/EvidenceFileActions";
+import { EvidenceUploadForm } from "@/components/evidence/EvidenceUploadForm";
 import { AIEvidenceAnalysis } from "@/components/ai/AIEvidenceAnalysis";
-import { Button, Callout, ErrorBanner, Field, Select, TextArea } from "@/components/ui/Base";
+import { Button, Callout } from "@/components/ui/Base";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { cn } from "@/lib/cn";
 import { evidenceReviewState, sortSteps, type EvidenceReviewState } from "@/lib/case";
-import { errorMessage, loadAuth } from "@/lib/api";
 import { fileExt, fileNameFromUrl, formatDateTime } from "@/lib/format";
 import type { WorkflowAction } from "@/lib/hooks";
 import { T, useI18n } from "@/lib/i18n";
-import type { Evidence, RecommendationDetail, Role } from "@/lib/types";
-import { FILE_INPUT_ACCEPT, prepareFileSubmission } from "@/lib/upload";
+import type { Evidence, RecommendationDetail } from "@/lib/types";
 
 function reviewStateMeta(state: EvidenceReviewState) {
   const map: Record<EvidenceReviewState, { label: string; className: string }> = {
@@ -38,13 +37,6 @@ function reviewStateMeta(state: EvidenceReviewState) {
     },
   };
   return map[state];
-}
-
-function canRemoveFile(evidence: Evidence, canUpload: boolean, role: Role, userId?: number) {
-  if (!canUpload) return false;
-  if (role === "department_head") return true;
-  if (role === "employee") return evidence.uploaded_by_detail?.id === userId;
-  return false;
 }
 
 function EvidenceItem({
@@ -187,76 +179,33 @@ function EvidenceItem({
 }
 
 /**
- * Evidence register as a ledger. Upload is never verification.
+ * Evidence register as a ledger. Upload is never verification. Whether a
+ * file may be deleted is the server's answer (`can_delete`), which applies
+ * the same rule as the delete endpoint.
  */
 export function EvidenceRegister({
   rec,
-  role,
   canUpload,
+  showUploadForm = canUpload,
   canAnalyze,
   action,
 }: {
   rec: RecommendationDetail;
-  role: Role;
+  /** The user may attach evidence now (here or elsewhere on the page). */
   canUpload: boolean;
+  /** Show the upload form above the list (off when a desk above holds it). */
+  showUploadForm?: boolean;
   canAnalyze: boolean;
   action?: WorkflowAction;
 }) {
   useI18n();
-  const [file, setFile] = useState<File | null>(null);
-  const [step, setStep] = useState("");
-  const [notes, setNotes] = useState("");
-  const [localError, setLocalError] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Evidence | null>(null);
 
   const steps = sortSteps(rec.action_plan?.steps ?? []);
   const stepTitles = new Map(steps.map((item) => [item.id, item.title]));
   const files = rec.evidence_files ?? [];
-  const userId = loadAuth()?.user.id;
-  const canDeleteAny =
-    Boolean(action) && files.some((item) => canRemoveFile(item, canUpload, role, userId));
+  const deletable = (item: Evidence) => Boolean(action && item.can_delete);
   const actionColSpan = 8;
-
-  const removeFile = (evidence: Evidence) => {
-    if (!action || !canRemoveFile(evidence, canUpload, role, userId)) return;
-    setPendingDelete(evidence);
-  };
-
-  const upload = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!file || !action) {
-      setLocalError(T.common.required);
-      return;
-    }
-    setLocalError(null);
-    setUploading(true);
-    try {
-      const payload = await prepareFileSubmission({
-        file,
-        purpose: "evidence",
-        fileFieldName: "file",
-        extraFields: {
-          ...(step ? { step } : {}),
-          ...(notes.trim() ? { notes: notes.trim() } : {}),
-        },
-      });
-      action.mutation.mutate(
-        { path: "evidence/", ...payload },
-        {
-          onSuccess: () => {
-            setFile(null);
-            setNotes("");
-            setStep("");
-          },
-          onSettled: () => setUploading(false),
-        }
-      );
-    } catch (err) {
-      setUploading(false);
-      setLocalError(errorMessage(err));
-    }
-  };
 
   return (
     <div className="space-y-5">
@@ -264,49 +213,11 @@ export function EvidenceRegister({
         {T.evidenceRegister.uploadNotVerify}
       </Callout>
 
-      {canUpload && action ? (
-        <form onSubmit={upload} className="space-y-4 border-b border-line pb-5">
+      {showUploadForm && action ? (
+        <section className="space-y-3 border-b border-line pb-5">
           <h3 className="font-heading text-sm font-semibold text-navy">{T.evidenceRegister.uploadTitle}</h3>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Field label={T.evidenceRegister.file}>
-              <input
-                type="file"
-                accept={FILE_INPUT_ACCEPT}
-                onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-                required
-                className="block min-h-12 w-full border border-line bg-surface px-3 py-3 text-base file:me-3 file:min-h-11 file:border-0 file:bg-subtle file:px-3 file:py-2 file:text-sm file:text-ink"
-              />
-              <p className="mt-1 text-xs text-muted">
-                {T.evidenceRegister.allowedTypes} · {T.evidenceRegister.maxSize}
-              </p>
-            </Field>
-            {steps.length ? (
-              <Field label={T.evidenceRegister.linkStep}>
-                <Select value={step} onChange={(event) => setStep(event.target.value)}>
-                  <option value="">{T.evidenceRegister.noStep}</option>
-                  {steps.map((item, index) => (
-                    <option key={item.id} value={item.id}>
-                      {String(index + 1).padStart(2, "0")} {item.title}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-            ) : null}
-          </div>
-          <Field label={T.evidenceRegister.description}>
-            <TextArea
-              rows={3}
-              value={notes}
-              onChange={(event) => setNotes(event.target.value)}
-              placeholder={T.evidenceRegister.descriptionHint}
-            />
-          </Field>
-          <ErrorBanner message={localError ?? action.error} />
-          <Button type="submit" disabled={action.mutation.isPending || uploading || !file} className="min-h-12 w-full md:w-auto">
-            <Upload className="size-4" />
-            {uploading || action.mutation.isPending ? T.common.uploading : T.evidenceRegister.upload}
-          </Button>
-        </form>
+          <EvidenceUploadForm rec={rec} action={action} />
+        </section>
       ) : null}
 
       <section>
@@ -324,12 +235,12 @@ export function EvidenceRegister({
               {files.map((item) => (
                 <li key={item.id}>
                   <EvidenceCard evidence={item} showAnalysis={canAnalyze} />
-                  {canRemoveFile(item, canUpload, role, userId) ? (
+                  {deletable(item) ? (
                     <Button
                       type="button"
                       variant="ghost"
                       className="mt-2 min-h-11 w-full"
-                      onClick={() => removeFile(item)}
+                      onClick={() => setPendingDelete(item)}
                     >
                       <Trash2 className="size-4" />
                       {T.common.delete}
@@ -339,51 +250,51 @@ export function EvidenceRegister({
               ))}
             </ul>
             <div className="hidden scrollbar-thin overflow-x-auto md:block">
-            <table className="w-full min-w-[52rem] border-collapse text-[13px]">
-              <thead>
-                <tr className="border-y border-line bg-subtle/50 text-start text-[11.5px] font-medium text-ink-soft">
-                  <th scope="col" className="px-4 py-2 text-start font-medium">
-                    {T.evidenceRegister.file}
-                  </th>
-                  <th scope="col" className="px-3 py-2 text-start font-medium">
-                    {T.evidenceRegister.linkedTo}
-                  </th>
-                  <th scope="col" className="px-3 py-2 text-start font-medium">
-                    {T.evidenceRegister.uploadedBy}
-                  </th>
-                  <th scope="col" className="px-3 py-2 text-start font-medium">
-                    {T.common.date}
-                  </th>
-                  <th scope="col" className="px-3 py-2 text-start font-medium">
-                    {T.evidenceRegister.fileType}
-                  </th>
-                  <th scope="col" className="px-3 py-2 text-start font-medium">
-                    {T.evidenceRegister.proves}
-                  </th>
-                  <th scope="col" className="px-4 py-2 text-start font-medium">
-                    {T.common.status}
-                  </th>
-                  <th scope="col" className="px-3 py-2 text-start font-medium">
-                    {T.common.actions}
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line">
-                {files.map((item) => (
-                  <EvidenceItem
-                    key={item.id}
-                    evidence={item}
-                    stepTitle={item.step ? stepTitles.get(item.step) : undefined}
-                    reviewState={evidenceReviewState(item.uploaded_at, rec)}
-                    canAnalyze={canAnalyze}
-                    canDelete={canRemoveFile(item, canUpload, role, userId)}
-                    deleting={Boolean(action?.mutation.isPending)}
-                    onDelete={canDeleteAny ? () => removeFile(item) : undefined}
-                    actionColSpan={actionColSpan}
-                  />
-                ))}
-              </tbody>
-            </table>
+              <table className="w-full min-w-[52rem] border-collapse text-[13px]">
+                <thead>
+                  <tr className="border-y border-line bg-subtle/50 text-start text-[11.5px] font-medium text-ink-soft">
+                    <th scope="col" className="px-4 py-2 text-start font-medium">
+                      {T.evidenceRegister.file}
+                    </th>
+                    <th scope="col" className="px-3 py-2 text-start font-medium">
+                      {T.evidenceRegister.linkedTo}
+                    </th>
+                    <th scope="col" className="px-3 py-2 text-start font-medium">
+                      {T.evidenceRegister.uploadedBy}
+                    </th>
+                    <th scope="col" className="px-3 py-2 text-start font-medium">
+                      {T.common.date}
+                    </th>
+                    <th scope="col" className="px-3 py-2 text-start font-medium">
+                      {T.evidenceRegister.fileType}
+                    </th>
+                    <th scope="col" className="px-3 py-2 text-start font-medium">
+                      {T.evidenceRegister.proves}
+                    </th>
+                    <th scope="col" className="px-4 py-2 text-start font-medium">
+                      {T.common.status}
+                    </th>
+                    <th scope="col" className="px-3 py-2 text-start font-medium">
+                      {T.common.actions}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {files.map((item) => (
+                    <EvidenceItem
+                      key={item.id}
+                      evidence={item}
+                      stepTitle={item.step ? stepTitles.get(item.step) : undefined}
+                      reviewState={evidenceReviewState(item.uploaded_at, rec)}
+                      canAnalyze={canAnalyze}
+                      canDelete={deletable(item)}
+                      deleting={Boolean(action?.mutation.isPending)}
+                      onDelete={() => setPendingDelete(item)}
+                      actionColSpan={actionColSpan}
+                    />
+                  ))}
+                </tbody>
+              </table>
             </div>
           </>
         ) : (

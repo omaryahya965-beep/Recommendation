@@ -4,7 +4,7 @@ import { T } from "../lib/i18n/ar";
 import { apiGet, findReport } from "./support/api";
 import { signIn } from "./support/auth";
 import { FIXTURES, uniqueSuffix } from "./support/env";
-import { openCase } from "./support/workspace";
+import { actionPanel, openCase } from "./support/workspace";
 
 test("audit edits a draft recommendation before issuing the report", async ({ page, request }) => {
   const draftReport = await findReport(request, "audit", FIXTURES.financeDraft);
@@ -18,7 +18,7 @@ test("audit edits a draft recommendation before issuing the report", async ({ pa
 
   await signIn(page, request, "audit");
   await openCase(page, "audit", recId);
-  await page.getByRole("button", { name: T.create.editAction }).click();
+  await actionPanel(page).getByRole("link", { name: T.create.editAction }).click();
   await expect(page).toHaveURL(new RegExp(`/audit/recommendations/${recId}/edit`));
 
   await page.getByLabel(T.create.findingTitle).fill(newTitle);

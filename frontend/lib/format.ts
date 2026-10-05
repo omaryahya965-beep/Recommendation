@@ -53,6 +53,22 @@ export function formatDate(value: string | null | undefined): string {
   );
 }
 
+/** "5 Oct" (this year) or "5 Oct 2025" — for dense timelines. */
+export function formatShortDate(value: string | null | undefined): string {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const sameYear = date.getFullYear() === new Date().getFullYear();
+  return isolate(
+    date.toLocaleDateString(localeDateTag(getLocale()), {
+      day: "numeric",
+      month: getLocale() === "ar" ? "long" : "short",
+      ...(sameYear ? {} : { year: "numeric" as const }),
+      numberingSystem: "latn",
+    })
+  );
+}
+
 /** "سبتمبر 2026" / "Sep 2026" for a YYYY-MM-DD month key. */
 export function formatMonth(value: string, style: "short" | "long" = "short"): string {
   const [year, month] = value.split("-").map(Number);
