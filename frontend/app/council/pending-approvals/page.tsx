@@ -4,10 +4,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronUp, ClipboardCheck, ClipboardList, FileCheck2, Gavel, Stamp } from "lucide-react";
 import { useState } from "react";
 
-import { type ActionSource } from "@/components/dashboard/AttentionBoard";
+import { queueLabel, type ActionSource } from "@/components/dashboard/queues";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { ActionNow } from "@/components/home/ActionNow";
 import { HomeHero } from "@/components/home/HomeHero";
+import { PriorityMetrics } from "@/components/home/PriorityMetrics";
+import { QueuePanel } from "@/components/home/Queues";
+import { DecisionFeed } from "@/components/home/RoleBlocks";
 import { RecommendationTable } from "@/components/RecommendationTable";
 import { Button, Callout, ErrorBanner, Field, TextArea } from "@/components/ui/Base";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -168,19 +171,29 @@ export default function PendingApprovalsPage() {
   }
 
   const pendingReports = data ?? [];
-  const sources: ActionSource[] = dashboard?.action_center.closures_pending
-    ? [
-        {
-          key: "closures_pending",
-          block: dashboard.action_center.closures_pending,
-          href: "/council/closure-reviews",
-        },
-      ]
+  const closures = dashboard?.action_center.closures_pending;
+  const sources: ActionSource[] = closures
+    ? [{ key: "closures_pending", block: closures, href: "/council/closure-reviews" }]
     : [];
 
   return (
     <div className="animate-fade-in space-y-5">
       {hero}
+
+      {dashboard ? (
+        <PriorityMetrics
+          items={[
+            {
+              label: queueLabel("reports_pending_ratification"),
+              value: pendingReports.length,
+              href: "/council/pending-approvals",
+              tone: "warning",
+            },
+            { label: queueLabel("closures_pending"), value: closures?.count ?? 0, href: "/council/closure-reviews", tone: "warning" },
+            { label: T.home.reopened, value: dashboard.reopened?.count ?? 0, href: `${BASE}?status=reopened`, tone: "primary" },
+          ]}
+        />
+      ) : null}
 
       <Section title={T.dashboard.decisionCenter} hint={T.dashboard.decisionCenterHint}>
         {pendingReports.length ? (
@@ -207,7 +220,21 @@ export default function PendingApprovalsPage() {
         hint={T.dashboard.closureQueueHint}
       />
 
-      <RecentActivity detailBase={BASE} />
+      {dashboard ? (
+        <div className="grid min-w-0 grid-cols-1 items-start gap-4 lg:grid-cols-2">
+          <DecisionFeed decisions={dashboard.recent_decisions ?? []} detailBase={BASE} />
+          <QueuePanel
+            title={T.home.reopened}
+            hint={T.home.reopenedHint}
+            block={dashboard.reopened}
+            href={`${BASE}?status=reopened`}
+            detailBase={BASE}
+            emptyLabel={T.home.noReopened}
+          />
+        </div>
+      ) : null}
+
+      <RecentActivity detailBase={BASE} compact />
     </div>
   );
 }

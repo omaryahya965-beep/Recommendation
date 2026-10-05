@@ -94,10 +94,10 @@ class RecommendationFilterSet(filters.FilterSet):
     )
     # Business-stage views of the workflow (ten stages, not nineteen statuses).
     stage = filters.CharFilter(method="filter_stage")
-    waiting_on = filters.ChoiceFilter(
-        method="filter_waiting_on",
-        choices=[(side, side) for side in ("department", "audit", "council", "none")],
-    )
+    # One side or several, comma-separated (e.g. "audit,council").
+    waiting_on = filters.CharFilter(method="filter_waiting_on")
+    # In the current status for more than N days.
+    waiting_over = filters.NumberFilter(method="filter_waiting_over")
     my_turn = filters.BooleanFilter(method="filter_my_turn")
     response_overdue = filters.BooleanFilter(method="filter_response_overdue")
     due_within = filters.NumberFilter(method="filter_due_within")
@@ -117,6 +117,7 @@ class RecommendationFilterSet(filters.FilterSet):
             "responsible_employee",
             "stage",
             "waiting_on",
+            "waiting_over",
             "my_turn",
             "response_overdue",
             "due_within",
@@ -138,10 +139,30 @@ class RecommendationFilterSet(filters.FilterSet):
         statuses = statuses_for_stage(value)
         return queryset.filter(status__in=statuses) if statuses else queryset.none()
 
+    WAITING_SIDES = ("department", "audit", "council", "none")
+
     def filter_waiting_on(self, queryset, name, value):
+        from rest_framework.exceptions import ValidationError
+
         from apps.workflow.presentation import waiting_on_q
 
-        return queryset.filter(waiting_on_q(value)) if value else queryset
+        sides = [side.strip() for side in (value or "").split(",") if side.strip()]
+        if not sides:
+            return queryset
+        unknown = [side for side in sides if side not in self.WAITING_SIDES]
+        if unknown:
+            raise ValidationError({"waiting_on": [f"Unknown side: {', '.join(unknown)}."]})
+        condition = Q()
+        for side in sides:
+            condition |= waiting_on_q(side)
+        return queryset.filter(condition)
+
+    def filter_waiting_over(self, queryset, name, value):
+        from apps.workflow.presentation import annotate_workflow, waiting_longer_than_q
+
+        if value is None:
+            return queryset
+        return annotate_workflow(queryset).filter(waiting_longer_than_q(max(0, int(value))))
 
     def filter_my_turn(self, queryset, name, value):
         from apps.workflow.presentation import my_turn_q

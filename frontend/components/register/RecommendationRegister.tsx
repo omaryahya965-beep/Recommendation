@@ -209,6 +209,62 @@ export function RecommendationRegister(props: {
   );
 }
 
+/** Filters that arrive from dashboard links; the API evaluates them with the same rules as the badges. */
+const LINK_FILTERS = [
+  "status__in",
+  "waiting_on",
+  "waiting_over",
+  "my_turn",
+  "response_overdue",
+  "due_within",
+  "report",
+  "responsible_employee",
+  "open",
+  "recurrence_confirmed",
+] as const;
+
+/** A removable chip for each dashboard-link filter, so a filtered list says why. */
+function linkFilterChips(searchParams: URLSearchParams): Array<{ key: string; label: string }> {
+  const chips: Array<{ key: string; label: string }> = [];
+  const value = (key: string) => searchParams.get(key);
+  const statuses = value("status__in");
+  if (statuses) {
+    chips.push({
+      key: "status__in",
+      label: T.register.chipStatuses.replace(
+        "{list}",
+        statuses
+          .split(",")
+          .map((item) => STATUS_LABELS[item] ?? item)
+          .join(T.register.listSeparator)
+      ),
+    });
+  }
+  const sides = value("waiting_on");
+  if (sides) {
+    const who = sides
+      .split(",")
+      .map((side) => T.workflow.waitingOn[side as keyof typeof T.workflow.waitingOn] ?? side)
+      .join(T.register.listSeparator);
+    chips.push({ key: "waiting_on", label: T.register.chipWaitingOn.replace("{who}", who) });
+  }
+  if (value("waiting_over")) {
+    chips.push({ key: "waiting_over", label: T.register.chipWaitingOver.replace("{days}", value("waiting_over")!) });
+  }
+  if (value("due_within")) {
+    chips.push({ key: "due_within", label: T.register.chipDueWithin.replace("{days}", value("due_within")!) });
+  }
+  if (value("responsible_employee")) chips.push({ key: "responsible_employee", label: T.register.chipEmployee });
+  if (value("open") === "true") chips.push({ key: "open", label: T.register.chipOpen });
+  if (value("my_turn") === "true") chips.push({ key: "my_turn", label: T.register.chipMyTurn });
+  if (value("response_overdue") === "true") chips.push({ key: "response_overdue", label: T.register.chipResponseLate });
+  if (value("report")) chips.push({ key: "report", label: T.register.chipReport });
+  if (value("recurrence_confirmed") === "false") {
+    chips.push({ key: "recurrence_confirmed", label: T.register.chipUnconfirmedRecurrence });
+  }
+  return chips;
+}
+
 function RegisterInner({
   detailBase,
   showDepartmentFilter = false,
@@ -283,7 +339,7 @@ function RegisterInner({
       query.set("stage", stage);
     }
     // Queue links from the dashboards (evaluated by the API, same rules as the badges).
-    for (const key of ["waiting_on", "my_turn", "response_overdue", "due_within", "report", "responsible_employee"]) {
+    for (const key of LINK_FILTERS) {
       const value = searchParams.get(key);
       if (value) query.set(key, value);
     }
@@ -293,7 +349,6 @@ function RegisterInner({
     if (recurringOnly) query.set("is_recurring", "true");
     // Evaluated in SQL so the count and pagination are correct.
     if (overdueOnly) query.set("overdue", "true");
-    if (searchParams.get("open") === "true") query.set("open", "true");
     query.set("ordering", ordering);
     query.set("page", String(page));
     return query;
@@ -341,6 +396,7 @@ function RegisterInner({
     search ? { key: "search", label: `"${search}"` } : null,
     overdueOnly ? { key: "overdue", label: T.filters.overdueOnly } : null,
     recurringOnly ? { key: "is_recurring", label: T.filters.recurringOnly } : null,
+    ...linkFilterChips(searchParams),
   ].filter(Boolean) as Array<{ key: string; label: string }>;
 
   // Exports the complete filtered result set from the server (not just this page).

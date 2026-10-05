@@ -19,6 +19,8 @@ the constants below; tests pin them to each other.
 """
 from __future__ import annotations
 
+from datetime import datetime, time, timedelta
+
 from django.db.models import Case, DateField, F, OuterRef, Q, Subquery, Value, When
 from django.db.models.fields.json import KT
 from django.db.models.functions import Coalesce
@@ -233,6 +235,14 @@ def overdue_q(today=None) -> Q:
     """Department overdue, for an `annotate_workflow` queryset."""
     today = today or timezone.localdate()
     return Q(status__in=DEPARTMENT_DEADLINE_STATUSES, binding_deadline__lt=today)
+
+
+def waiting_longer_than_q(days: int, today=None) -> Q:
+    """In the current status for more than `days` days (the same local-date
+    arithmetic as `days_waiting`), for an `annotate_workflow` queryset."""
+    today = today or timezone.localdate()
+    cutoff = timezone.make_aware(datetime.combine(today - timedelta(days=days), time.min))
+    return Q(status_entered_at__lt=cutoff)
 
 
 def waiting_on_q(side: str) -> Q:

@@ -4,10 +4,10 @@ import { CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
-import { queueLabel, rank, type ActionSource } from "@/components/dashboard/AttentionBoard";
+import { queueLabel, rank, type ActionSource } from "@/components/dashboard/queues";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { RecordId } from "@/components/ui/Ledger";
-import { OverdueBadge } from "@/components/ui/OverdueBadge";
+import { CaseDue } from "@/components/home/Queues";
 import { RiskBadge } from "@/components/ui/RiskBadge";
 import { Section } from "@/components/ui/Section";
 import { cn } from "@/lib/cn";
@@ -106,7 +106,7 @@ export function ActionNow({
                       <div className="flex flex-wrap items-center gap-2">
                         <RecordId id={item.id} />
                         <span className="rounded bg-navy/5 px-2 py-0.5 text-[12px] font-bold text-navy/70">{reason}</span>
-                        <OverdueBadge targetDate={item.target_date} overdue={item.overdue} />
+                        <CaseDue item={item} />
                       </div>
                       <p className="mt-2 text-[14px] font-bold text-primary-dark">{next?.action ?? T.dashboard.open}</p>
                       <Link
@@ -122,7 +122,7 @@ export function ActionNow({
                         <span className="text-muted/50">•</span>
                         <span>{stage.label}</span>
                         <span className="text-muted/50">•</span>
-                        <span className="font-mono text-muted" dir="ltr">{formatDate(item.target_date)}</span>
+                        <span className="font-mono text-muted" dir="ltr">{formatDate(item.deadline)}</span>
                       </div>
                     </div>
                     <div className="flex shrink-0 items-center justify-between gap-3 sm:flex-col sm:items-end">

@@ -475,12 +475,51 @@ export interface DashboardStats {
   by_risk: Record<string, number>;
 }
 
+/** A report row in a dashboard block (ready for council, drafts, to ratify). */
+export interface DashboardReport {
+  id: number;
+  title: string;
+  department_name: string;
+  engagement_type: "assurance" | "advisory";
+  recommendations_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CouncilDecision {
+  id: number;
+  kind: "ratified" | "closed" | "reopened";
+  recommendation: { id: number; title: string } | null;
+  report: { id: number; title: string } | null;
+  by: string;
+  notes: string;
+  at: string;
+}
+
+/** /api/dashboard/ (version 2). Every count equals the register list it links to. */
 export interface DashboardData {
   role: Role;
-  action_center: Record<string, ActionCenterBlock<never>> & Record<string, ActionCenterBlock>;
+  version: number;
+  generated_at: string;
+  action_center: Record<string, ActionCenterBlock>;
   stats: DashboardStats;
+  // Internal audit
+  reports_ready_for_council?: ActionCenterBlock<DashboardReport>;
+  draft_reports?: ActionCenterBlock<DashboardReport>;
+  late_in_audit_queue?: ActionCenterBlock & { threshold_days: number };
+  high_risk_stale?: ActionCenterBlock & { threshold_days: number };
+  overdue_by_department?: Array<{ department: { id: number; name: string }; open: number; overdue: number }>;
+  // Department head
+  due_soon?: ActionCenterBlock;
+  waiting_on_others?: ActionCenterBlock;
   in_execution?: ActionCenterBlock;
+  team?: Array<{ employee: { id: number; name: string }; open: number; overdue: number }>;
+  // Employee
   active_tasks?: ActionCenterBlock;
+  next_deadline?: string | null;
+  // Council
+  reopened?: ActionCenterBlock;
+  recent_decisions?: CouncilDecision[];
 }
 
 export interface AIAnalysisEnvelope {

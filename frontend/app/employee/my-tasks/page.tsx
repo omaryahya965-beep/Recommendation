@@ -1,25 +1,33 @@
 "use client";
 
-import { ClipboardList } from "lucide-react";
+import { CalendarClock, CheckCircle2, ClipboardList } from "lucide-react";
 import Link from "next/link";
 
-import { rank, splitDue, type ActionSource } from "@/components/dashboard/AttentionBoard";
+import { rank, type ActionSource } from "@/components/dashboard/queues";
 import { EmployeeEvidence, EmployeePlans } from "@/components/dashboard/EmployeeDesk";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
-import { ActionNow } from "@/components/home/ActionNow";
 import { HomeHero } from "@/components/home/HomeHero";
+import { CaseDue, QueuePanel } from "@/components/home/Queues";
 import { ErrorBanner } from "@/components/ui/Base";
 import { DashboardBodySkeleton } from "@/components/ui/EmptyState";
 import { RecordId } from "@/components/ui/Ledger";
-import { OverdueBadge } from "@/components/ui/OverdueBadge";
 import { RiskBadge } from "@/components/ui/RiskBadge";
-import { useDashboard } from "@/lib/hooks";
 import { clipTitle } from "@/lib/finding";
+import { formatDate } from "@/lib/format";
+import { useDashboard } from "@/lib/hooks";
 import { T, useI18n } from "@/lib/i18n";
 import { STATUS_NEXT_ACTION } from "@/lib/workflow";
 
 const HOME = "/employee/my-tasks";
 const REGISTER = "/employee/recommendations";
+
+/** Every link opens the register with the filter the server used for the count. */
+const LINKS = {
+  returned: `${REGISTER}?status__in=returned_insufficient,partial,reopened`,
+  overdue: `${REGISTER}?overdue=1`,
+  upcoming: `${REGISTER}?due_within=30`,
+  reviewing: `${REGISTER}?status__in=pending_head_review,submitted_for_verification,closure_review,pending_closure_council`,
+};
 
 export default function MyTasksPage() {
   useI18n();
@@ -46,61 +54,127 @@ export default function MyTasksPage() {
     );
   }
 
-  const sources: ActionSource[] = [];
-  const overdue = data.action_center.overdue;
-  if (overdue) sources.push({ key: "overdue", block: overdue, href: REGISTER });
-  const returned = data.action_center.returned_for_more_evidence;
-  if (returned) sources.push({ key: "returned_for_more_evidence", block: returned, href: REGISTER });
-  sources.push(...splitDue(data.action_center.upcoming_deadlines, REGISTER));
-  const waiting = data.action_center.waiting_head_review;
-  if (waiting) sources.push({ key: "waiting_head_review", block: waiting, href: REGISTER });
-
-  const tasks = data.active_tasks?.items ?? [];
+  const center = data.action_center;
+  const sources: ActionSource[] = [
+    { key: "returned_for_more_evidence", block: center.returned_for_more_evidence, href: LINKS.returned },
+    { key: "overdue", block: center.overdue, href: LINKS.overdue },
+    { key: "upcoming_deadlines", block: center.upcoming_deadlines, href: LINKS.upcoming },
+  ].filter((source) => source.block);
   const next = rank(sources)[0];
   const nextAction = next ? STATUS_NEXT_ACTION[next.item.status] : null;
+  const tasks = data.active_tasks?.items ?? [];
 
   return (
     <div className="animate-fade-in space-y-5">
       {hero}
 
       {next ? (
-        <section className="section-elevated border-transparent bg-gradient-to-br from-inverse via-inverse to-[#1a4b66] p-5 md:p-6 text-on-inverse shadow-[0_8px_32px_rgba(24,59,78,0.25)] relative overflow-hidden">
-          <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.03)_50%,transparent_75%)] bg-[length:250%_250%] animate-[shimmer_8s_linear_infinite]" aria-hidden />
-          <div className="relative z-10">
-            <p className="text-[13px] font-bold text-white/70 uppercase tracking-wide">{T.workflow.actNow}</p>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <RecordId id={next.item.id} />
-              <RiskBadge level={next.item.risk_level} />
-              <OverdueBadge targetDate={next.item.target_date} overdue={next.item.overdue} />
-            </div>
-            <h2 className="mt-4 font-heading text-[1.375rem] font-bold leading-snug drop-shadow-sm">
-              {nextAction?.action ?? T.dashboard.open}
-            </h2>
-            <p className="mt-2 text-[15px] leading-relaxed text-white/90">{clipTitle(next.item.title, 140)}</p>
-            <Link
-              href={`${HOME}/${next.item.id}`}
-              className="mt-5 flex min-h-12 w-full sm:w-auto sm:px-8 sm:inline-flex items-center justify-center rounded-lg bg-white text-[15px] font-bold text-inverse shadow-md transition-all hover:bg-white/90 hover:shadow-lg active:scale-95"
-            >
-              {T.dashboard.open}
-            </Link>
+        <section
+          className="rounded-2xl bg-inverse p-5 text-on-inverse shadow-sm md:p-6"
+          aria-labelledby="next-task-title"
+          data-testid="next-task"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-[12px] font-bold uppercase tracking-wider text-white/65">{T.workflow.actNow}</p>
+            <p className="text-[12.5px] text-white/75">
+              {T.home.taskCounts
+                .replace("{active}", String(data.active_tasks?.count ?? 0))
+                .replace("{returned}", String(center.returned_for_more_evidence?.count ?? 0))
+                .replace("{overdue}", String(center.overdue?.count ?? 0))}
+            </p>
           </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <RecordId id={next.item.id} />
+            <RiskBadge level={next.item.risk_level} />
+            <CaseDue item={next.item} />
+          </div>
+          <h2 id="next-task-title" className="mt-3 font-heading text-xl font-bold leading-snug text-white">
+            {nextAction?.action ?? T.dashboard.open}
+          </h2>
+          <p className="mt-1.5 text-[14.5px] leading-relaxed text-white/85">{clipTitle(next.item.title, 140)}</p>
+          <Link
+            href={`${HOME}/${next.item.id}`}
+            className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-white px-8 text-[15px] font-bold text-navy shadow-sm hover:bg-white/90 sm:w-auto"
+          >
+            {T.dashboard.open}
+          </Link>
         </section>
-      ) : null}
+      ) : (
+        <section className="flex items-center gap-4 rounded-2xl border border-success/25 bg-success-light/40 p-5" data-testid="all-clear">
+          <CheckCircle2 className="size-8 shrink-0 text-success-dark" aria-hidden />
+          <div className="min-w-0 flex-1">
+            <p className="font-heading text-[16px] font-bold text-success-dark">{T.home.allClear}</p>
+            <p className="text-[13px] text-ink-soft">{T.home.allClearHint}</p>
+          </div>
+          <p className="hidden shrink-0 items-center gap-1.5 text-[12.5px] text-ink-soft sm:inline-flex">
+            <CalendarClock className="size-4" aria-hidden />
+            {T.home.nextDeadline}:{" "}
+            <span className="font-mono font-semibold text-ink" dir="ltr">
+              {data.next_deadline ? formatDate(data.next_deadline) : T.home.noNextDeadline}
+            </span>
+          </p>
+        </section>
+      )}
 
-      <ActionNow
-        sources={sources}
+      <div className="grid min-w-0 grid-cols-1 items-start gap-4 lg:grid-cols-2">
+        <QueuePanel
+          title={T.home.returnedWork}
+          block={center.returned_for_more_evidence}
+          href={LINKS.returned}
+          detailBase={HOME}
+          showDepartment={false}
+          tone="danger"
+          emptyLabel={T.dashboard.queueEmpty}
+          testId="returned-work"
+        />
+        <QueuePanel
+          title={T.home.overdueWork}
+          block={center.overdue}
+          href={LINKS.overdue}
+          detailBase={HOME}
+          showDepartment={false}
+          tone="danger"
+          emptyLabel={T.dashboard.queueEmpty}
+        />
+        <QueuePanel
+          title={T.home.dueWork}
+          block={center.upcoming_deadlines}
+          href={LINKS.upcoming}
+          detailBase={HOME}
+          showDepartment={false}
+          tone="warning"
+          emptyLabel={T.dashboard.queueEmpty}
+        />
+        <QueuePanel
+          title={T.home.waitingOnReviewers}
+          hint={T.home.waitingOnReviewersHint}
+          block={data.waiting_on_others}
+          href={LINKS.reviewing}
+          detailBase={HOME}
+          meta="waiting"
+          showDepartment={false}
+          emptyLabel={T.home.noWaitingOnReviewers}
+        />
+      </div>
+
+      <QueuePanel
+        title={T.home.activeTasks}
+        hint={T.home.activeTasksHint}
+        block={data.active_tasks}
+        href={REGISTER}
         detailBase={HOME}
-        viewAllHref={REGISTER}
-        title={T.dashboard.myActions}
-        hint={T.dashboard.myActionsHint}
+        showDepartment={false}
+        limit={10}
+        emptyLabel={T.home.noActiveTasks}
+        testId="active-tasks"
       />
-
-      <RecentActivity detailBase={HOME} compact />
 
       <div className="grid items-stretch gap-4 xl:grid-cols-2">
         <EmployeePlans items={tasks} detailBase={HOME} />
         <EmployeeEvidence items={tasks} detailBase={HOME} />
       </div>
+
+      <RecentActivity detailBase={HOME} compact />
     </div>
   );
 }

@@ -5,6 +5,15 @@ import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { useI18n } from "@/lib/i18n";
 
+// Static class names (Tailwind cannot see computed ones): the row fills its width.
+const COLUMNS: Record<number, string> = {
+  1: "sm:grid-cols-1",
+  2: "sm:grid-cols-2",
+  3: "sm:grid-cols-3",
+  4: "sm:grid-cols-2 md:grid-cols-4",
+  5: "sm:grid-cols-3 md:grid-cols-5",
+};
+
 export function PriorityMetrics({
   items,
 }: {
@@ -19,7 +28,12 @@ export function PriorityMetrics({
   if (!items.length) return null;
 
   return (
-    <ul className="snap-scroll-x flex min-w-0 gap-3 overflow-x-auto overscroll-x-contain pb-2 sm:grid sm:grid-cols-3 sm:overflow-visible md:grid-cols-5">
+    <ul
+      className={cn(
+        "snap-scroll-x flex min-w-0 gap-3 overflow-x-auto overscroll-x-contain pb-2 sm:grid sm:overflow-visible",
+        COLUMNS[Math.min(items.length, 5)]
+      )}
+    >
       {items.map((item) => (
         <li key={item.label} className="w-[10.5rem] shrink-0 sm:w-auto sm:min-w-0">
           <Link

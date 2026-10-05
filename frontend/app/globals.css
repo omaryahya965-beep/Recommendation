@@ -381,11 +381,6 @@ select {
 
 /* Dashboard visual redesign utilities */
 
-@keyframes pulse-accent {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
 @keyframes subtle-lift {
   from { transform: translateY(0); }
   to { transform: translateY(-2px); }
@@ -402,8 +397,10 @@ select {
 .kpi-accent-danger {
   border-inline-start: 4px solid var(--color-danger);
 }
+/* A live danger count is emphasised by a heavier accent, never by motion:
+   a pulsing tile reads as disabled half the time. */
 .kpi-accent-danger.kpi-active {
-  animation: pulse-accent 2s ease-in-out infinite;
+  border-inline-start-width: 6px;
 }
 .kpi-accent-warning {
   border-inline-start: 4px solid var(--color-warning);
