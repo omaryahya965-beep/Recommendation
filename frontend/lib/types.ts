@@ -325,24 +325,90 @@ export interface WorkflowPolicy {
   require_plan_with_response: boolean;
 }
 
+export interface FollowUpItem {
+  id: number;
+  reference?: string;
+  /** v2: derived title/excerpt. v1 snapshots carry only the full text. */
+  title?: string;
+  excerpt?: string;
+  text?: string;
+  department: string;
+  department_id?: number;
+  report: string;
+  report_id?: number;
+  engagement_type?: "assurance" | "advisory";
+  risk_level: "high" | "medium" | "low";
+  /** v2: the status at the end of the period. v1: at generation time. */
+  status: RecommendationStatus;
+  status_label?: string;
+  stage?: StageId;
+  status_now?: RecommendationStatus;
+  is_recurring: boolean;
+  responsible: string | null;
+  target_date: string | null;
+  deadline?: string | null;
+  deadline_source?: DeadlineSource | null;
+  overdue: boolean;
+  days_overdue?: number;
+  became_overdue?: boolean;
+  response_overdue?: boolean;
+  late_in_review?: boolean;
+  issued_at?: string | null;
+  issued_in_period?: boolean;
+  open_at_start?: boolean;
+  closed_at?: string | null;
+  closed_in_period?: boolean;
+  resolution?: string;
+  history_incomplete?: boolean;
+}
+
+export interface FollowUpDepartmentRow {
+  department: number;
+  name: string;
+  total: number;
+  open: number;
+  closed_in_period: number;
+  overdue: number;
+  overdue_rate: number;
+  median_days_overdue: number;
+  execution_rate: number;
+  high_risk_open: number;
+}
+
 export interface FollowUpSnapshot {
+  /** 2 = states as of the period end; absent/1 = states at generation time. */
+  methodology_version?: number;
   generated_at: string;
-  totals: { total: number; closed: number; completion_rate: number; overdue: number };
+  as_of?: string;
+  as_of_date?: string;
+  period_start?: string;
+  period_end?: string;
+  totals: {
+    total: number;
+    closed: number;
+    completion_rate: number;
+    overdue: number;
+    open_at_start?: number;
+    issued_in_period?: number;
+    closed_in_period?: number;
+    closed_implemented_in_period?: number;
+    closed_disagreement_in_period?: number;
+    open_at_end?: number;
+    overdue_rate?: number;
+    became_overdue_in_period?: number;
+    late_in_review?: number;
+    response_overdue?: number;
+    high_risk_open?: number;
+    history_incomplete?: number;
+  };
   by_status: Record<string, number>;
+  by_stage?: Partial<Record<StageId, number>>;
   by_risk: Record<string, number>;
   by_department: Record<string, number>;
-  items: Array<{
-    id: number;
-    text: string;
-    department: string;
-    report: string;
-    risk_level: string;
-    status: string;
-    is_recurring: boolean;
-    target_date: string | null;
-    responsible: string | null;
-    overdue: boolean;
-  }>;
+  departments?: FollowUpDepartmentRow[];
+  by_engagement_type?: Record<string, number>;
+  major_risks?: number[];
+  items: FollowUpItem[];
 }
 
 export interface FollowUpExecutiveSummary {
@@ -373,6 +439,8 @@ export interface FollowUpReport {
   period_end: string;
   generated_by_detail: User;
   snapshot: FollowUpSnapshot;
+  executive_summary?: FollowUpExecutiveSummary;
+  language?: string;
   created_at: string;
 }
 

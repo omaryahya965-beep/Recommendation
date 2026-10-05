@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Save, Sparkles } from "lucide-react";
 import { useState } from "react";
 
-import { FollowUpSessionCard } from "@/components/FollowUpList";
+import { FollowUpList, FollowUpSessionCard } from "@/components/followup/FollowUpArchive";
 import { Button, Callout, Card, ErrorBanner, Field, TextInput } from "@/components/ui/Base";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { api, errorMessage } from "@/lib/api";
@@ -64,10 +64,10 @@ export default function AuditFollowUpsPage() {
           className="flex flex-wrap items-end gap-3"
         >
           <Field label={T.followup.from}>
-            <TextInput type="date" value={start} onChange={(event) => setStart(event.target.value)} required />
+            <TextInput type="date" dir="ltr" value={start} onChange={(event) => setStart(event.target.value)} required />
           </Field>
           <Field label={T.followup.to}>
-            <TextInput type="date" value={end} onChange={(event) => setEnd(event.target.value)} required />
+            <TextInput type="date" dir="ltr" value={end} onChange={(event) => setEnd(event.target.value)} required />
           </Field>
           <Button type="submit" disabled={generate.isPending}>
             <Sparkles className="size-4" />
@@ -86,6 +86,11 @@ export default function AuditFollowUpsPage() {
       </Callout>
 
       {preview ? <FollowUpSessionCard preview={preview} /> : null}
+
+      <section className="space-y-3 pt-2">
+        <h2 className="font-heading text-[16px] font-bold text-navy">{T.followup.archive}</h2>
+        <FollowUpList />
+      </section>
     </div>
   );
 }

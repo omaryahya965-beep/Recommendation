@@ -94,6 +94,47 @@ def _stats_from_qs(qs):
     }
 
 
+def _followup_period_stats(user, recs, start, end):
+    """Summary statistics for a follow-up period, as of its end (see
+    apps.followup), restricted to the recommendations in `recs`."""
+    from datetime import date
+
+    from apps.followup.services import build_followup_snapshot
+
+    period_start = start if isinstance(start, date) else date.fromisoformat(str(start))
+    period_end = end if isinstance(end, date) else date.fromisoformat(str(end))
+    visible = set(recs.values_list("id", flat=True))
+    snap = build_followup_snapshot(user.municipality, period_start, period_end)
+    items = [item for item in snap.get("items") or [] if item["id"] in visible]
+    by_dept, overdue_by_dept = {}, {}
+    for item in items:
+        by_dept[item["department"]] = by_dept.get(item["department"], 0) + 1
+        if item.get("overdue"):
+            overdue_by_dept[item["department"]] = overdue_by_dept.get(item["department"], 0) + 1
+    closed = sum(1 for item in items if item.get("status") == S.CLOSED)
+    return {
+        "total": len(items),
+        "closed": closed,
+        "open": len(items) - closed,
+        "overdue": sum(1 for item in items if item.get("overdue")),
+        "recurring": sum(1 for item in items if item.get("is_recurring")),
+        "by_department": by_dept,
+        "overdue_by_department": overdue_by_dept,
+        "top_overdue_department": max(overdue_by_dept, key=overdue_by_dept.get) if overdue_by_dept else None,
+        "theme_hints": {},
+        "top_theme": None,
+        "items": [
+            {"id": item["id"], "reference": item["reference"], "status": item["status"],
+             "department": item["department"], "risk_level": item["risk_level"],
+             "overdue": item["overdue"], "is_recurring": item["is_recurring"]}
+            for item in items[:80]
+        ],
+        "period_start": str(period_start),
+        "period_end": str(period_end),
+        "as_of": snap.get("as_of_date"),
+    }
+
+
 def _case_summary(rec, language: str) -> tuple[str, list[str], dict]:
     ar = language != "en"
     parsed = parse_finding(rec.text)
@@ -257,6 +298,11 @@ def generate_summary(user, payload: dict, language: str = "ar") -> AIAnalysis:
             stats["overdue_by_department"] = overdue_depts
             stats["top_overdue_department"] = max(overdue_depts, key=overdue_depts.get) if overdue_depts else None
             target_id = fup.id
+        elif start and end:
+            # The same as-of picture a follow-up report would freeze, limited
+            # to what this user may see.
+            stats = _followup_period_stats(user, recs, start, end)
+            target_id = 0
         else:
             stats = _stats_from_qs(qs)
             target_id = 0
