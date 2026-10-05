@@ -226,3 +226,33 @@ WhiteNoise is installed for `vercel dev` and any WSGI host.
    redeploy backend.
 7. Confirm Cron in the Vercel dashboard (production only) and that
    `CRON_SECRET` is set.
+
+---
+
+## Releasing Raqeeb V2 (checklist)
+
+V2 adds no environment variables and only additive migrations.
+
+1. **Review and CI** — merge `feature/raqeeb-v2` only with CI green
+   (backend check, migrations check, contract check, tests; frontend lint,
+   types, unit tests, build; Playwright desktop + mobile).
+2. **Backup** — create a Neon branch (or snapshot) of production first.
+3. **Migrate** — with the **direct** URL: `python manage.py migrate`
+   (applies `notifications.0002` and `notifications.0003`; both additive).
+4. **Deploy the backend first**, then the frontend: the V2 frontend reads
+   the new `workflow` block, `/api/dashboard/` v2 and `/api/nav-counts/`.
+5. **Verify** as each role: sign-in lands on the role home; a case opens
+   with its action card (desktop) and on a phone (status card, tabs, sheet);
+   the register filters by "waiting on"; Settings → Reminders shows the
+   engine status. Next morning: the cron run appears there.
+6. **Optional** — add the default department-head reminder rules to the
+   existing municipality: `ensure_reminder_defaults` (preview), then
+   `--apply`, only when decided.
+7. **Confirm** `NEXT_PUBLIC_ENABLE_DEMO_LOGIN` and `NEXT_PUBLIC_DEMO_PASSWORD`
+   are **not** set on the production frontend (see
+   [docs/security-deferred.md](docs/security-deferred.md), S3).
+
+Rollback: redeploy the previous backend and frontend builds. The two
+migrations can stay (they add tables, a column and an index that V1 does not
+use) or be reversed with `migrate notifications 0001`.
+
