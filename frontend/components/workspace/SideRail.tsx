@@ -30,8 +30,11 @@ function RailCard({ title, icon, children }: { title: string; icon: ReactNode; c
 function Row({ label, children, emphasis }: { label: string; children: ReactNode; emphasis?: boolean }) {
   return (
     <div className="flex items-baseline justify-between gap-3 py-1.5">
-      <dt className="min-w-0 text-[12.5px] text-ink-soft">{label}</dt>
-      <dd className={cn("shrink-0 text-[12.5px]", emphasis ? "font-bold text-navy" : "font-semibold text-ink")}>{children}</dd>
+      <dt className="shrink-0 text-[12.5px] text-ink-soft">{label}</dt>
+      {/* Long values (a department's full name) wrap instead of widening the page. */}
+      <dd className={cn("min-w-0 break-words text-end text-[12.5px]", emphasis ? "font-bold text-navy" : "font-semibold text-ink")}>
+        {children}
+      </dd>
     </div>
   );
 }
@@ -63,7 +66,8 @@ export function SideRail({ rec, role }: { rec: RecommendationDetail; role: Role 
   const sameDeadline = dates.bindingDeadline && dates.bindingDeadline === dates.planTarget;
 
   return (
-    <div className="space-y-4">
+    // Below 1280px the rail sits under the record, two cards to a row.
+    <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-1">
       <RailCard title={T.caseView.dates.title} icon={<CalendarDays className="size-4" />}>
         <dl className="divide-y divide-line/70">
           {DATE_ORDER.map((key) => {
@@ -95,7 +99,7 @@ export function SideRail({ rec, role }: { rec: RecommendationDetail; role: Role 
       ) : null}
 
       <RailCard title={T.caseView.context.title} icon={<FileText className="size-4" />}>
-        <p className="text-[13px] font-semibold leading-snug text-ink">{rec.report_title}</p>
+        <p className="text-[13px] font-semibold leading-snug text-ink"><bdi>{rec.report_title}</bdi></p>
         {href ? (
           <Link href={href} className="mt-1 inline-flex min-h-9 items-center text-[12.5px] font-bold text-primary-dark hover:underline">
             {role === "audit" ? T.caseView.context.openReport : T.caseView.context.reportCases}

@@ -71,11 +71,11 @@
 
 /* ── Split Panel Divider ── */
 .login-split {
-  border-left: 1px solid transparent;
+  border-inline-end: 1px solid transparent;
 }
 @media (max-width: 1024px) {
   .login-split {
-    border-left: none;
+    border-inline-end: none;
     border-top: 1px solid transparent;
   }
 }
@@ -198,11 +198,11 @@
 }
 
 [data-theme="dark"] .login-split {
-  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  border-inline-end: 1px solid rgba(255, 255, 255, 0.08);
 }
 @media (max-width: 1024px) {
   [data-theme="dark"] .login-split {
-    border-left: none;
+    border-inline-end: none;
     border-top: 1px solid rgba(255, 255, 255, 0.08);
   }
 }

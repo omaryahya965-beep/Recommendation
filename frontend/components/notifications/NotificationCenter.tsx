@@ -194,10 +194,11 @@ export function NotificationCenter({ role, embedded = false }: { role: Role; emb
               key={item.id}
               type="button"
               onClick={() => setFilter(item.id)}
+              aria-pressed={filter === item.id}
               className={cn(
                 "min-h-11 shrink-0 rounded-full border px-3 text-[13px] font-bold transition-colors",
                 filter === item.id
-                  ? "border-navy bg-navy text-white"
+                  ? "border-navy bg-navy text-surface"
                   : "border-line bg-surface text-ink-soft hover:border-navy/40 hover:text-navy"
               )}
             >
@@ -208,6 +209,7 @@ export function NotificationCenter({ role, embedded = false }: { role: Role; emb
             <SlidersHorizontal className="size-3.5" aria-hidden />
             <select
               value={sortMode}
+              aria-label={T.notify.sortBy}
               onChange={(event) => setSortMode(event.target.value as "priority" | "newest")}
               className="rounded-lg border border-line bg-surface px-2.5 py-1.5 text-[12.5px] font-semibold text-ink"
             >

@@ -83,7 +83,7 @@ export function ActionPlanTimeline({
         </div>
 
         {/* Meta grid */}
-        <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <DataField label={T.plan.owner}>
             {plan.responsible_employee_detail?.full_name_ar || plan.responsible_employee_detail?.username}
           </DataField>

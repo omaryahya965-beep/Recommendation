@@ -70,7 +70,7 @@ function DirectionToggle({ value, onChange }: { value: Direction; onChange: (nex
               aria-checked={selected}
               onClick={() => onChange(option.id)}
               className={`min-h-11 flex-1 rounded-lg px-2 py-2 font-heading text-[13px] font-bold transition-all
-                ${selected ? "bg-navy text-white shadow-sm" : "text-ink-soft hover:text-ink hover:bg-subtle"}`}
+                ${selected ? "bg-navy text-surface shadow-sm" : "text-ink-soft hover:text-ink hover:bg-subtle"}`}
             >
               {option.label}
             </button>

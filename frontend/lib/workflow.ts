@@ -13,7 +13,7 @@ import {
   STATUS_STAGE,
   statusesForStage,
 } from "./contract";
-import { currentT } from "./i18n/messages";
+import { currentCatalog, currentT } from "./i18n/messages";
 
 /**
  * Presentation layer over the backend workflow.
@@ -87,6 +87,16 @@ export const STATUS_NEXT_ACTION: Record<RecommendationStatus, { role: string; ac
       };
     },
   });
+
+/**
+ * How a closed case ended ("مغلقة — قُبِل اعتراض الإدارة"), worded like the
+ * resolution chip in the case header so one screen uses one vocabulary.
+ */
+export function closedTitle(resolution: string | null | undefined): string {
+  const catalog = currentCatalog();
+  const outcome = resolution ? catalog.RESOLUTION_LABELS[resolution] : undefined;
+  return outcome ? `${catalog.STATUS_LABELS.closed} — ${outcome}` : STATUS_NEXT_ACTION.closed.action;
+}
 
 /** 0-based position of the status's stage among the ten. */
 export function stageIndexForStatus(status: RecommendationStatus): number {

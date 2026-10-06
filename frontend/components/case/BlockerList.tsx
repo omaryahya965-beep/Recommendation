@@ -45,7 +45,7 @@ export function BlockerList({
             {Array.isArray(blocker.params?.steps) && (blocker.params.steps as unknown[]).length ? (
               <ul className="mt-1 space-y-0.5 ps-4">
                 {(blocker.params.steps as string[]).map((step) => (
-                  <li key={step} className="list-[circle] text-[12.5px] opacity-90">
+                  <li key={step} className="list-[circle] text-[12.5px]">
                     {step}
                   </li>
                 ))}

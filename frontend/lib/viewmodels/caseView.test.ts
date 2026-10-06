@@ -93,6 +93,31 @@ describe("stage timeline", () => {
     const stages = stageTimeline(detail({ status: "closed", trail }));
     expect(stages.every((stage) => stage.state === "completed")).toBe(true);
   });
+
+  it("shows the stages after ratification as skipped when an accepted disagreement closed the case", () => {
+    const disagreement = [
+      move("pending_response", "2026-01-05T08:00:00Z"),
+      move("audit_review", "2026-01-10T08:00:00Z"),
+      move("pending_council", "2026-01-20T08:00:00Z"),
+      move("closed", "2026-02-01T08:00:00Z"),
+    ];
+    const stages = stageTimeline(
+      detail({ status: "closed", resolution: "disagreement_accepted", trail: disagreement })
+    );
+    expect(stages.map((stage) => stage.state)).toEqual([
+      "completed",
+      "completed",
+      "completed",
+      "completed",
+      "skipped",
+      "skipped",
+      "skipped",
+      "skipped",
+      "skipped",
+      "completed",
+    ]);
+    expect(stages[9].enteredAt).toBe("2026-02-01T08:00:00Z");
+  });
 });
 
 describe("key dates and people", () => {

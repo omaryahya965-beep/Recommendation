@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import type { RecommendationDetail } from "./types";
+import * as ar from "./i18n/ar";
+import * as en from "./i18n/en";
+import { setLocale } from "./i18n/store";
 import {
   canAct,
   caseAction,
+  closedTitle,
   isOffered,
   isWaitingOn,
   normalizeStageId,
@@ -63,5 +67,20 @@ describe("actions come from the server", () => {
   it("offers nothing without a workflow block", () => {
     expect(canAct({ workflow: null }, "respond")).toBe(false);
     expect(canAct(null, "respond")).toBe(false);
+  });
+});
+
+describe("closed cases say how they ended", () => {
+  it("uses the contract label for the resolution, in the active locale", () => {
+    setLocale("ar");
+    expect(closedTitle("disagreement_accepted")).toBe(`${ar.STATUS_LABELS.closed} — ${ar.RESOLUTION_LABELS.disagreement_accepted}`);
+    setLocale("en");
+    expect(closedTitle("implemented")).toBe(`${en.STATUS_LABELS.closed} — ${en.RESOLUTION_LABELS.implemented}`);
+    setLocale("ar");
+  });
+
+  it("falls back to the generic closed text without a resolution", () => {
+    expect(closedTitle("")).toBeTruthy();
+    expect(closedTitle(null)).not.toContain("undefined");
   });
 });

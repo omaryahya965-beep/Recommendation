@@ -42,7 +42,7 @@ import {
 } from "@/components/shell/navigation";
 import { cn } from "@/lib/cn";
 import { clipTitle } from "@/lib/finding";
-import { ROLE_LABELS, T, useI18n } from "@/lib/i18n";
+import { inLocale, ROLE_LABELS, T, useI18n } from "@/lib/i18n";
 import type { Paginated, RecommendationListItem, Role, User } from "@/lib/types";
 
 function GlobalSearch({ role }: { role: Role }) {
@@ -116,7 +116,7 @@ function GlobalSearch({ role }: { role: Role }) {
         }}
         onFocus={() => setOpen(true)}
         placeholder={T.nav.searchPlaceholder}
-        className="h-10 w-full rounded-(--radius-field) border border-line bg-surface py-2 ps-10 pe-[4.5rem] text-[13px] outline-none transition-all placeholder:text-muted focus:border-primary focus:ring-2 focus:ring-primary/20 hover:border-muted/30"
+        className="h-10 w-full text-ellipsis rounded-(--radius-field) border border-line bg-surface py-2 ps-10 pe-[4.5rem] text-[13px] outline-none transition-all placeholder:text-muted focus:border-primary focus:ring-2 focus:ring-primary/20 hover:border-muted/30"
         aria-label={T.nav.search}
       />
       <kbd className="pointer-events-none absolute end-2 top-1/2 hidden -translate-y-1/2 rounded border border-line bg-subtle px-1.5 py-0.5 font-mono text-[10px] text-muted sm:inline">
@@ -143,7 +143,7 @@ function GlobalSearch({ role }: { role: Role }) {
                       </span>
                       <StatusBadge status={item.status} />
                     </span>
-                    <span className="mt-1.5 line-clamp-1 block text-[13px] font-medium text-ink">{clipTitle(item.title, 80)}</span>
+                    <span className="mt-1.5 line-clamp-1 block text-[13px] font-medium text-ink"><bdi>{clipTitle(item.title, 80)}</bdi></span>
                     <span className="mt-1 block text-[11px] text-muted">
                       {role === "department_head"
                         ? item.responsible_employee || item.report_title
@@ -194,8 +194,11 @@ function SidebarNavView({
   collapsed,
   searchParams,
 }: SidebarNavProps & { searchParams: URLSearchParams }) {
-  useI18n();
-  const groups = navFor(role);
+  const { locale } = useI18n();
+  // On server-rendered (dynamic) routes this view hydrates inside the
+  // useSearchParams Suspense boundary, after the app has switched to the saved
+  // locale: build the labels in the locale the hook reports for this render.
+  const { groups, badgeLabel } = inLocale(locale, () => ({ groups: navFor(role), badgeLabel: T.nav.badgeLabel }));
   const { data: counts } = useNavCounts();
 
   const itemCls = (active: boolean) =>
@@ -229,13 +232,15 @@ function SidebarNavView({
                   key={item.href}
                   href={item.href}
                   title={collapsed ? item.label : undefined}
+                  aria-current={active ? "page" : undefined}
                   className={itemCls(active)}
                 >
                   {active ? (
-                    <span className="absolute inset-y-1.5 start-0 w-[4px] rounded-r-md bg-primary-dark shadow-[0_0_8px_rgba(15,79,73,0.6)]" aria-hidden />
+                    <span className="absolute inset-y-1.5 start-0 w-[4px] rounded-e-md bg-primary-light/90" aria-hidden />
                   ) : null}
                   <span className="relative shrink-0">
-                    <Icon className={cn("size-5 transition-colors", active ? "text-primary-dark" : "text-sidebar-muted group-hover:text-sidebar-text")} />
+                    {/* Light on the dark sidebar: in the tablet rail the icon is the only cue. */}
+                    <Icon className={cn("size-5 transition-colors", active ? "text-sidebar-text" : "text-sidebar-muted group-hover:text-sidebar-text")} />
                     {collapsed && badge ? (
                       <span aria-hidden className="absolute -end-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-warning px-1 font-mono text-[10px] font-bold text-white">
                         {badge > 99 ? "99+" : badge}
@@ -254,7 +259,7 @@ function SidebarNavView({
                           {badge > 99 ? "99+" : badge}
                         </span>
                       ) : null}
-                      <span className="sr-only">{T.nav.badgeLabel.replace("{n}", String(badge))}</span>
+                      <span className="sr-only">{badgeLabel.replace("{n}", String(badge))}</span>
                     </>
                   ) : null}
                 </Link>
@@ -310,7 +315,7 @@ function ContentSkeleton() {
         <Skeleton className="h-4 w-32" />
         <Skeleton className="h-8 w-64 max-w-full" />
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <Skeleton key={i} className="h-24 rounded-xl" />
         ))}
@@ -407,6 +412,7 @@ function ShellFrame({
         <Link
           href={settings.href}
           title={collapsed ? settings.label : undefined}
+          aria-current={settingsActive ? "page" : undefined}
           className={cn(
             "group relative flex min-h-12 items-center gap-3 rounded-md px-3 py-2.5 text-[14px] transition-colors",
             collapsed && "justify-center px-2",
@@ -414,9 +420,9 @@ function ShellFrame({
           )}
         >
           {settingsActive ? (
-            <span className="absolute inset-y-1.5 start-0 w-[4px] rounded-r-md bg-primary-dark" aria-hidden />
+            <span className="absolute inset-y-1.5 start-0 w-[4px] rounded-e-md bg-primary-light/90" aria-hidden />
           ) : null}
-          <Settings className={cn("size-[18px] shrink-0 transition-colors", settingsActive ? "text-primary-dark" : "text-sidebar-muted group-hover:text-sidebar-text")} />
+          <Settings className={cn("size-[18px] shrink-0 transition-colors", settingsActive ? "text-sidebar-text" : "text-sidebar-muted group-hover:text-sidebar-text")} />
           {collapsed ? <span className="sr-only">{settings.label}</span> : settings.label}
         </Link>
         
@@ -468,6 +474,7 @@ function ShellFrame({
     <div className="flex min-h-screen bg-bg">
       {/* Desktop Sidebar */}
       <aside
+        aria-label={T.nav.menu}
         className={cn(
           "sticky top-0 hidden h-screen shrink-0 flex-col border-e border-sidebar-muted/10 bg-sidebar text-sidebar-text shadow-xl transition-all duration-300 md:flex z-50 print:hidden",
           collapsed ? "w-[72px]" : "w-64"

@@ -19,7 +19,12 @@ import type {
 /* Stage timeline                                                      */
 /* ------------------------------------------------------------------ */
 
-export type TimelineState = "completed" | "current" | "returned" | "next";
+/**
+ * `skipped`: a stage the case passed over without entering — a disagreement
+ * the council accepted closes the case at ratification, so plan, execution,
+ * reviews and the closure decision never happened.
+ */
+export type TimelineState = "completed" | "current" | "returned" | "next" | "skipped";
 
 export interface TimelineStage {
   id: StageId;
@@ -48,17 +53,22 @@ function transitions(trail: TrailEntry[]) {
 }
 
 export function stageTimeline(
-  rec: Pick<RecommendationDetail, "status" | "trail" | "created_at">
+  rec: Pick<RecommendationDetail, "status" | "trail" | "created_at"> & { resolution?: string | null }
 ): TimelineStage[] {
   const moves = transitions(rec.trail ?? []);
   const currentIndex = STAGE_IDS.indexOf(STATUS_STAGE[rec.status]);
   const closed = rec.status === "closed";
   const returnedNow = RETURNED_STATUSES.includes(rec.status);
+  // Decided by the resolution, not by the trail, so a legacy case with an
+  // incomplete trail never shows stages it did go through as skipped.
+  const ratification = STAGE_IDS.indexOf("council");
+  const skippedAfterRatification = closed && rec.resolution === "disagreement_accepted";
   return STAGE_IDS.map((id, index) => {
     const into = moves.filter((move) => STATUS_STAGE[move.to] === id);
     const first = into[0];
     let state: TimelineState = "next";
-    if (closed || index < currentIndex) state = "completed";
+    if (skippedAfterRatification && index > ratification && index < STAGE_IDS.length - 1) state = "skipped";
+    else if (closed || index < currentIndex) state = "completed";
     else if (index === currentIndex) state = returnedNow ? "returned" : "current";
     return {
       id,

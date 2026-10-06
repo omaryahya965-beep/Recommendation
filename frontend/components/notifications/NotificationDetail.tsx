@@ -59,10 +59,10 @@ export function NotificationDetail({
             <p className="mt-2 font-mono text-[13px] font-bold text-muted" dir="ltr">
               {recordCode(item.recommendation)}
             </p>
-            <h2 className="mt-1 font-heading text-[18px] font-bold text-navy">{notificationTitle(item)}</h2>
+            <h2 className="mt-1 font-heading text-[18px] font-bold text-navy"><bdi>{notificationTitle(item)}</bdi></h2>
           </>
         ) : (
-          <h2 className="mt-2 font-heading text-[18px] font-bold text-navy">{notificationTitle(item)}</h2>
+          <h2 className="mt-2 font-heading text-[18px] font-bold text-navy"><bdi>{notificationTitle(item)}</bdi></h2>
         )}
         <div className="mt-2 flex flex-wrap items-center gap-2">
           {item.department_name ? (
@@ -81,7 +81,7 @@ export function NotificationDetail({
 
       {/* Detail fields */}
       <dl className="space-y-3">
-        <DetailField label={T.notify.whatHappened}>{item.message}</DetailField>
+        <DetailField label={T.notify.whatHappened}><bdi>{item.message}</bdi></DetailField>
 
         <DetailField label={T.notify.when}>
           <span dir="ltr">{formatDateTime(item.sent_at)}</span>
@@ -89,15 +89,15 @@ export function NotificationDetail({
 
         {item.recommendation ? (
           <DetailField label={T.notify.related}>
-            {recordCode(item.recommendation)} — {notificationTitle(item)}
+            {recordCode(item.recommendation)} — <bdi>{notificationTitle(item)}</bdi>
           </DetailField>
         ) : null}
 
         {stage ? <DetailField label={T.notify.stage}>{stage}</DetailField> : null}
 
-        {item.target_date ? (
+        {item.deadline || item.target_date ? (
           <DetailField label={T.notify.deadlineLabel}>
-            <span dir="ltr">{formatDate(item.target_date)}</span>
+            <span dir="ltr">{formatDate(item.deadline ?? item.target_date)}</span>
             {overdueLabel ? (
               <span className="ms-2 rounded-full bg-danger/10 px-2 py-0.5 text-[11px] font-bold text-danger-dark border border-danger/20">
                 {overdueLabel}

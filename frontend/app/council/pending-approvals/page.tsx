@@ -21,6 +21,7 @@ import { useDashboard } from "@/lib/hooks";
 import { api, errorMessage } from "@/lib/api";
 import { invalidateRecommendationViews } from "@/lib/queryPolicy";
 import { clipTitle } from "@/lib/finding";
+import { plural } from "@/lib/format";
 import { REPORT_TYPE_LABELS, T, useI18n } from "@/lib/i18n";
 import { LIVE } from "@/lib/queryPolicy";
 import type { AuditReport } from "@/lib/types";
@@ -65,7 +66,7 @@ function PendingReportCard({ report }: { report: AuditReport }) {
     <li className="border-b border-line px-4 py-4 last:border-b-0">
       <div className="flex min-w-0 flex-col gap-3">
         <div className="min-w-0">
-          <h3 className="font-heading text-[16px] font-semibold text-ink">{report.title}</h3>
+          <h3 className="font-heading text-[16px] font-semibold text-ink"><bdi>{report.title}</bdi></h3>
           <p className="mt-1 text-[13px] text-ink-soft">
             {report.department_name} · {REPORT_TYPE_LABELS[report.engagement_type]} ·{" "}
             <span dir="ltr">{report.recommendations_count}</span> {T.reports.recommendations}
@@ -103,18 +104,18 @@ function PendingReportCard({ report }: { report: AuditReport }) {
             title={T.council.ratifyConfirmTitle}
             body={
               <div className="space-y-3 text-[13.5px] leading-relaxed">
-                <p className="font-bold text-navy">{report.title}</p>
-                <p>{T.council.ratifyConfirmImplement.replace("{count}", String(implementing))}</p>
+                <p className="font-bold text-navy"><bdi>{report.title}</bdi></p>
+                <p>{plural(implementing, T.council.ratifyConfirmImplement)}</p>
                 {closing.length ? (
                   <div>
                     <p className="font-semibold text-warning-dark">
-                      {T.council.ratifyConfirmClose.replace("{count}", String(closing.length))}
+                      {plural(closing.length, T.council.ratifyConfirmClose)}
                     </p>
                     <ul className="mt-2 space-y-1.5">
                       {closing.map((item) => (
                         <li key={item.id} className="flex items-baseline gap-2">
                           <RecordId id={item.id} />
-                          <span className="min-w-0 truncate">{clipTitle(item.title, 70)}</span>
+                          <span className="min-w-0 truncate"><bdi>{clipTitle(item.title, 70)}</bdi></span>
                         </li>
                       ))}
                     </ul>

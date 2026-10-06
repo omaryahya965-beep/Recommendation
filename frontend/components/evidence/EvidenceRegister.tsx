@@ -12,7 +12,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { cn } from "@/lib/cn";
 import { evidenceReviewState, sortSteps, type EvidenceReviewState } from "@/lib/case";
-import { fileExt, fileNameFromUrl, formatDateTime } from "@/lib/format";
+import { fileExt, fileNameFromUrl, formatDate, formatDateTime } from "@/lib/format";
 import type { WorkflowAction } from "@/lib/hooks";
 import { T, useI18n } from "@/lib/i18n";
 import type { Evidence, RecommendationDetail } from "@/lib/types";
@@ -70,29 +70,32 @@ function EvidenceItem({
         className="cursor-pointer align-top hover:bg-subtle/50"
         onClick={() => setOpen((value) => !value)}
       >
-        <td className="px-4 py-3">
-          <p className="truncate font-medium text-ink" title={name}>
+        <td className="px-3 py-3">
+          <p className="truncate font-medium text-ink" title={name} dir="auto">
             {name}
           </p>
+          <p className="mt-0.5 truncate text-[11.5px] text-muted">
+            <span className="font-mono" dir="ltr">
+              {fileExt(name)}
+            </span>
+            {" · "}
+            {evidence.uploaded_by_detail?.full_name_ar || evidence.uploaded_by_detail?.username}
+          </p>
         </td>
-        <td className="px-3 py-3 text-ink-soft">{stepTitle ?? T.evidenceRegister.noStep}</td>
-        <td className="px-3 py-3 text-ink-soft">
-          {evidence.uploaded_by_detail?.full_name_ar || evidence.uploaded_by_detail?.username}
+        <td className="break-words px-3 py-3 text-ink-soft">{stepTitle ?? T.evidenceRegister.noStep}</td>
+        <td className="px-3 py-3 font-mono text-[12px] text-muted" title={formatDateTime(evidence.uploaded_at)}>
+          {formatDate(evidence.uploaded_at)}
         </td>
-        <td className="px-3 py-3 font-mono text-[12px] text-muted" dir="ltr">
-          {formatDateTime(evidence.uploaded_at)}
-        </td>
-        <td className="px-3 py-3 font-mono text-[11px] text-ink-soft">{fileExt(name)}</td>
-        <td className="max-w-xs px-3 py-3">
-          <p className={cn("line-clamp-2 text-[13px]", evidence.notes?.trim() ? "text-ink" : "text-muted")}>
+        <td className="px-3 py-3">
+          <p className={cn("line-clamp-2 break-words text-[13px]", evidence.notes?.trim() ? "text-ink" : "text-muted")}>
             {evidence.notes?.trim() || T.evidenceRegister.noDescription}
           </p>
         </td>
-        <td className="px-4 py-3">
+        <td className="px-3 py-3">
           <span className={cn("text-[12px] font-medium", review.className)}>{review.label}</span>
         </td>
         <td className="px-3 py-3">
-          <div className="flex items-start gap-2">
+          <div className="flex flex-wrap items-start gap-2">
             <EvidenceFileActions evidence={evidence} size="sm" />
             {onDelete && canDelete ? (
               <button
@@ -114,7 +117,7 @@ function EvidenceItem({
       {open ? (
         <tr>
           <td colSpan={actionColSpan} className="bg-subtle/40 px-4 py-4">
-            <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div>
                 <dt className="text-[11px] text-muted">{T.evidenceRegister.file}</dt>
                 <dd className="mt-0.5 text-sm text-ink">{name}</dd>
@@ -205,7 +208,7 @@ export function EvidenceRegister({
   const stepTitles = new Map(steps.map((item) => [item.id, item.title]));
   const files = rec.evidence_files ?? [];
   const deletable = (item: Evidence) => Boolean(action && item.can_delete);
-  const actionColSpan = 8;
+  const actionColSpan = 6;
 
   return (
     <div className="space-y-5">
@@ -230,48 +233,60 @@ export function EvidenceRegister({
         <p className="mb-3 text-[12px] text-muted">{T.evidenceRegister.derivedNote}</p>
 
         {files.length ? (
-          <>
-            <ul className="space-y-3 md:hidden">
+          // The register sits in columns of very different widths (phone,
+          // tablet, beside the side rail), so it follows its own width: cards
+          // when the six columns would not fit, the ledger table when they do.
+          <div className="@container">
+            <ul className="space-y-3 @min-[44rem]:hidden">
               {files.map((item) => (
                 <li key={item.id}>
-                  <EvidenceCard evidence={item} showAnalysis={canAnalyze} />
-                  {deletable(item) ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="mt-2 min-h-11 w-full"
-                      onClick={() => setPendingDelete(item)}
-                    >
-                      <Trash2 className="size-4" />
-                      {T.common.delete}
-                    </Button>
-                  ) : null}
+                  <EvidenceCard
+                    evidence={item}
+                    showAnalysis={canAnalyze}
+                    stepTitle={item.step ? (stepTitles.get(item.step) ?? T.evidenceRegister.noStep) : T.evidenceRegister.noStep}
+                    status={reviewStateMeta(evidenceReviewState(item.uploaded_at, rec))}
+                    actions={
+                      deletable(item) ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="min-h-11 font-bold text-danger-dark ring-1 ring-danger/25"
+                          onClick={() => setPendingDelete(item)}
+                        >
+                          <Trash2 className="size-4" aria-hidden />
+                          {T.common.delete}
+                        </Button>
+                      ) : null
+                    }
+                  />
                 </li>
               ))}
             </ul>
-            <div className="hidden scrollbar-thin overflow-x-auto md:block">
-              <table className="w-full min-w-[52rem] border-collapse text-[13px]">
+            <div className="hidden @min-[44rem]:block">
+              <table className="w-full table-fixed border-collapse text-[13px]">
+                <colgroup>
+                  <col className="w-[26%]" />
+                  <col className="w-[17%]" />
+                  <col className="w-[13%]" />
+                  <col className="w-[18%]" />
+                  <col className="w-[11%]" />
+                  <col className="w-[15%]" />
+                </colgroup>
                 <thead>
                   <tr className="border-y border-line bg-subtle/50 text-start text-[11.5px] font-medium text-ink-soft">
-                    <th scope="col" className="px-4 py-2 text-start font-medium">
+                    <th scope="col" className="px-3 py-2 text-start font-medium">
                       {T.evidenceRegister.file}
                     </th>
                     <th scope="col" className="px-3 py-2 text-start font-medium">
                       {T.evidenceRegister.linkedTo}
                     </th>
                     <th scope="col" className="px-3 py-2 text-start font-medium">
-                      {T.evidenceRegister.uploadedBy}
-                    </th>
-                    <th scope="col" className="px-3 py-2 text-start font-medium">
                       {T.common.date}
-                    </th>
-                    <th scope="col" className="px-3 py-2 text-start font-medium">
-                      {T.evidenceRegister.fileType}
                     </th>
                     <th scope="col" className="px-3 py-2 text-start font-medium">
                       {T.evidenceRegister.proves}
                     </th>
-                    <th scope="col" className="px-4 py-2 text-start font-medium">
+                    <th scope="col" className="px-3 py-2 text-start font-medium">
                       {T.common.status}
                     </th>
                     <th scope="col" className="px-3 py-2 text-start font-medium">
@@ -296,7 +311,7 @@ export function EvidenceRegister({
                 </tbody>
               </table>
             </div>
-          </>
+          </div>
         ) : (
           <EmptyState
             icon={<FolderOpen className="size-6" />}

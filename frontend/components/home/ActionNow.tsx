@@ -55,7 +55,7 @@ export function ActionNow({
         total ? (
           <span className="flex items-center gap-2 rounded-full bg-primary-light px-3 py-1 text-sm font-bold text-primary-dark ring-1 ring-primary/20">
             <span className="font-mono">{total}</span>
-          <span className="text-[12px] font-semibold text-primary-dark">{T.dashboard.open}</span>
+            <span className="text-[12px] font-semibold text-primary-dark">{T.dashboard.awaitingAction}</span>
           </span>
         ) : null
       }
@@ -113,7 +113,7 @@ export function ActionNow({
                         href={`${detailBase}/${item.id}`}
                         className="mt-1 block font-heading text-[16px] font-semibold leading-snug text-navy group-hover:text-primary transition-colors"
                       >
-                        {clipTitle(item.title, 110)}
+                        <bdi>{clipTitle(item.title, 110)}</bdi>
                       </Link>
                       <div className="mt-2.5 flex min-w-0 flex-wrap items-center gap-2 text-[13px] text-ink-soft">
                         <span className="font-medium">{showDepartment ? item.department_name : item.responsible_employee ?? T.team.unassigned}</span>

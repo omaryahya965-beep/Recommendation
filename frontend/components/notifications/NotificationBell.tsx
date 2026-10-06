@@ -101,7 +101,7 @@ export function NotificationBell({ role }: { role: Role }) {
       >
         <Bell className="size-5" />
         {badge ? (
-          <span className="absolute -top-0.5 -end-0.5 z-10 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger px-1 text-[9px] font-bold leading-none text-white ring-2 ring-surface">
+          <span className="absolute -top-0.5 -end-0.5 z-10 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger px-1 text-[9px] font-bold leading-none text-surface ring-2 ring-surface">
             {badge}
           </span>
         ) : null}
@@ -179,7 +179,7 @@ export function NotificationBell({ role }: { role: Role }) {
                           {expanded ? <ChevronUp className="size-4 text-muted" /> : <ChevronDown className="size-4 text-muted" />}
                         </p>
                         <p className={cn("mt-1.5 text-[14.5px] leading-snug text-ink", !item.is_read && "font-bold")}>
-                          {item.message}
+                          <bdi>{item.message}</bdi>
                         </p>
                         {item.recommendation ? (
                           <p className="mt-1 font-mono text-[12px] font-medium text-muted" dir="ltr">
@@ -197,7 +197,7 @@ export function NotificationBell({ role }: { role: Role }) {
                       {expanded ? (
                         <div className="space-y-2.5 border-t border-line/70 bg-subtle/40 px-4 py-3">
                           <p className="text-[12px] font-bold text-muted">{T.notify.whatHappened}</p>
-                          <p className="text-[13.5px] font-medium leading-relaxed text-ink">{item.message}</p>
+                          <p className="text-[13.5px] font-medium leading-relaxed text-ink"><bdi>{item.message}</bdi></p>
                           {item.recommendation ? (
                             <p className="text-[13px] text-ink-soft">
                               <span className="font-bold text-navy">{T.notify.related}: </span>
@@ -205,7 +205,7 @@ export function NotificationBell({ role }: { role: Role }) {
                                 {recordCode(item.recommendation)}
                               </span>
                               {" — "}
-                              {notificationTitle(item)}
+                              <bdi>{notificationTitle(item)}</bdi>
                             </p>
                           ) : null}
                           {mustAct && action ? (

@@ -57,7 +57,7 @@ export function LedgerCell({
 
 export function RecordId({ id, prefix = "REC" }: { id: number; prefix?: string }) {
   return (
-    <span className="font-mono text-[12.5px] font-bold text-primary-dark tracking-wide bg-primary-light/50 px-1.5 py-0.5 rounded" dir="ltr">
+    <span className="font-mono text-[12.5px] font-bold whitespace-nowrap text-primary-dark tracking-wide bg-primary-light px-1.5 py-0.5 rounded" dir="ltr">
       {recordCode(id, prefix)}
     </span>
   );

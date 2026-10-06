@@ -72,7 +72,7 @@ export function DecisionRecord({ decision }: { decision: VerificationDecision })
 
       {/* Structured rejection fields */}
       {decision.decision !== "sufficient" ? (
-        <dl className="mt-3 grid gap-3 border-t border-line pt-3 sm:grid-cols-3">
+        <dl className="mt-3 grid grid-cols-1 gap-3 border-t border-line pt-3 sm:grid-cols-3">
           {decision.rejection_reason?.trim() ? (
             <DataField label={T.verify.returnReason}>{decision.rejection_reason}</DataField>
           ) : null}
@@ -108,7 +108,7 @@ function DeskContext({ rec }: { rec: RecommendationDetail }) {
   return (
     <div className="space-y-5">
       {/* Summary stats */}
-      <dl className="grid gap-3 sm:grid-cols-3">
+      <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="rounded-xl border border-line bg-surface p-4 text-center shadow-sm">
           <dt className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1">{T.verify.recommendationLabel}</dt>
           <dd className="text-[13px] font-semibold text-navy line-clamp-2 text-start">{statement}</dd>
@@ -130,7 +130,7 @@ function DeskContext({ rec }: { rec: RecommendationDetail }) {
       </dl>
 
       {/* Context grids */}
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ProseBlock label={T.verify.whatRequired}>
           {statement}
           {expected ? (
@@ -244,7 +244,7 @@ export function VerificationPanel({
       {/* Outstanding rejection callout */}
       {outstanding && outstanding.decision !== "sufficient" ? (
         <Callout tone="danger" title={T.verify.outstanding} icon={<ShieldAlert className="size-4" />}>
-          <dl className="mt-3 grid gap-3 sm:grid-cols-3">
+          <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
             {outstanding.rejection_reason?.trim() ? (
               <DataField label={T.verify.returnReason}>{outstanding.rejection_reason}</DataField>
             ) : null}
@@ -292,7 +292,7 @@ export function VerificationPanel({
             {structuredRequired ? (
               <div className="mt-5 space-y-4 border-t border-white/15 pt-5 text-ink">
                 <p className="text-[12px] font-bold text-warning-light">{T.verify.structuredRequired}</p>
-                <div className="grid gap-4 rounded-xl bg-surface p-5 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 rounded-xl bg-surface p-5 sm:grid-cols-2">
                   <Field label={`${T.verify.rejectedItems} *`}>
                     <TextArea
                       rows={2}

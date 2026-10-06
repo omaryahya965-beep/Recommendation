@@ -61,7 +61,7 @@ export function CaseHeaderBar({
             <span>{ENGAGEMENT_LABELS[rec.engagement_type] ?? rec.engagement_type}</span>
           </p>
           <h1 className="mt-1.5 font-heading text-[1.375rem] font-bold leading-snug text-navy md:text-[1.6rem]">
-            {clipTitle(rec.title, 160)}
+            <bdi>{clipTitle(rec.title, 160)}</bdi>
           </h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">

@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 
+import { CaseDue } from "@/components/home/Queues";
 import { MobileRecordCard } from "@/components/mobile/MobileRecordCard";
 import { LedgerCell, LedgerTable, RecordId } from "@/components/ui/Ledger";
-import { OverdueBadge } from "@/components/ui/OverdueBadge";
 import { RiskBadge } from "@/components/ui/RiskBadge";
 import { StatusBadge } from "@/components/ui/StampBadge";
 import { clipTitle } from "@/lib/finding";
@@ -30,8 +30,9 @@ export function RecommendationTable({
     T.common.risk,
     T.common.status,
     T.common.responsible,
-    T.common.targetDate,
-    T.table.daysLeft,
+    // The server's binding deadline and its owner rule (W1/W2), as in the
+    // register: a case waiting on audit or the council is never shown late.
+    T.workflow.bindingDeadline,
     T.table.action,
   ];
 
@@ -48,7 +49,9 @@ export function RecommendationTable({
               risk={item.risk_level}
               owner={item.responsible_employee}
               department={showDepartment ? item.department_name : null}
-              dueDate={item.target_date}
+              dueDate={item.deadline ?? null}
+              dueLabel={item.deadline_source ? T.workflow.deadlineSource[item.deadline_source] : T.workflow.bindingDeadline}
+              dueBadge={<CaseDue item={item} />}
               overdue={item.overdue}
               actionLabel={STATUS_NEXT_ACTION[item.status]?.action ?? T.table.view}
               extra={
@@ -69,7 +72,7 @@ export function RecommendationTable({
               </LedgerCell>
               <LedgerCell className="max-w-md">
                 <Link href={detailHref(item)} className="block hover:text-primary-dark hover:underline">
-                  <span className="line-clamp-2">{clipTitle(item.title, 120)}</span>
+                  <span className="line-clamp-2"><bdi>{clipTitle(item.title, 120)}</bdi></span>
                 </Link>
                 {item.is_recurring && !item.recurrence_confirmed ? (
                   <span className="mt-1 inline-flex rounded-md bg-ai-light px-1.5 py-0.5 text-[10px] font-medium text-ai-dark">
@@ -86,10 +89,14 @@ export function RecommendationTable({
               </LedgerCell>
               <LedgerCell>{item.responsible_employee ?? "—"}</LedgerCell>
               <LedgerCell mono>
-                {item.target_date ? <time dir="ltr">{formatDate(item.target_date)}</time> : <span className="text-muted">—</span>}
-              </LedgerCell>
-              <LedgerCell>
-                <OverdueBadge targetDate={item.target_date} overdue={item.overdue} />
+                {item.deadline ? (
+                  <span className="flex flex-col items-start gap-1">
+                    <time dir="ltr">{formatDate(item.deadline)}</time>
+                    <CaseDue item={item} />
+                  </span>
+                ) : (
+                  <span className="text-muted">—</span>
+                )}
               </LedgerCell>
               <LedgerCell>
                 <Link href={detailHref(item)} className="text-[12px] font-medium text-primary-dark hover:underline">

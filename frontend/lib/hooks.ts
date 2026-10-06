@@ -3,7 +3,7 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { api, errorMessage } from "./api";
+import { api, ApiError, errorMessage } from "./api";
 import { T } from "./i18n";
 import { CASE, LIVE, REFERENCE, invalidateRecommendationViews } from "./queryPolicy";
 import type {
@@ -106,6 +106,13 @@ export function useWorkflowAction(id: number) {
     onError: (err) => {
       setSuccess(null);
       setError(errorMessage(err));
+      // 409: the server refused by its workflow rules — often because the
+      // case moved on since this screen loaded. Reload it, so the page shows
+      // what is actually possible now (the message stays visible).
+      if (err instanceof ApiError && err.status === 409) {
+        const reportId = queryClient.getQueryData<RecommendationDetail>(["recommendation", id])?.report;
+        invalidateRecommendationViews(queryClient, { id, reportId });
+      }
     },
   });
 

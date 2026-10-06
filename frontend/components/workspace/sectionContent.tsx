@@ -21,6 +21,7 @@ import { Button, Callout } from "@/components/ui/Base";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { VerificationHistory } from "@/components/verification/VerificationPanel";
 import { CaseHistory, DecisionsList } from "@/components/workspace/CaseSections";
+import { plural } from "@/lib/format";
 import type { WorkflowAction } from "@/lib/hooks";
 import { DECISION_LABELS, PLAN_STATUS_LABELS, REVIEW_STATUS_LABELS, T, VERIFICATION_LABELS, useI18n } from "@/lib/i18n";
 import type { RecommendationDetail } from "@/lib/types";
@@ -59,17 +60,17 @@ export function sectionSummary(id: SectionId, rec: RecommendationDetail, facts: 
         .replace("{total}", String(facts.stepsTotal))
         .replace("{progress}", String(facts.progress))} · ${PLAN_STATUS_LABELS[rec.action_plan.status]}`;
     case "evidence":
-      return facts.files ? T.caseView.summary.files.replace("{n}", String(facts.files)) : T.caseView.summary.noFiles;
+      return facts.files ? plural(facts.files, T.caseView.summary.files) : T.caseView.summary.noFiles;
     case "verification":
       return facts.latestVerification
         ? VERIFICATION_LABELS[facts.latestVerification]
         : T.caseView.summary.noVerification;
     case "decisions":
       return facts.decisions
-        ? T.caseView.summary.decisions.replace("{n}", String(facts.decisions))
+        ? plural(facts.decisions, T.caseView.summary.decisions)
         : T.caseView.summary.noDecisions;
     case "history":
-      return T.caseView.summary.events.replace("{n}", String(facts.events));
+      return plural(facts.events, T.caseView.summary.events);
   }
 }
 

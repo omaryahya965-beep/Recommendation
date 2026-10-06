@@ -122,7 +122,7 @@ export function MobileSearchOverlay({
                         <StatusBadge status={item.status} />
                       </span>
                       <span className="mt-2 block text-[15px] font-medium leading-snug text-ink">
-                        {clipTitle(item.title, 80)}
+                        <bdi>{clipTitle(item.title, 80)}</bdi>
                       </span>
                       <span className="mt-1 block truncate text-[13px] text-muted">
                         {role === "department_head"

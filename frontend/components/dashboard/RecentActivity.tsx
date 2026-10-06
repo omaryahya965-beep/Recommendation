@@ -98,13 +98,13 @@ export function RecentActivity({
                       <span className="text-[11px] font-bold uppercase tracking-wider text-muted">
                         {NOTIFICATION_TYPE_LABELS[item.type] ?? item.type}
                       </span>
-                      <time className="font-mono text-[11px] font-medium text-muted/80" dir="ltr">
+                      <time className="font-mono text-[11px] font-medium text-muted" dir="ltr">
                         {formatDateTime(item.sent_at)}
                       </time>
                     </div>
 
                     <p className={cn("mt-1.5 text-[14px] leading-relaxed text-ink", compact && "line-clamp-2", !item.is_read && "font-semibold")}>
-                      {item.message}
+                      <bdi>{item.message}</bdi>
                     </p>
 
                     {item.recommendation ? (

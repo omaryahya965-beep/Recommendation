@@ -9,7 +9,7 @@ import { RiskBadge } from "@/components/ui/RiskBadge";
 import { Section } from "@/components/ui/Section";
 import { cn } from "@/lib/cn";
 import { clipTitle } from "@/lib/finding";
-import { formatDate } from "@/lib/format";
+import { dayCount, formatDate } from "@/lib/format";
 import { STATUS_LABELS, T, useI18n } from "@/lib/i18n";
 import type { ActionCenterBlock, RecommendationListItem } from "@/lib/types";
 
@@ -27,7 +27,7 @@ export function CaseDue({ item, meta = "deadline" }: { item: RecommendationListI
       <span className={cn(chip, item.days_waiting > 7 ? "bg-warning-light text-warning-dark" : "bg-subtle text-ink-soft")}>
         <Hourglass className="size-3" aria-hidden />
         {item.days_waiting > 0
-          ? T.home.waitingDays.replace("{days}", String(item.days_waiting))
+          ? T.home.waitingDays.replace("{days}", dayCount(item.days_waiting))
           : T.home.waitingToday}
       </span>
     );
@@ -36,7 +36,7 @@ export function CaseDue({ item, meta = "deadline" }: { item: RecommendationListI
     return (
       <span className={cn(chip, "bg-danger-light text-danger-dark")}>
         <AlarmClock className="size-3" aria-hidden />
-        {T.workflow.overdueBy.replace("{days}", String(item.days_overdue))}
+        {T.workflow.overdueBy.replace("{days}", dayCount(item.days_overdue ?? 0, "accusative"))}
       </span>
     );
   }
@@ -50,9 +50,9 @@ export function CaseDue({ item, meta = "deadline" }: { item: RecommendationListI
   }
   if (item.due_in_days != null) {
     return (
-      <span className={cn(chip, item.due_in_days <= 7 ? "bg-warning-light/70 text-warning-dark" : "bg-subtle text-ink-soft")}>
+      <span className={cn(chip, item.due_in_days <= 7 ? "bg-warning-light text-warning-dark" : "bg-subtle text-ink-soft")}>
         <CalendarClock className="size-3" aria-hidden />
-        {item.due_in_days === 0 ? T.workflow.dueToday : T.workflow.dueIn.replace("{days}", String(item.due_in_days))}
+        {item.due_in_days === 0 ? T.workflow.dueToday : T.workflow.dueIn.replace("{days}", dayCount(item.due_in_days))}
       </span>
     );
   }
@@ -158,7 +158,7 @@ export function QueuePanel({
                     <CaseDue item={item} meta={meta} />
                   </span>
                   <span className="text-[14px] font-semibold leading-snug text-navy group-hover:text-primary-dark">
-                    {clipTitle(item.title, 100)}
+                    <bdi>{clipTitle(item.title, 100)}</bdi>
                   </span>
                   <span className="flex flex-wrap items-center gap-x-2 text-[12px] text-ink-soft">
                     {showDepartment ? <span>{item.department_name}</span> : null}

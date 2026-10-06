@@ -93,8 +93,9 @@ export function HomeHero({
   }
 
   return (
-    <section className="relative overflow-hidden section-elevated bg-[#062b3d] min-h-[15rem] md:min-h-[21rem] lg:min-h-[23rem]">
-      {/* Wide banner photo covering the whole card (decorative). */}
+    <section className="relative overflow-hidden section-elevated bg-[#062b3d] min-h-[15rem] md:min-h-[17rem] lg:min-h-[23rem]">
+      {/* Wide banner photo covering the whole card (decorative). Tablets get a
+          shorter banner (17rem) so the first queue shows above the fold. */}
       <Image
         src="/images/al-bireh-hero.webp"
         alt=""
@@ -107,18 +108,19 @@ export function HomeHero({
         sizes="(min-width: 1440px) 1376px, 100vw"
         className="object-cover object-[center_30%] md:object-center"
       />
-      {/* RTL overlay: strongest on the right (text side), softer toward the left;
-          darker on mobile so the white text stays readable. */}
+      {/* Overlay strongest on the text side (right in Arabic, left in English),
+          softer toward the other edge; darker on mobile so the white text
+          stays readable. */}
       <div
         aria-hidden
-        className="absolute inset-0 bg-gradient-to-l from-[#062b3d]/90 via-[#062b3d]/55 to-[#062b3d]/10 max-md:via-[#062b3d]/60 max-md:to-[#062b3d]/35"
+        className="absolute inset-0 bg-gradient-to-l from-[#062b3d]/90 via-[#062b3d]/55 to-[#062b3d]/10 ltr:bg-gradient-to-r max-md:via-[#062b3d]/60 max-md:to-[#062b3d]/35"
       />
       <div
         aria-hidden
         className="absolute inset-0 bg-gradient-to-t from-[#062b3d]/55 via-transparent to-transparent"
       />
 
-      <div className="relative z-10 flex h-full min-h-[15rem] flex-col justify-end gap-2 px-4 py-5 md:min-h-[21rem] md:gap-5 md:px-10 md:py-10 lg:min-h-[23rem]">
+      <div className="relative z-10 flex h-full min-h-[15rem] flex-col justify-end gap-2 px-4 py-5 md:min-h-[17rem] md:gap-3 md:px-8 md:py-7 lg:min-h-[23rem] lg:gap-5 lg:px-10 lg:py-10">
         <div className="absolute inset-x-4 top-4 flex items-start justify-between gap-3 md:inset-x-10 md:top-6">
           <div className="flex min-w-0 flex-wrap items-center gap-2 md:gap-3">
             <p className="text-[14px] font-medium text-white drop-shadow-md">

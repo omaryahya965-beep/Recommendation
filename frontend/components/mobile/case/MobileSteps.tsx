@@ -55,7 +55,7 @@ function ProgressStepper({
         <p className="font-mono text-[22px] font-bold text-navy" dir="ltr" aria-live="polite">
           {value}%
         </p>
-        <ProgressBar value={value} showValue={false} className="mt-1" />
+        <ProgressBar value={value} showValue={false} label={T.mobile.stepProgress} className="mt-1" />
       </div>
       <Button
         type="button"
@@ -237,7 +237,7 @@ export function MobileSteps({ rec, action }: { rec: RecommendationDetail; action
                     ) : null}
                   </span>
                   {!step.is_done ? (
-                    <ProgressBar value={step.progress_percent} showValue={false} className="mt-2" />
+                    <ProgressBar value={step.progress_percent} showValue={false} label={`${T.mobile.stepProgress} — ${step.title}`} className="mt-2" />
                   ) : null}
                 </span>
                 <DirForward className="mt-2 size-5 shrink-0 text-muted" aria-hidden />

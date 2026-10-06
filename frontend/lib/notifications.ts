@@ -1,5 +1,5 @@
 import { caseTitle } from "./finding";
-import { recordCode } from "./format";
+import { dayCount, recordCode } from "./format";
 import { currentT } from "./i18n/messages";
 import type { AppNotification, NotificationType, RecommendationStatus, Role } from "./types";
 import { isWaitingOn, stageForStatus, STATUS_NEXT_ACTION } from "./workflow";
@@ -241,19 +241,11 @@ export function whyItArrived(item: AppNotification): string {
   }
 }
 
+/** "Overdue for 3 days" — the server's count from the binding deadline (W1/W2). */
 export function daysOverdueLabel(item: AppNotification): string | null {
-  if (!item.overdue || !item.target_date) return null;
-  const target = new Date(item.target_date);
-  if (Number.isNaN(target.getTime())) return null;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  target.setHours(0, 0, 0, 0);
-  const days = Math.round((today.getTime() - target.getTime()) / 86_400_000);
+  const days = item.overdue ? (item.days_overdue ?? 0) : 0;
   if (days <= 0) return null;
-  const T = currentT();
-  if (days === 1) return T.notify.overdueSinceOne;
-  if (days === 2) return T.notify.overdueSinceTwo;
-  return T.notify.overdueSince.replace("{n}", String(days));
+  return currentT().notify.overdueSince.replace("{days}", dayCount(days, "genitive"));
 }
 
 export function sortNotifications(items: AppNotification[]): AppNotification[] {

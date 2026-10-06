@@ -126,7 +126,7 @@ export function ResponseComparison({ rec }: { rec: RecommendationDetail }) {
     rec.action_plan?.responsible_employee_detail?.full_name_ar || rec.responsible_employee || rec.department_name;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
       <section className="border-s-4 border-line/60 bg-subtle/25 rounded-e-xl p-4 shadow-sm">
         <p className="text-xs font-bold uppercase tracking-wider text-muted">{T.auditReview.compareFinding}</p>
         <p className="mt-3 whitespace-pre-wrap text-[13.5px] leading-[1.8] text-ink font-medium">{statement}</p>
@@ -158,7 +158,7 @@ export function ResponseComparison({ rec }: { rec: RecommendationDetail }) {
                 {T.evidenceRegister.supporting}
               </a>
             ) : null}
-            <dl className="grid gap-3 text-xs sm:grid-cols-2 bg-surface/50 border border-line rounded-lg p-2.5">
+            <dl className="grid grid-cols-1 gap-3 text-xs sm:grid-cols-2 bg-surface/50 border border-line rounded-lg p-2.5">
               {proposed ? (
                 <div>
                   <dt className="text-muted font-bold uppercase tracking-wider text-[9px] mb-0.5">{T.response.proposedDate}</dt>

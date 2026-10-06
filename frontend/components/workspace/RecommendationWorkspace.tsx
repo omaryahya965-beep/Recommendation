@@ -1,11 +1,13 @@
 "use client";
 
-import { Printer } from "lucide-react";
+import { Printer, SearchX } from "lucide-react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 import { CaseSkeleton } from "@/components/case/CaseHeader";
 import { Button, ErrorBanner, SuccessBanner } from "@/components/ui/Base";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { ActionCard } from "@/components/workspace/ActionCard";
 import { ActionPanel } from "@/components/workspace/ActionPanel";
 import { CaseHeaderBar } from "@/components/workspace/CaseHeaderBar";
@@ -20,9 +22,10 @@ import {
 import { CaseTimeline } from "@/components/workspace/CaseTimeline";
 import { SideRail } from "@/components/workspace/SideRail";
 import { MobileCaseScreen } from "@/components/mobile/case/MobileCaseScreen";
+import { ApiError } from "@/lib/api";
 import { useRecommendation, useWorkflowAction, useWorkflowPolicy } from "@/lib/hooks";
 import { T, useI18n } from "@/lib/i18n";
-import type { Role } from "@/lib/types";
+import type { RecommendationStatus, Role } from "@/lib/types";
 import {
   defaultOpenSection,
   isExecutionDesk,
@@ -34,12 +37,17 @@ import {
 import { useIsPhone } from "@/lib/useMediaQuery";
 import { isOffered } from "@/lib/workflow";
 
-function backLink(role: Role): { href: string; label: string } {
-  const map: Record<Role, { href: string; label: string }> = {
+function backLink(role: Role, status?: RecommendationStatus): { href: string; label: string } {
+  if (role === "council") {
+    // Back to the council queue the case sits in, else the register.
+    if (status === "pending_council") return { href: "/council/pending-approvals", label: T.nav.pendingApprovals };
+    if (status === "pending_closure_council") return { href: "/council/closure-reviews", label: T.nav.closureReviews };
+    return { href: "/council/recommendations", label: T.nav.recommendations };
+  }
+  const map: Record<Exclude<Role, "council">, { href: string; label: string }> = {
     audit: { href: "/audit/recommendations", label: T.register.title },
     department_head: { href: "/department/recommendations", label: T.register.title },
     employee: { href: "/employee/my-tasks", label: T.nav.myTasks },
-    council: { href: "/council/pending-approvals", label: T.nav.pendingApprovals },
   };
   return map[role];
 }
@@ -51,7 +59,7 @@ function backLink(role: Role): { href: string; label: string } {
  */
 export function RecommendationWorkspace({ id, role }: { id: number; role: Role }) {
   useI18n();
-  const { data: rec, isLoading, isError, refetch } = useRecommendation(id);
+  const { data: rec, isLoading, isError, error, refetch } = useRecommendation(id);
   const action = useWorkflowAction(id);
   const { data: policy } = useWorkflowPolicy();
   const searchParams = useSearchParams();
@@ -64,8 +72,27 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
 
   const phone = useIsPhone();
 
-  const back = backLink(role);
+  const back = backLink(role, rec?.status);
   if (isLoading) return <CaseSkeleton id={id} backHref={back.href} backLabel={back.label} />;
+  // A case that does not exist or is outside the viewer's scope: retrying
+  // cannot help, so say so and lead back to the list.
+  if (error instanceof ApiError && (error.status === 403 || error.status === 404)) {
+    return (
+      <EmptyState
+        icon={<SearchX className="size-6" aria-hidden />}
+        title={T.caseView.unavailableTitle}
+        description={T.errors.notFoundDescription}
+        actions={
+          <Link
+            href={back.href}
+            className="inline-flex min-h-11 items-center rounded-lg bg-primary px-5 text-[14px] font-bold text-white hover:bg-primary-dark"
+          >
+            {back.label}
+          </Link>
+        }
+      />
+    );
+  }
   if (isError || !rec) return <ErrorBanner message={T.common.error} onRetry={() => refetch()} />;
 
   if (phone) {
@@ -116,9 +143,14 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
       />
       <CaseTimeline rec={rec} />
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_18.5rem] xl:grid-cols-[minmax(0,1fr)_20rem]">
+      {/* Two columns from 1280px. At 1024–1279 the full sidebar leaves ~700px,
+          and a side rail beside the forms would squeeze them to ~390px, so the
+          rail stacks below as on tablets. */}
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="min-w-0 space-y-5">
           <SuccessBanner message={action.success ?? (searchParams.get("saved") ? T.create.editSaved : null)} />
+          {/* A refused action whose form is gone (the case moved on) still says why. */}
+          {action.error && !primary ? <ErrorBanner message={action.error} /> : null}
           <ActionCard rec={rec} role={role}>
             {primary ? (
               <ActionPanel rec={rec} action={action} requirePlan={policy?.require_plan_with_response ?? false} />
@@ -165,7 +197,7 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
           </div>
         </div>
 
-        <aside className="min-w-0">
+        <aside className="min-w-0" aria-label={T.mobile.details}>
           <SideRail rec={rec} role={role} />
         </aside>
       </div>

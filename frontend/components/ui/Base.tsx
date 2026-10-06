@@ -251,7 +251,7 @@ export function ProseBlock({
     <div className={cn("rounded-md border border-line bg-surface p-4 shadow-sm relative overflow-hidden", className)}>
       <div className="absolute start-0 top-0 bottom-0 w-1 bg-line" aria-hidden />
       <p className="mb-2 text-[13px] font-bold text-muted">{label}</p>
-      <div className="whitespace-pre-wrap text-[14px] leading-relaxed text-ink">{children}</div>
+      <div className="whitespace-pre-wrap text-[14px] leading-relaxed text-ink" dir="auto">{children}</div>
       {hint ? <p className="mt-3 border-t border-line pt-2 text-[12px] text-muted">{hint}</p> : null}
     </div>
   );

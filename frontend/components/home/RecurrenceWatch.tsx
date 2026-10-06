@@ -50,7 +50,7 @@ export function RecurrenceWatch({
                     </span>
                   </div>
                   <Link href={detailHref(item)} className="mt-3 block font-heading text-[16px] font-semibold leading-snug text-navy group-hover:text-primary transition-colors">
-                    {clipTitle(item.title, 100)}
+                    <bdi>{clipTitle(item.title, 100)}</bdi>
                   </Link>
                   <p className="mt-2.5 text-[13px] font-medium text-ink-soft">{item.department_name}</p>
                 </div>

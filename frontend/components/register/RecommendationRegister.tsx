@@ -18,7 +18,7 @@ import { StatusBadge } from "@/components/ui/StampBadge";
 import { api, downloadFile, errorMessage, loadAuth } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { clipTitle } from "@/lib/finding";
-import { formatDate, localISODate } from "@/lib/format";
+import { dayCount, formatDate, localISODate, plural } from "@/lib/format";
 import { useDepartments, usePrefetchRecommendation } from "@/lib/hooks";
 import { RISK_LABELS, STATUS_LABELS, T, useI18n } from "@/lib/i18n";
 import { LIVE } from "@/lib/queryPolicy";
@@ -66,7 +66,7 @@ function urgent(item: RecommendationListItem) {
 function waitingText(item: RecommendationListItem) {
   const who = T.workflow.waitingOn[item.waiting_on];
   return item.days_waiting > 0
-    ? `${who} · ${T.home.waitingDays.replace("{days}", String(item.days_waiting))}`
+    ? `${who} · ${T.home.waitingDays.replace("{days}", dayCount(item.days_waiting))}`
     : `${who} · ${T.home.waitingToday}`;
 }
 
@@ -116,11 +116,11 @@ function RegisterCard({
                 </span>
               ) : null}
             </div>
-            <h3 className="mt-3 font-heading text-[16px] font-semibold leading-snug text-navy group-hover:text-primary transition-colors">
-              {clipTitle(item.title, 130)}
-            </h3>
-            <p className="mt-1 text-[13px] text-ink-soft">
-              {hideDepartment ? item.report_title : `${item.department_name} • ${item.report_title}`}
+            <h2 className="mt-3 font-heading text-[16px] font-semibold leading-snug text-navy group-hover:text-primary transition-colors">
+              <bdi>{clipTitle(item.title, 130)}</bdi>
+            </h2>
+            <p className="mt-1 line-clamp-2 text-[13px] text-ink-soft">
+              {hideDepartment ? null : <>{item.department_name} • </>}<bdi>{item.report_title}</bdi>
             </p>
           </div>
 
@@ -149,7 +149,7 @@ function RegisterCard({
           <div>
             <dt className="text-muted font-semibold text-[11px] uppercase tracking-wider mb-0.5">{T.common.priority}</dt>
             <dd className="mt-1">
-              <ProgressBar value={item.priority_score} showValue tone="primary" />
+              <ProgressBar value={item.priority_score} showValue tone="primary" label={T.common.priority} />
             </dd>
           </div>
           <div className="min-w-0">
@@ -200,7 +200,7 @@ function CompactTable({
           </LedgerCell>
           <LedgerCell>
             <Link href={`${detailBase}/${item.id}`} className="font-medium text-ink group-hover:text-primary transition-colors">
-              {clipTitle(item.title, 80)}
+              <bdi>{clipTitle(item.title, 80)}</bdi>
             </Link>
           </LedgerCell>
           {hideDepartment ? null : <LedgerCell>{item.department_name}</LedgerCell>}
@@ -257,6 +257,7 @@ const LINK_FILTERS = [
   "report",
   "responsible_employee",
   "open",
+  "issued",
   "recurrence_confirmed",
 ] as const;
 
@@ -293,11 +294,15 @@ function linkFilterChips(searchParams: URLSearchParams): Array<{ key: string; la
   }
   if (value("responsible_employee")) chips.push({ key: "responsible_employee", label: T.register.chipEmployee });
   if (value("open") === "true") chips.push({ key: "open", label: T.register.chipOpen });
+  if (value("issued") === "true") chips.push({ key: "issued", label: T.register.chipIssued });
   if (value("my_turn") === "true") chips.push({ key: "my_turn", label: T.register.chipMyTurn });
   if (value("response_overdue") === "true") chips.push({ key: "response_overdue", label: T.register.chipResponseLate });
   if (value("report")) chips.push({ key: "report", label: T.register.chipReport });
   if (value("recurrence_confirmed") === "false") {
     chips.push({ key: "recurrence_confirmed", label: T.register.chipUnconfirmedRecurrence });
+  }
+  if (value("recurrence_confirmed") === "true") {
+    chips.push({ key: "recurrence_confirmed", label: T.register.chipConfirmedRecurrence });
   }
   return chips;
 }
@@ -675,7 +680,7 @@ function RegisterInner({
           footer={
             <div className="flex gap-2">
               <Button type="button" className="min-h-12 flex-1" onClick={() => setFiltersOpen(false)}>
-                {T.mobile.showResults.replace("{n}", String(data?.count ?? 0))}
+                {plural(data?.count ?? 0, T.mobile.showResults)}
               </Button>
               <Button type="button" variant="ghost" className="min-h-12 ring-1 ring-line" onClick={resetFilters}>
                 {T.filters.reset}

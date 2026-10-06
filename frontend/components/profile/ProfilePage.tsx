@@ -144,7 +144,7 @@ export function ProfilePage({ role }: { role: Role }) {
       <SuccessBanner message={success} />
 
       {user ? (
-        <div className="grid items-start gap-6 lg:grid-cols-2">
+        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
           <Section
             title={displayName(user)}
             hint={ROLE_LABELS[user.role] || ROLE_LABELS[role]}
@@ -152,7 +152,7 @@ export function ProfilePage({ role }: { role: Role }) {
             className="rounded-2xl border border-line bg-surface shadow-sm"
           >
             <div className="flex items-center gap-4 pb-5">
-              <div className="flex size-14 shrink-0 items-center justify-center rounded-xl bg-navy font-heading text-[1.25rem] font-bold text-white shadow-sm">
+              <div className="flex size-14 shrink-0 items-center justify-center rounded-xl bg-navy font-heading text-[1.25rem] font-bold text-surface shadow-sm">
                 {displayName(user).slice(0, 1)}
               </div>
               <div className="min-w-0">

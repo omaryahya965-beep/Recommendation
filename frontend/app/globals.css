@@ -20,7 +20,7 @@
   --color-line: #d3ddd9;
   --color-ink: #14201e;
   --color-ink-soft: #4f5f5b;
-  --color-muted: #6e7c78;
+  --color-muted: #636f6c; /* AA (4.5:1) on surface, bg, subtle and primary-light */
   --color-success: #21845a;
   --color-success-dark: #186848;
   --color-success-light: #e6f4ee;
@@ -164,6 +164,34 @@
   --shadow-panel: 0 10px 32px rgb(0 0 0 / 0.38);
   --shadow-section: 0 2px 8px rgb(0 0 0 / 0.12), 0 4px 16px rgb(0 0 0 / 0.1);
   --shadow-card-hover: 0 6px 16px rgb(0 0 0 / 0.25), 0 12px 32px rgb(0 0 0 / 0.15);
+}
+
+/* The dark theme lightens every semantic fill so it reads against dark
+   surfaces, which leaves white text on it unreadable (an "Accept" button was
+   2.9:1, "Return" 1.8:1). Text on a solid fill takes the dark surface colour
+   instead; the light theme keeps white. */
+[data-theme="dark"]
+  :is(
+    .bg-primary,
+    .bg-primary-dark,
+    .bg-success,
+    .bg-success-dark,
+    .bg-info,
+    .bg-info-dark,
+    .bg-warning,
+    .bg-warning\/90,
+    .bg-warning-dark,
+    .bg-danger,
+    .bg-danger-dark,
+    .bg-ai,
+    .bg-ai-dark,
+    .bg-navy,
+    .bg-olive,
+    .bg-seal,
+    .bg-slate,
+    .bg-brass
+  ).text-white {
+  color: var(--color-surface);
 }
 
 html {

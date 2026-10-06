@@ -38,7 +38,7 @@ export default function ApprovedHistoryPage() {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <RecordId id={report.id} prefix="RPT" />
-                  <h2 className="mt-1.5 font-heading text-[15px] font-semibold text-ink">{report.title}</h2>
+                  <h2 className="mt-1.5 font-heading text-[15px] font-semibold text-ink"><bdi>{report.title}</bdi></h2>
                 </div>
                 <span className="inline-flex items-center gap-1.5 rounded-md border border-success/25 bg-success-light px-2.5 py-1 text-[12px] font-medium text-success-dark">
                   <Archive className="size-3.5" />
@@ -46,7 +46,7 @@ export default function ApprovedHistoryPage() {
                 </span>
               </div>
 
-              <dl className="mt-4 grid gap-4 border-t border-line pt-4 sm:grid-cols-2 lg:grid-cols-4">
+              <dl className="mt-4 grid grid-cols-1 gap-4 border-t border-line pt-4 sm:grid-cols-2 lg:grid-cols-4">
                 <DataField label={T.common.department}>{report.department_name}</DataField>
                 <DataField label={T.create.engagement}>
                   {REPORT_TYPE_LABELS[report.engagement_type]}

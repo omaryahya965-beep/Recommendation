@@ -21,7 +21,7 @@ import {
   stagePressure,
   type AnalyticsPayload,
 } from "@/lib/analytics";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, plural } from "@/lib/format";
 import { T, useI18n } from "@/lib/i18n";
 import { MODERATE } from "@/lib/queryPolicy";
 import type { Role } from "@/lib/types";
@@ -49,13 +49,13 @@ function fill(template: string, values: Record<string, string | number>) {
 function HeadlineTiles({ data, base, role }: { data: AnalyticsPayload; base: string; role: Role }) {
   const totals = data.totals;
   return (
-    <dl className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6" data-testid="analytics-headline">
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6" data-testid="analytics-headline">
       <StatTile
         label={T.insights.issued}
         value={totals.total}
         definition={T.insights.def.issued}
-        note={role === "audit" && totals.drafts ? fill(T.insights.draftsNote, { count: totals.drafts }) : null}
-        href={base}
+        note={role === "audit" && totals.drafts ? plural(totals.drafts, T.insights.draftsNote) : null}
+        href={`${base}?issued=true`}
       />
       <StatTile label={T.insights.open} value={totals.open} definition={T.insights.def.open} href={`${base}?open=true`} />
       <StatTile
@@ -89,7 +89,7 @@ function HeadlineTiles({ data, base, role }: { data: AnalyticsPayload; base: str
         definition={T.insights.def.highRiskOpen}
         href={`${base}?risk_level=high&open=true`}
       />
-    </dl>
+    </div>
   );
 }
 
@@ -101,20 +101,20 @@ function Queues({ data, base }: { data: AnalyticsPayload; base: string }) {
   ];
   return (
     <Panel title={T.insights.queuesTitle} hint={T.insights.queuesHint} testId="analytics-queues">
-      <dl className="grid gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {rows.map(([side, label]) => (
           <StatTile
             key={side}
             label={label}
             value={data.queues[side].count}
-            href={`${base}?waiting_on=${side}`}
+            href={`${base}?waiting_on=${side}&issued=true`}
             note={fill(T.insights.queueStats, {
               avg: data.queues[side].average_days,
               max: data.queues[side].max_days,
             })}
           />
         ))}
-      </dl>
+      </div>
       {data.totals.late_in_review ? (
         <p className="mt-3 text-[12.5px] text-ink-soft">
           {fill(T.insights.lateInReview, { count: data.totals.late_in_review })}
@@ -159,11 +159,11 @@ function Aging({ data, base }: { data: AnalyticsPayload; base: string }) {
   const labels = [T.insights.aging1, T.insights.aging2, T.insights.aging3];
   return (
     <Panel title={T.insights.agingTitle} hint={T.insights.agingHint}>
-      <dl className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         {AGING_ORDER.map((bucket, index) => (
           <StatTile key={bucket} label={labels[index]} value={data.overdue_aging[bucket] ?? 0} alert href={`${base}?overdue=1`} />
         ))}
-      </dl>
+      </div>
     </Panel>
   );
 }
@@ -225,7 +225,7 @@ function Progress({ data }: { data: AnalyticsPayload }) {
         <Meter value={implementation.average_step_progress} label={T.insights.progressTitle} />
       </div>
       <p className="mt-2 text-[12.5px] text-ink-soft">
-        {fill(T.insights.progressCases, { count: implementation.cases_in_execution })}
+        {plural(implementation.cases_in_execution, T.insights.progressCases)}
       </p>
     </Panel>
   );
@@ -234,10 +234,10 @@ function Progress({ data }: { data: AnalyticsPayload }) {
 function Recurrence({ data, base }: { data: AnalyticsPayload; base: string }) {
   return (
     <Panel title={T.insights.recurrenceTitle}>
-      <dl className="grid grid-cols-2 gap-3">
-        <StatTile label={T.insights.recurrenceConfirmed} value={data.recurrence.confirmed} href={`${base}?is_recurring=true`} />
+      <div className="grid grid-cols-2 gap-3">
+        <StatTile label={T.insights.recurrenceConfirmed} value={data.recurrence.confirmed} href={`${base}?is_recurring=true&recurrence_confirmed=true`} />
         <StatTile label={T.insights.recurrenceAwaiting} value={data.recurrence.awaiting_confirmation} />
-      </dl>
+      </div>
     </Panel>
   );
 }
@@ -265,12 +265,12 @@ function AuditView({ data, base }: { data: AnalyticsPayload; base: string }) {
     <>
       <HeadlineTiles data={data} base={base} role="audit" />
       <Queues data={data} base={base} />
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <Stages data={data} base={base} />
         <Volume data={data} />
       </div>
       <Departments data={data} base={base} />
-      <div className="grid gap-6 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <Aging data={data} base={base} />
         <Progress data={data} />
         <Recurrence data={data} base={base} />
@@ -284,11 +284,11 @@ function HeadView({ data, base }: { data: AnalyticsPayload; base: string }) {
     <>
       <HeadlineTiles data={data} base={base} role="department_head" />
       <Queues data={data} base={base} />
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <Stages data={data} base={base} />
         <Volume data={data} />
       </div>
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <Aging data={data} base={base} />
         <Progress data={data} />
       </div>
@@ -301,12 +301,16 @@ function EmployeeView({ data, base }: { data: AnalyticsPayload; base: string }) 
   const inReview = totals.awaiting_head_review + totals.awaiting_verification + totals.awaiting_closure_audit + totals.awaiting_closure_council;
   return (
     <>
-      <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4" data-testid="analytics-headline">
-        <StatTile label={T.insights.myActive} value={totals.in_execution} href={base} />
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" data-testid="analytics-headline">
+        <StatTile
+          label={T.insights.myActive}
+          value={totals.in_execution}
+          href={`${base}?status__in=in_progress,returned_insufficient,partial,reopened`}
+        />
         <StatTile label={T.insights.myOverdue} value={totals.overdue} alert definition={T.insights.def.overdue} href={`${base}?overdue=1`} testId="analytics-overdue" />
         <StatTile label={T.insights.myInReview} value={inReview} />
         <StatTile label={T.insights.myClosed} value={totals.closed} />
-      </dl>
+      </div>
       <Progress data={data} />
     </>
   );
@@ -316,7 +320,7 @@ function CouncilView({ data, base }: { data: AnalyticsPayload; base: string }) {
   const totals = data.totals;
   return (
     <>
-      <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4" data-testid="analytics-headline">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" data-testid="analytics-headline">
         <StatTile label={T.insights.awaitingRatification} value={totals.awaiting_ratification} href="/council/pending-approvals" />
         <StatTile label={T.insights.awaitingClosure} value={totals.awaiting_closure_council} href="/council/closure-reviews" />
         <StatTile label={T.insights.highRiskOpen} value={totals.high_risk_open} definition={T.insights.def.highRiskOpen} href={`${base}?risk_level=high&open=true`} />
@@ -330,8 +334,8 @@ function CouncilView({ data, base }: { data: AnalyticsPayload; base: string }) {
             decisions: data.decisions.closure_decisions,
           })}
         />
-      </dl>
-      <div className="grid gap-6 xl:grid-cols-2">
+      </div>
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <CouncilDecisions data={data} />
         <Volume data={data} />
       </div>

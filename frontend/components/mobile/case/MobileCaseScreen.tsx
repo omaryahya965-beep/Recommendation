@@ -10,7 +10,7 @@ import { MobileSteps } from "@/components/mobile/case/MobileSteps";
 import { StageChips } from "@/components/mobile/case/StageChips";
 import { Sheet } from "@/components/mobile/Sheet";
 import { StickyActionBar } from "@/components/mobile/StickyActionBar";
-import { Button, SuccessBanner } from "@/components/ui/Base";
+import { Button, ErrorBanner, SuccessBanner } from "@/components/ui/Base";
 import { RecordId } from "@/components/ui/Ledger";
 import { RiskBadge } from "@/components/ui/RiskBadge";
 import { StatusBadge } from "@/components/ui/StampBadge";
@@ -27,7 +27,7 @@ import {
 import { SideRail } from "@/components/workspace/SideRail";
 import { cn } from "@/lib/cn";
 import { clipTitle } from "@/lib/finding";
-import { formatDate } from "@/lib/format";
+import { dayCount, formatDate } from "@/lib/format";
 import type { WorkflowAction } from "@/lib/hooks";
 import { T, useI18n } from "@/lib/i18n";
 import type { RecommendationDetail, Role } from "@/lib/types";
@@ -38,7 +38,7 @@ import {
   sectionFacts,
   type SectionId,
 } from "@/lib/viewmodels/caseView";
-import { canAct, caseAction, isOffered, STATUS_NEXT_ACTION } from "@/lib/workflow";
+import { canAct, caseAction, closedTitle, isOffered, STATUS_NEXT_ACTION } from "@/lib/workflow";
 
 type SheetKind = "action" | "evidence";
 
@@ -55,7 +55,7 @@ function StatusHero({ rec, role }: { rec: RecommendationDetail; role: Role }) {
     workflow && !closed && workflow.waiting_on !== "none"
       ? (workflow.days_waiting > 0 ? T.workflow.waitingSince : T.workflow.waitingToday)
           .replace("{who}", T.workflow.waitingOn[workflow.waiting_on])
-          .replace("{days}", String(workflow.days_waiting))
+          .replace("{days}", dayCount(workflow.days_waiting, "genitive"))
       : null;
   const report = workflow?.report_action ?? null;
 
@@ -83,7 +83,7 @@ function StatusHero({ rec, role }: { rec: RecommendationDetail; role: Role }) {
         id="mobile-case-action"
         className={cn("mt-1.5 font-heading text-[18px] font-bold leading-snug", mine ? "text-white" : closed ? "text-success-dark" : "text-navy")}
       >
-        {mine && primary ? T.caseView.actions[primary] : next.action}
+        {closed ? closedTitle(rec.resolution) : mine && primary ? T.caseView.actions[primary] : next.action}
       </h2>
       {waiting ? (
         <p className={cn("mt-1 inline-flex items-center gap-1.5 text-[12.5px]", mine ? "text-white/75" : "text-ink-soft")}>
@@ -231,11 +231,12 @@ export function MobileCaseScreen({
             </span>
           ) : null}
         </div>
-        <h1 className="mt-2 font-heading text-[19px] font-bold leading-snug text-navy">{clipTitle(rec.title, 140)}</h1>
+        <h1 className="mt-2 font-heading text-[19px] font-bold leading-snug text-navy"><bdi>{clipTitle(rec.title, 140)}</bdi></h1>
         <p className="mt-0.5 text-[12.5px] text-ink-soft">{rec.department_name}</p>
       </header>
 
       <SuccessBanner message={action.success ?? (savedNotice ? T.create.editSaved : null)} />
+      {action.error && !primary ? <ErrorBanner message={action.error} /> : null}
       <StatusHero rec={rec} role={role} />
       <StageChips rec={rec} />
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FileText, Plus, Send, Stamp } from "lucide-react";
+import { FileText, Plus, SearchX, Send, Stamp } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
@@ -12,10 +12,10 @@ import { ReportPipeline, REPORT_STATUS_FAMILY } from "@/components/reports/Repor
 import { Button, DataField, ErrorBanner } from "@/components/ui/Base";
 import { CaseSkeleton } from "@/components/case/CaseHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { OverdueBadge } from "@/components/ui/OverdueBadge";
+import { CaseDue } from "@/components/home/Queues";
 import { RiskBadge } from "@/components/ui/RiskBadge";
 import { StatusBadge } from "@/components/ui/StampBadge";
-import { api, errorMessage } from "@/lib/api";
+import { api, ApiError, errorMessage } from "@/lib/api";
 import { invalidateRecommendationViews } from "@/lib/queryPolicy";
 import { clipTitle } from "@/lib/finding";
 import { formatDate, recordCode } from "@/lib/format";
@@ -31,7 +31,7 @@ export default function ReportDetailPage() {
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
 
-  const { data: report, isLoading, isError, refetch } = useQuery({
+  const { data: report, isLoading, isError, error: loadError, refetch } = useQuery({
     queryKey: ["report", id],
     queryFn: () => api<AuditReport>(`/api/reports/${id}/`),
     ...MODERATE,
@@ -50,6 +50,23 @@ export default function ReportDetailPage() {
   if (isLoading) {
     return (
       <CaseSkeleton id={id} prefix="RPT" backHref="/audit/reports" backLabel={T.reports.title} backClassName="text-ink-soft" />
+    );
+  }
+  if (loadError instanceof ApiError && (loadError.status === 403 || loadError.status === 404)) {
+    return (
+      <EmptyState
+        icon={<SearchX className="size-6" aria-hidden />}
+        title={T.reports.unavailableTitle}
+        description={T.errors.notFoundDescription}
+        actions={
+          <Link
+            href="/audit/reports"
+            className="inline-flex min-h-11 items-center rounded-lg bg-primary px-5 text-[14px] font-bold text-white hover:bg-primary-dark"
+          >
+            {T.reports.title}
+          </Link>
+        }
+      />
     );
   }
   if (isError || !report) return <ErrorBanner message={T.common.error} onRetry={() => refetch()} />;
@@ -75,7 +92,7 @@ export default function ReportDetailPage() {
           {recordCode(report.id, "RPT")}
         </p>
         <div className="mt-1 flex flex-wrap items-start justify-between gap-3">
-          <h1 className="font-heading text-xl font-bold text-navy md:text-[1.6rem]">{report.title}</h1>
+          <h1 className="font-heading text-xl font-bold text-navy md:text-[1.6rem]"><bdi>{report.title}</bdi></h1>
           <StatusBadge
             status={REPORT_STATUS_FAMILY[report.status]}
             label={REPORT_STATUS_LABELS[report.status]}
@@ -159,7 +176,7 @@ export default function ReportDetailPage() {
         <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="font-heading text-base font-semibold text-navy">
             {T.reports.findings}
-            <span className="ms-2 font-mono text-sm font-normal text-muted" dir="ltr">
+            <span className="ms-2 font-mono text-sm font-normal text-muted">
               {recommendations.length}
             </span>
           </h2>
@@ -184,7 +201,7 @@ export default function ReportDetailPage() {
                           {String(index + 1).padStart(2, "0")} · {recordCode(item.id)}
                         </p>
                         <p className="mt-1 font-heading text-[15px] font-semibold text-ink group-hover:text-primary-dark">
-                          {clipTitle(item.title, 140)}
+                          <bdi>{clipTitle(item.title, 140)}</bdi>
                         </p>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
@@ -192,7 +209,7 @@ export default function ReportDetailPage() {
                         <StatusBadge status={item.status} />
                       </div>
                     </div>
-                    <dl className="mt-3 grid gap-3 text-[13px] sm:grid-cols-3">
+                    <dl className="mt-3 grid grid-cols-1 gap-3 text-[13px] sm:grid-cols-3">
                       <div>
                         <dt className="text-[11px] text-muted">{T.case.currentStage}</dt>
                         <dd className="text-ink">{stage.label}</dd>
@@ -202,12 +219,12 @@ export default function ReportDetailPage() {
                         <dd className="text-ink">{item.responsible_employee ?? T.common.none}</dd>
                       </div>
                       <div>
-                        <dt className="text-[11px] text-muted">{T.common.targetDate}</dt>
-                        <dd className="inline-flex items-center gap-2 text-ink">
-                          <span dir="ltr">{formatDate(item.target_date)}</span>
-                          {item.target_date ? (
-                            <OverdueBadge targetDate={item.target_date} overdue={item.overdue} />
-                          ) : null}
+                        <dt className="text-[11px] text-muted">
+                          {item.deadline_source ? T.workflow.deadlineSource[item.deadline_source] : T.common.targetDate}
+                        </dt>
+                        <dd className="inline-flex flex-wrap items-center gap-2 text-ink">
+                          <span dir="ltr">{formatDate(item.deadline ?? item.target_date)}</span>
+                          {item.deadline ? <CaseDue item={item} /> : null}
                         </dd>
                       </div>
                     </dl>

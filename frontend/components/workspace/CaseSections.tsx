@@ -6,7 +6,7 @@ import { useState, type ReactNode } from "react";
 import { AuditTrail } from "@/components/trail/AuditTrail";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { cn } from "@/lib/cn";
-import { formatDate, formatDateTime } from "@/lib/format";
+import { dayCount, formatDate, formatDateTime } from "@/lib/format";
 import { APPROVAL_TYPE_LABELS, RECIPIENT_ROLE_LABELS, T, useI18n } from "@/lib/i18n";
 import type { CaseReminder, RecommendationDetail } from "@/lib/types";
 import { historyEntries, type HistoryFilter, type SectionId } from "@/lib/viewmodels/caseView";
@@ -120,9 +120,9 @@ export function DecisionsList({ rec }: { rec: RecommendationDetail }) {
 }
 
 function reminderTiming(reminder: CaseReminder): string {
-  if (reminder.offset_days < 0) return T.caseView.reminderBefore.replace("{n}", String(-reminder.offset_days));
+  if (reminder.offset_days < 0) return T.caseView.reminderBefore.replace("{days}", dayCount(-reminder.offset_days));
   if (reminder.offset_days === 0) return T.caseView.reminderOn;
-  return T.caseView.reminderAfter.replace("{n}", String(reminder.offset_days));
+  return T.caseView.reminderAfter.replace("{days}", dayCount(reminder.offset_days));
 }
 
 function Reminders({ reminders }: { reminders: CaseReminder[] }) {

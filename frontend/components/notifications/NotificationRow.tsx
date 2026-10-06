@@ -89,7 +89,7 @@ export function NotificationRow({
 
         {/* Message */}
         <p className={cn("text-[14px] leading-snug text-ink", !item.is_read && "font-bold")}>
-          {item.message}
+          <bdi>{item.message}</bdi>
         </p>
 
         {/* Record / report reference */}
@@ -99,10 +99,10 @@ export function NotificationRow({
               {recordCode(item.recommendation)}
             </span>
             <span className="text-muted/50">·</span>
-            <span className="font-medium">{notificationTitle(item)}</span>
+            <span className="font-medium"><bdi>{notificationTitle(item)}</bdi></span>
           </p>
         ) : item.report_title ? (
-          <p className="mt-1.5 text-[12.5px] font-medium text-ink-soft">{item.report_title}</p>
+          <p className="mt-1.5 text-[12.5px] font-medium text-ink-soft"><bdi>{item.report_title}</bdi></p>
         ) : null}
 
         {/* Meta chips */}

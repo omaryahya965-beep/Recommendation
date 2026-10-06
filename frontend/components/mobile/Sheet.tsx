@@ -1,7 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 import { useFocusTrap } from "@/components/mobile/useFocusTrap";
@@ -42,11 +42,19 @@ export function Sheet({
 }) {
   useI18n();
   const panelRef = useRef<HTMLDivElement>(null);
+  const keepEditingRef = useRef<HTMLButtonElement>(null);
   const titleId = useId();
   const [confirming, setConfirming] = useState(false);
 
+  // The discard question takes focus (on the safe answer) so keyboard and
+  // screen-reader users meet it; Escape while it is open means "keep editing".
+  useEffect(() => {
+    if (confirming) keepEditingRef.current?.focus();
+  }, [confirming]);
+
   const requestClose = () => {
-    if (dirty) setConfirming(true);
+    if (confirming) setConfirming(false);
+    else if (dirty) setConfirming(true);
     else onClose();
   };
   useFocusTrap(open, panelRef, requestClose);
@@ -126,7 +134,7 @@ export function Sheet({
               >
                 {T.mobile.discard}
               </Button>
-              <Button type="button" variant="ghost" className="min-h-11 flex-1" onClick={() => setConfirming(false)}>
+              <Button ref={keepEditingRef} type="button" variant="ghost" className="min-h-11 flex-1" onClick={() => setConfirming(false)}>
                 {T.mobile.keepEditing}
               </Button>
             </div>

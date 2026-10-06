@@ -94,7 +94,7 @@ export function DashboardBodySkeleton() {
         <Skeleton className="flex-1 rounded-2xl" />
       </div>
 
-      <div className="grid items-start gap-6 lg:grid-cols-[1fr_22rem]">
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[1fr_22rem]">
         <Skeleton className="h-[30rem] rounded-2xl" />
         <Skeleton className="h-[30rem] rounded-2xl" />
       </div>

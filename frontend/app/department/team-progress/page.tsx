@@ -8,7 +8,7 @@ import { DirForward } from "@/components/i18n/DirIcon";
 import { Card, ErrorBanner, ProgressBar } from "@/components/ui/Base";
 import { EmptyState, TableSkeleton } from "@/components/ui/EmptyState";
 import { RecordId } from "@/components/ui/Ledger";
-import { OverdueBadge } from "@/components/ui/OverdueBadge";
+import { CaseDue } from "@/components/home/Queues";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { RiskBadge } from "@/components/ui/RiskBadge";
 import { StatusBadge } from "@/components/ui/StampBadge";
@@ -61,7 +61,7 @@ function WorkloadCard({ load, maxLoad, limit }: { load: EmployeeLoad; maxLoad: n
             <UserRound className="size-4.5" aria-hidden />
           </span>
           <div>
-            <h3 className="font-heading text-[15px] font-semibold text-ink">{load.employee.name}</h3>
+            <h2 className="font-heading text-[15px] font-semibold text-ink">{load.employee.name}</h2>
             <p className="text-xs text-muted">
               {T.team.load}: <span className="font-mono" dir="ltr">{load.open}</span>
               {load.nearest_deadline ? (
@@ -93,6 +93,7 @@ function WorkloadCard({ load, maxLoad, limit }: { load: EmployeeLoad; maxLoad: n
 
       <ProgressBar
         value={Math.round((load.open / Math.max(maxLoad, 1)) * 100)}
+        label={`${T.team.load} — ${load.employee.name}`}
         className="mt-3"
         tone={load.overdue ? "danger" : "primary"}
       />
@@ -107,14 +108,14 @@ function WorkloadCard({ load, maxLoad, limit }: { load: EmployeeLoad; maxLoad: n
               >
                 <RecordId id={item.id} />
                 <span className="min-w-0 flex-1 truncate text-[13.5px] text-ink group-hover:text-primary-dark">
-                  {clipTitle(item.title, 90)}
+                  <bdi>{clipTitle(item.title, 90)}</bdi>
                 </span>
                 <RiskBadge level={item.risk_level} />
                 <StatusBadge status={item.status} />
                 <span className="font-mono text-xs text-ink-soft" dir="ltr">
                   {formatDate(item.deadline)}
                 </span>
-                <OverdueBadge targetDate={item.deadline} overdue={item.overdue} />
+                <CaseDue item={item} />
               </Link>
             </li>
           ))}

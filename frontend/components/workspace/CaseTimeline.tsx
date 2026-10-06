@@ -1,22 +1,35 @@
 "use client";
 
-import { Check, RotateCcw } from "lucide-react";
+import { Check, Minus, RotateCcw } from "lucide-react";
 
 import { cn } from "@/lib/cn";
-import { formatShortDate } from "@/lib/format";
+import { formatShortDate, timesCount } from "@/lib/format";
 import { T, useI18n } from "@/lib/i18n";
 import type { RecommendationDetail } from "@/lib/types";
 import { stageTimeline, type TimelineStage, type TimelineState } from "@/lib/viewmodels/caseView";
 
 const DOT: Record<TimelineState, string> = {
   completed: "border-primary bg-primary text-white",
-  current: "border-navy bg-navy text-white ring-4 ring-primary/20",
-  returned: "border-danger bg-danger text-white ring-4 ring-danger/15",
+  current: "border-navy bg-navy text-surface ring-4 ring-primary/20",
+  returned: "border-danger bg-danger text-surface ring-4 ring-danger/15",
   next: "border-line bg-surface text-muted",
+  skipped: "border-dashed border-primary/40 bg-surface text-primary/60",
 };
+
+/** The line between two stages: dashed where the case passed a stage over. */
+function connector(stages: TimelineStage[], from: number, to: number, active: boolean) {
+  if (from < 0 || to >= stages.length) return "h-0.5 opacity-0";
+  if (stages[from].state === "skipped" || stages[to].state === "skipped") {
+    return "h-0 border-t-2 border-dashed border-primary/35";
+  }
+  return cn("h-0.5", active ? "bg-primary" : "bg-line");
+}
 
 function StageDate({ stage }: { stage: TimelineStage }) {
   useI18n();
+  if (stage.state === "skipped") {
+    return <span className="block text-[11px] text-muted">{T.caseView.stageSkipped}</span>;
+  }
   if (stage.state === "next" || !stage.enteredAt) return null;
   return (
     <span className="block font-mono text-[11px] text-muted" title={stage.enteredBy ?? undefined}>
@@ -29,9 +42,9 @@ function Returns({ count }: { count: number }) {
   useI18n();
   if (!count) return null;
   return (
-    <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-danger-light px-1.5 py-0.5 text-[10.5px] font-bold text-danger-dark">
+    <span className="mt-1 inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-danger-light px-1.5 py-0.5 text-[10.5px] font-bold text-danger-dark">
       <RotateCcw className="size-3" aria-hidden />
-      {T.caseView.returnedTimes.replace("{n}", String(count))}
+      {T.caseView.returnedTimes.replace("{times}", timesCount(count))}
     </span>
   );
 }
@@ -76,7 +89,9 @@ export function CaseTimeline({ rec, className }: { rec: RecommendationDetail; cl
                     ? "bg-navy"
                     : stage.state === "returned"
                       ? "bg-danger"
-                      : "bg-line"
+                      : stage.state === "skipped"
+                        ? "bg-primary/25"
+                        : "bg-line"
               )}
             />
           ))}
@@ -86,7 +101,8 @@ export function CaseTimeline({ rec, className }: { rec: RecommendationDetail; cl
 
       {/* Tablets and desktop */}
       <div className="hidden scrollbar-thin overflow-x-auto px-3 pb-4 pt-5 md:block">
-        <ol className="flex min-w-[720px] items-start">
+        {/* 600px fits the narrowest tablet column (768px less the rail); labels wrap. */}
+        <ol className="flex min-w-[600px] items-start">
           {stages.map((stage, index) => {
             const current = stage.state === "current" || stage.state === "returned";
             const done = stage.state === "completed";
@@ -97,10 +113,7 @@ export function CaseTimeline({ rec, className }: { rec: RecommendationDetail; cl
                 aria-current={current ? "step" : undefined}
               >
                 <div className="flex w-full items-center">
-                  <span
-                    aria-hidden
-                    className={cn("h-0.5 flex-1", index === 0 ? "opacity-0" : done || current ? "bg-primary" : "bg-line")}
-                  />
+                  <span aria-hidden className={cn("flex-1", connector(stages, index - 1, index, done || current))} />
                   <span
                     className={cn(
                       "flex shrink-0 items-center justify-center rounded-full border font-mono font-bold",
@@ -112,14 +125,13 @@ export function CaseTimeline({ rec, className }: { rec: RecommendationDetail; cl
                       <Check className="size-3.5" strokeWidth={3} aria-hidden />
                     ) : stage.state === "returned" ? (
                       <RotateCcw className="size-3.5" strokeWidth={3} aria-hidden />
+                    ) : stage.state === "skipped" ? (
+                      <Minus className="size-3.5" strokeWidth={3} aria-hidden />
                     ) : (
                       index + 1
                     )}
                   </span>
-                  <span
-                    aria-hidden
-                    className={cn("h-0.5 flex-1", index === stages.length - 1 ? "opacity-0" : done ? "bg-primary" : "bg-line")}
-                  />
+                  <span aria-hidden className={cn("flex-1", connector(stages, index, index + 1, done))} />
                 </div>
                 <p
                   className={cn(

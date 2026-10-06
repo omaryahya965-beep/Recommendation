@@ -11,7 +11,7 @@ import { StampBadge } from "@/components/ui/StampBadge";
 import { loadAuth } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { caseTitle } from "@/lib/finding";
-import { formatDate, formatNumber } from "@/lib/format";
+import { dayCount, formatDate, formatNumber, plural } from "@/lib/format";
 import { STATUS_LABELS, T, useI18n } from "@/lib/i18n";
 import type {
   FollowUpExecutiveSummary,
@@ -161,7 +161,7 @@ function CaseTable({
                   {item.overdue ? (
                     <span className="inline-flex w-fit items-center gap-1 rounded-full bg-danger-light px-2 py-0.5 text-[11.5px] font-bold text-danger-dark">
                       <AlertTriangle className="size-3" aria-hidden />
-                      {T.followup.daysLate.replace("{days}", String(item.days_overdue ?? 0))}
+                      {T.followup.daysLate.replace("{days}", dayCount(item.days_overdue ?? 0, "accusative"))}
                     </span>
                   ) : null}
                 </span>
@@ -397,7 +397,7 @@ export function FollowUpReportView({
       {v2 && majorRisks.length ? (
         <section>
           <SectionTitle>{T.followup.majorRisks}</SectionTitle>
-          <ul className="grid gap-3 md:grid-cols-2">
+          <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {majorRisks.map((item) => (
               <li key={item.id} className="rounded-xl border border-s-4 border-line border-s-danger bg-surface p-4">
                 <div className="flex flex-wrap items-center gap-2">
@@ -405,7 +405,7 @@ export function FollowUpReportView({
                   <span className="text-[12px] text-muted">{item.department}</span>
                   {item.overdue ? (
                     <span className="rounded-full bg-danger-light px-2 py-0.5 text-[11.5px] font-bold text-danger-dark">
-                      {T.followup.daysLate.replace("{days}", String(item.days_overdue ?? 0))}
+                      {T.followup.daysLate.replace("{days}", dayCount(item.days_overdue ?? 0, "accusative"))}
                     </span>
                   ) : null}
                 </div>
@@ -438,10 +438,10 @@ export function FollowUpReportView({
         <footer className="space-y-1.5 border-t border-line pt-4 text-[12px] leading-relaxed text-ink-soft">
           <p>{T.followup.footnoteOverdue}</p>
           {totals.late_in_review ? (
-            <p>{T.followup.footnoteLateInReview.replace("{count}", String(totals.late_in_review))}</p>
+            <p>{plural(totals.late_in_review, T.followup.footnoteLateInReview)}</p>
           ) : null}
           {totals.history_incomplete ? (
-            <p>{T.followup.footnoteHistory.replace("{count}", String(totals.history_incomplete))}</p>
+            <p>{plural(totals.history_incomplete, T.followup.footnoteHistory)}</p>
           ) : null}
         </footer>
       ) : null}

@@ -89,7 +89,7 @@ export default function MyTasksPage() {
           <h2 id="next-task-title" className="mt-3 font-heading text-xl font-bold leading-snug text-white">
             {nextAction?.action ?? T.dashboard.open}
           </h2>
-          <p className="mt-1.5 text-[14.5px] leading-relaxed text-white/85">{clipTitle(next.item.title, 140)}</p>
+          <p className="mt-1.5 text-[14.5px] leading-relaxed text-white/85"><bdi>{clipTitle(next.item.title, 140)}</bdi></p>
           <Link
             href={`${HOME}/${next.item.id}`}
             className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-white px-8 text-[15px] font-bold text-navy shadow-sm hover:bg-white/90 sm:w-auto"

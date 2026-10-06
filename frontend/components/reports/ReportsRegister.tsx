@@ -89,7 +89,7 @@ function ReportCard({ report }: { report: AuditReport }) {
             ) : null}
           </div>
           <h3 className="mt-3 font-heading text-[16px] font-semibold leading-relaxed text-navy group-hover:text-primary transition-colors">
-            {report.title}
+            <bdi>{report.title}</bdi>
           </h3>
           <p className="mt-1 text-[13px] font-bold text-primary-dark uppercase tracking-wide">{nextAction(report)}</p>
         </div>
@@ -108,7 +108,7 @@ function ReportCard({ report }: { report: AuditReport }) {
         </div>
       </div>
 
-      <dl className="mt-4 grid gap-x-4 gap-y-2 border-t border-line pt-4 text-[13px] bg-subtle/30 rounded-lg p-3 sm:grid-cols-3">
+      <dl className="mt-4 grid grid-cols-1 gap-x-4 gap-y-2 border-t border-line pt-4 text-[13px] bg-subtle/30 rounded-lg p-3 sm:grid-cols-3">
         <div>
           <dt className="text-muted font-semibold text-[11px] uppercase tracking-wider mb-0.5">{T.common.department}</dt>
           <dd className="font-medium text-ink">{report.department_name}</dd>
@@ -285,7 +285,7 @@ export function ReportsRegister() {
             )}
           >
             {item === "all" ? T.reports.filterAll : REPORT_STATUS_LABELS[item]}
-            <span className={cn("ms-2 font-mono text-[11px] font-bold px-1.5 py-0.5 rounded-full", status === item ? "bg-white/20 text-white" : "bg-subtle text-ink-soft")} dir="ltr">
+            <span className={cn("ms-2 font-mono text-[11px] font-bold px-1.5 py-0.5 rounded-full", status === item ? "ring-1 ring-current/30" : "bg-subtle text-ink-soft")}>
               {counts[item] ?? 0}
             </span>
           </button>
@@ -319,7 +319,7 @@ export function ReportsRegister() {
           <button
             type="button"
             onClick={clearFilters}
-            className="text-xs font-bold text-primary-dark hover:text-primary hover:underline ml-2"
+            className="ms-2 text-xs font-bold text-primary-dark hover:text-primary hover:underline"
           >
             {T.register.clearFilters}
           </button>
@@ -368,9 +368,9 @@ export function ReportsRegister() {
                       </LedgerCell>
                       <LedgerCell>
                         <Link href={`/audit/reports/${report.id}`} className="font-semibold text-ink group-hover:text-primary transition-colors">
-                          {report.title}
+                          <bdi>{report.title}</bdi>
                         </Link>
-                        <p className="mt-0.5 text-[11px] font-semibold text-muted/80">{REPORT_TYPE_LABELS[report.engagement_type]}</p>
+                        <p className="mt-0.5 text-[11px] font-semibold text-muted">{REPORT_TYPE_LABELS[report.engagement_type]}</p>
                       </LedgerCell>
                       <LedgerCell>{report.department_name}</LedgerCell>
                       <LedgerCell>

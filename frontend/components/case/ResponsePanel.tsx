@@ -119,7 +119,7 @@ export function ResponseRecord({
           </a>
         ) : null}
 
-        <dl className="mt-5 grid gap-4 border-t border-line pt-5 bg-subtle/30 rounded-xl p-4 sm:grid-cols-2 lg:grid-cols-4">
+        <dl className="mt-5 grid grid-cols-1 gap-4 border-t border-line pt-5 bg-subtle/30 rounded-xl p-4 sm:grid-cols-2 lg:grid-cols-4">
           <DataField label={T.response.submittedBy}>
             <span className="font-bold text-navy">{response.submitted_by_detail?.full_name_ar || response.submitted_by_detail?.username}</span>
           </DataField>

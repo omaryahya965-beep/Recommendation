@@ -268,7 +268,7 @@ export function RecommendationWizard({
           <p className="mb-5 text-[13.5px] leading-relaxed text-ink-soft">{T.create.contextIntro}</p>
 
           {editing ? (
-            <dl className="grid gap-4 rounded-xl border border-line bg-subtle/30 p-4.5 sm:grid-cols-2">
+            <dl className="grid grid-cols-1 gap-4 rounded-xl border border-line bg-subtle/30 p-4.5 sm:grid-cols-2">
               <DataField label={T.create.report}><span className="font-bold text-navy">{report?.title}</span></DataField>
               <DataField label={T.response.responsibleParty}><span className="font-bold text-navy">{report?.department_name}</span></DataField>
             </dl>
@@ -289,7 +289,7 @@ export function RecommendationWizard({
               </Field>
 
               {report ? (
-                <dl className="mt-5 grid gap-4 rounded-xl border border-line bg-subtle/30 p-4.5 sm:grid-cols-2 lg:grid-cols-4">
+                <dl className="mt-5 grid grid-cols-1 gap-4 rounded-xl border border-line bg-subtle/30 p-4.5 sm:grid-cols-2 lg:grid-cols-4">
                   <DataField label={T.response.responsibleParty}><span className="font-bold text-navy">{report.department_name}</span></DataField>
                   <DataField label={T.create.engagement}>
                     <span className="font-semibold text-ink">{REPORT_TYPE_LABELS[report.engagement_type]}</span>
@@ -456,7 +456,7 @@ export function RecommendationWizard({
 
           <Card title={T.create.stepReview} className="p-6">
             <p className="mb-5 text-[13.5px] leading-relaxed text-ink-soft">{T.create.reviewIntro}</p>
-            <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 bg-subtle/30 rounded-xl p-4 border border-line">
+            <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 bg-subtle/30 rounded-xl p-4 border border-line">
               <DataField label={T.create.report}><span className="font-bold text-navy">{report?.title ?? "—"}</span></DataField>
               <DataField label={T.response.responsibleParty}><span className="font-bold text-navy">{report?.department_name ?? "—"}</span></DataField>
               <DataField label={T.common.targetDate}>

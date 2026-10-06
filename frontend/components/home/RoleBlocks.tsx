@@ -10,7 +10,7 @@ import { RecordId } from "@/components/ui/Ledger";
 import { Section } from "@/components/ui/Section";
 import { cn } from "@/lib/cn";
 import { clipTitle } from "@/lib/finding";
-import { formatDate, formatDateTime } from "@/lib/format";
+import { formatDate, formatDateTime, plural } from "@/lib/format";
 import { REPORT_TYPE_LABELS, T, useI18n } from "@/lib/i18n";
 import type { ActionCenterBlock, CouncilDecision, DashboardData, DashboardReport } from "@/lib/types";
 
@@ -60,11 +60,11 @@ export function ReportQueuePanel({
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-[14px] font-semibold leading-snug text-navy group-hover:text-primary-dark">
-                      {report.title}
+                      <bdi>{report.title}</bdi>
                     </span>
                     <span className="mt-0.5 block text-[12px] text-ink-soft">
                       {report.department_name} · {REPORT_TYPE_LABELS[report.engagement_type]} ·{" "}
-                      {T.home.recommendationsCount.replace("{n}", String(report.recommendations_count))}
+                      {plural(report.recommendations_count, T.home.recommendationsCount)}
                     </span>
                   </span>
                   <span className="shrink-0 font-mono text-[11.5px] text-muted" dir="ltr">
@@ -181,7 +181,7 @@ export function DecisionFeed({ decisions, detailBase }: { decisions: CouncilDeci
                     className="mt-0.5 flex min-w-0 items-center gap-2 text-[13px] text-ink hover:text-primary-dark"
                   >
                     <RecordId id={decision.recommendation.id} />
-                    <span className="truncate">{clipTitle(decision.recommendation.title, 80)}</span>
+                    <span className="truncate"><bdi>{clipTitle(decision.recommendation.title, 80)}</bdi></span>
                   </Link>
                 ) : decision.report ? (
                   <p className="mt-0.5 truncate text-[13px] text-ink">{decision.report.title}</p>

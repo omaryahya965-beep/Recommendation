@@ -5,10 +5,10 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { cn } from "@/lib/cn";
-import { formatDate } from "@/lib/format";
+import { dayCount, formatDate } from "@/lib/format";
 import { T, useI18n } from "@/lib/i18n";
 import type { RecommendationDetail, Role } from "@/lib/types";
-import { STATUS_NEXT_ACTION } from "@/lib/workflow";
+import { closedTitle, STATUS_NEXT_ACTION } from "@/lib/workflow";
 
 type Tone = "mine" | "waiting" | "closed";
 
@@ -22,11 +22,11 @@ export function DeadlineChip({ rec, inverse = false }: { rec: RecommendationDeta
       <span
         className={cn(
           "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-bold",
-          inverse ? "bg-danger text-white" : "bg-danger-light text-danger-dark ring-1 ring-danger/20"
+          inverse ? "bg-danger text-surface" : "bg-danger-light text-danger-dark ring-1 ring-danger/20"
         )}
       >
         <AlarmClock className="size-3.5" aria-hidden />
-        {T.workflow.overdueBy.replace("{days}", String(workflow.days_overdue))}
+        {T.workflow.overdueBy.replace("{days}", dayCount(workflow.days_overdue, "accusative"))}
       </span>
     );
   }
@@ -59,7 +59,7 @@ export function DeadlineChip({ rec, inverse = false }: { rec: RecommendationDeta
       <CalendarClock className="size-3.5" aria-hidden />
       {workflow.due_in_days === 0
         ? T.workflow.dueToday
-        : T.workflow.dueIn.replace("{days}", String(workflow.due_in_days))}
+        : T.workflow.dueIn.replace("{days}", dayCount(workflow.due_in_days))}
     </span>
   );
 }
@@ -97,13 +97,13 @@ export function ActionCard({
   const mine = !closed && Boolean(workflow?.my_turn || primary);
   const tone: Tone = closed ? "closed" : mine ? "mine" : "waiting";
   const next = STATUS_NEXT_ACTION[rec.status];
-  const title = mine && primary ? T.caseView.actions[primary] : next.action;
+  const title = closed ? closedTitle(rec.resolution) : mine && primary ? T.caseView.actions[primary] : next.action;
 
   const waitingText =
     workflow && !closed && workflow.waiting_on !== "none"
       ? (workflow.days_waiting > 0 ? T.workflow.waitingSince : T.workflow.waitingToday)
           .replace("{who}", T.workflow.waitingOn[workflow.waiting_on])
-          .replace("{days}", String(workflow.days_waiting))
+          .replace("{days}", dayCount(workflow.days_waiting, "genitive"))
       : null;
   const responsible = workflow?.next_actor?.user?.name ?? next.role;
   const deadline = workflow?.deadline ?? null;

@@ -216,7 +216,7 @@ export function ActionPlanBuilder({
       {/* Plan meta card */}
       <Card title={T.plan.title}>
         <p className="mb-5 text-sm font-medium leading-relaxed text-ink-soft">{T.plan.intro}</p>
-        <div className="grid gap-5 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <Field label={T.plan.owner}>
             <Select
               value={draft.responsible_employee ?? ""}
@@ -332,7 +332,7 @@ export function ActionPlanBuilder({
               />
 
               {/* Result + Evidence */}
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Field label={T.plan.expectedResult}>
                   <TextArea
                     rows={2}

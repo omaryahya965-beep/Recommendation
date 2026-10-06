@@ -17,7 +17,7 @@ import { Button, Callout, DataField, ErrorBanner, Field, ProgressBar, TextArea }
 import { DecisionRecord, VerificationPanel } from "@/components/verification/VerificationPanel";
 import { evidenceByStep, latestVerification, outstandingRequirements, sortSteps, stepState, type StepState } from "@/lib/case";
 import { cn } from "@/lib/cn";
-import { formatDate } from "@/lib/format";
+import { formatDate, plural } from "@/lib/format";
 import type { WorkflowAction } from "@/lib/hooks";
 import { T, useI18n } from "@/lib/i18n";
 import { parseStep } from "@/lib/planStep";
@@ -52,7 +52,7 @@ export function OutstandingRequest({ rec }: { rec: RecommendationDetail }) {
   if (!outstanding) return null;
   return (
     <Callout tone="danger" title={T.caseView.desk.outstanding}>
-      <dl className="mt-2 grid gap-3 sm:grid-cols-3">
+      <dl className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
         {outstanding.rejection_reason?.trim() ? (
           <DataField label={T.verify.returnReason}>{outstanding.rejection_reason}</DataField>
         ) : null}
@@ -133,7 +133,7 @@ function StepRow({
           {files ? (
             <span className="inline-flex items-center gap-1">
               <Paperclip className="size-3" aria-hidden />
-              {T.caseView.desk.evidenceCount.replace("{n}", String(files))}
+              {plural(files, T.caseView.desk.evidenceCount)}
             </span>
           ) : null}
         </p>
@@ -212,7 +212,7 @@ export function ExecutionDesk({ rec, action }: { rec: RecommendationDetail; acti
         <section>
           <DeskHeading
             title={T.caseView.actions.upload_evidence}
-            aside={T.caseView.desk.evidenceCount.replace("{n}", String(rec.evidence_files?.length ?? 0))}
+            aside={plural(rec.evidence_files?.length ?? 0, T.caseView.desk.evidenceCount)}
           />
           <EvidenceUploadForm rec={rec} action={action} showActionError={false} />
         </section>

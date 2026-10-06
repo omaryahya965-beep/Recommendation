@@ -100,7 +100,7 @@ export function MobileAppBar({
     >
       <div className="flex h-14 items-center gap-1 px-1.5">
         {top ? (
-          <span className="ms-1.5 flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-navy text-white">
+          <span className="ms-1.5 flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-navy text-surface">
             <MunicipalityLogo size="sm" className="!size-7" />
           </span>
         ) : (
@@ -246,7 +246,7 @@ export function MobileBottomNav({
           onClick={() => setMoreOpen(false)}
           className="mb-3 flex min-h-16 items-center gap-3 rounded-2xl bg-subtle/70 px-4 py-3"
         >
-          <span className="flex size-11 items-center justify-center rounded-full bg-navy text-white">
+          <span className="flex size-11 items-center justify-center rounded-full bg-navy text-surface">
             <UserRound className="size-5" aria-hidden />
           </span>
           <span className="min-w-0 flex-1">

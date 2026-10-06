@@ -101,7 +101,7 @@ function TrailRow({ entry, isLast }: { entry: TrailEntry; isLast: boolean }) {
               {expanded ? T.trail.hideMetadata : T.trail.showMetadata}
             </button>
             {expanded ? (
-              <dl className="mt-2 grid gap-x-4 gap-y-1.5 rounded-lg border border-line bg-subtle/50 p-3 text-[12px] sm:grid-cols-[auto_1fr]">
+              <dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-1.5 rounded-lg border border-line bg-subtle/50 p-3 text-[12px] sm:grid-cols-[auto_1fr]">
                 {extras.map((key) => (
                   <div key={key} className="contents">
                     <dt className="font-mono font-bold text-muted" dir="ltr">

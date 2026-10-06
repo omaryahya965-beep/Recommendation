@@ -313,6 +313,9 @@ export interface AppNotification {
   target_date: string | null;
   responsible_employee: string | null;
   overdue: boolean;
+  /** The binding deadline (W1) and the department's lateness (W2), from the server. */
+  deadline?: string | null;
+  days_overdue?: number;
   type: NotificationType;
   message: string;
   is_read: boolean;

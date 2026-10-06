@@ -1,11 +1,11 @@
 "use client";
 
 import { Paperclip, X } from "lucide-react";
-import { useEffect, useId, useRef } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import { cn } from "@/lib/cn";
 import { T, useI18n } from "@/lib/i18n";
-import { FILE_INPUT_ACCEPT } from "@/lib/upload";
+import { DEFAULT_MAX_BYTES, FILE_INPUT_ACCEPT, validateSelectedFile } from "@/lib/upload";
 
 function sizeLabel(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -42,6 +42,16 @@ export function FilePicker({
   const inputId = useId();
   const labelId = `${inputId}-label`;
   const inputRef = useRef<HTMLInputElement>(null);
+  const [refused, setRefused] = useState<string | null>(null);
+
+  // Say at once why a file cannot be used (type, size) instead of after the
+  // upload starts; the server checks again when it receives the file.
+  const choose = (next: File | null) => {
+    const problem = next ? validateSelectedFile(next, DEFAULT_MAX_BYTES) : null;
+    setRefused(problem);
+    if (problem && inputRef.current) inputRef.current.value = "";
+    onChange(problem ? null : next);
+  };
 
   // Clearing from the parent (e.g. after a successful upload) empties the input too.
   useEffect(() => {
@@ -60,7 +70,7 @@ export function FilePicker({
         type="file"
         accept={accept}
         required={required && !file}
-        onChange={(event) => onChange(event.target.files?.[0] ?? null)}
+        onChange={(event) => choose(event.target.files?.[0] ?? null)}
         className="peer sr-only"
       />
       <label
@@ -85,13 +95,18 @@ export function FilePicker({
             className="flex size-9 shrink-0 items-center justify-center rounded-md text-muted hover:bg-subtle hover:text-ink"
             onClick={(event) => {
               event.preventDefault();
-              onChange(null);
+              choose(null);
             }}
           >
             <X className="size-4" aria-hidden />
           </button>
         ) : null}
       </label>
+      {refused ? (
+        <p role="alert" className="mt-1.5 text-[12.5px] font-medium text-danger-dark">
+          {refused}
+        </p>
+      ) : null}
     </div>
   );
 }
