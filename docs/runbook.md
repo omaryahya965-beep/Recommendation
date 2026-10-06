@@ -61,8 +61,10 @@ Specs change data. To run again against fresh data with servers already up:
 `cd backend; $env:DJANGO_SETTINGS_MODULE="config.settings.e2e"; venv\Scripts\python manage.py e2e_reset`.
 
 Review tools (not tests) in `frontend/e2e/tools/`: `shot.mjs` takes a
-screenshot as a given user; `sweep.mjs` renders pages at 320–1024px in
-Arabic and English and reports any sideways overflow.
+screenshot as a given user; `sweep.mjs` renders pages at 320–1440px in
+Arabic and English and reports sideways overflow and any element cut off at
+the screen edge (the page clips overflow, so too-wide content is hidden, not
+scrollable).
 
 ### Troubleshooting
 

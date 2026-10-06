@@ -62,7 +62,10 @@ server-side data fetching.
 
 ### Desktop, tablet, phone
 
-- **Desktop (≥ 1024px)**: sidebar (collapsible), two-column case workspace.
+- **Desktop (≥ 1024px)**: sidebar (collapsible). The case workspace puts its
+  side rail (dates, people, context) beside the record from 1280px; below
+  that, with the full sidebar open, the rail stacks under the record so the
+  forms keep their width.
 - **Tablet (768–1023px)**: the sidebar is an icon rail; desktop screens.
 - **Phone (< 768px)**: a separate screen tree on the same data and forms —
   app bar, role bottom tabs + "More" sheet, the phone case screen (status
@@ -70,6 +73,25 @@ server-side data fetching.
   opens the form in a sheet), filters in a sheet. The switch is
   `useIsPhone()` (`lib/useMediaQuery.ts`); pages mount after the session
   check, so the first render already has the real viewport.
+
+`<html>` and `<body>` clip sideways overflow (`overflow-x: clip`), so a
+layout that is too wide is cut off rather than scrollable. Grids therefore
+start from `grid-cols-1` (a column that may shrink below its content), and
+the layout checks look for cut-off elements, not only for page width
+(`e2e/support/layout.ts`, `e2e/tools/sweep.mjs`).
+
+### Language and hydration
+
+The server renders Arabic (the saved language lives in `localStorage`).
+Until the app has hydrated, every render uses that locale too; then the
+locale bridge switches to the saved one (`markHydrated()` in
+`lib/i18n/store.ts`). Rendering English text during hydration would make
+React discard the server HTML and client-render the document, which also
+drops `<html data-theme>`. Text that a component builds itself and that can
+hydrate late (inside a Suspense boundary) uses `inLocale(useI18n().locale, …)`.
+User content of either language (titles, findings, notes, messages) is
+wrapped in `<bdi>` or `dir="auto"` so its own direction decides punctuation
+and truncation.
 
 Every form (respond, review, plan, progress, evidence, verify, closure) is
 one component used by both layouts; the server's `workflow` block decides

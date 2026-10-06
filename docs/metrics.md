@@ -35,6 +35,14 @@ Sources of truth:
 Analytics responses are cached for at most 90 seconds per scope and
 invalidated on every workflow change.
 
+Each analytics tile links to the register with the filter that counts the
+same population: `issued=true` (no drafts) for the operational total and the
+queue tiles, `open=true`, `status=closed`, `overdue=1`,
+`risk_level=high&open=true`, `is_recurring=true&recurrence_confirmed=true`
+for confirmed recurrences, and the in-execution statuses for an employee's
+active cases. `apps.core.test_analytics_definitions` checks that each pair
+agrees.
+
 ## Role dashboards (version 2)
 
 Each block is `{count, items}`: the count is exact, items are at most ten.
