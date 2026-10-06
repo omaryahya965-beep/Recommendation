@@ -59,6 +59,8 @@ class RecommendationListSerializer(serializers.ModelSerializer):
     due_in_days = serializers.SerializerMethodField()
     response_overdue = serializers.SerializerMethodField()
     days_waiting = serializers.SerializerMethodField()
+    # When the case entered its current status: queues list newest first.
+    waiting_since = serializers.SerializerMethodField()
     my_turn = serializers.SerializerMethodField()
 
     class Meta:
@@ -70,8 +72,8 @@ class RecommendationListSerializer(serializers.ModelSerializer):
             "title", "excerpt", "risk_level", "priority_score", "status", "resolution",
             "is_recurring", "recurrence_confirmed", "target_date", "responsible_employee",
             "overdue", "stage", "waiting_on", "next_role", "deadline", "deadline_source",
-            "days_overdue", "due_in_days", "response_overdue", "days_waiting", "my_turn",
-            "created_at", "closed_at",
+            "days_overdue", "due_in_days", "response_overdue", "days_waiting", "waiting_since",
+            "my_turn", "created_at", "closed_at",
         ]
         read_only_fields = fields
 
@@ -117,6 +119,10 @@ class RecommendationListSerializer(serializers.ModelSerializer):
 
     def get_days_waiting(self, obj):
         return self._facts(obj)["days_waiting"]
+
+    def get_waiting_since(self, obj):
+        since = self._facts(obj)["waiting_since"]
+        return since.isoformat() if since else None
 
     def get_my_turn(self, obj):
         from apps.workflow.presentation import is_my_turn
@@ -254,6 +260,9 @@ class AuditReportSerializer(serializers.ModelSerializer):
     created_by_detail = UserSerializer(source="created_by", read_only=True)
     department_name = serializers.CharField(source="department.name", read_only=True)
     recommendations_count = serializers.IntegerField(read_only=True)
+    # Every recommendation reviewed and approved for council (the same rule
+    # as the audit dashboard's "ready for council" block).
+    ready_for_council = serializers.SerializerMethodField()
 
     class Meta:
         model = AuditReport
@@ -261,12 +270,22 @@ class AuditReportSerializer(serializers.ModelSerializer):
             "id", "municipality", "department", "department_name", "title",
             "engagement_type", "status", "created_by", "created_by_detail",
             "response_deadline", "council_approval_date",
-            "recommendations_count", "created_at", "updated_at",
+            "recommendations_count", "ready_for_council", "created_at", "updated_at",
         ]
         read_only_fields = [
             "id", "municipality", "status", "created_by", "created_by_detail",
             "council_approval_date", "recommendations_count", "created_at", "updated_at",
         ]
+
+    def get_ready_for_council(self, report):
+        if report.status != AuditReport.Status.UNDER_REVIEW:
+            return False
+        total = getattr(report, "recommendations_count", None)
+        gate = getattr(report, "at_council_gate", None)
+        if total is None or gate is None:
+            total = report.recommendations.count()
+            gate = report.recommendations.filter(status=Recommendation.Status.PENDING_COUNCIL).count()
+        return total > 0 and gate == total
 
     def validate_department(self, department):
         user = self.context["request"].user

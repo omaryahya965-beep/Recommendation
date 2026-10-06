@@ -72,31 +72,53 @@ class DashboardV2Tests(TestCase):
         self.assertEqual(data["draft_reports"]["count"], 1)
         self.assertEqual(data["draft_reports"]["items"][0]["id"], self.report.id)
 
-    def test_late_in_audit_queue_uses_the_queue_age(self):
+    def test_audit_review_queues_list_the_newest_arrival_first(self):
+        second = Recommendation.objects.create(report=self.report, text="Reconcile daily", risk_level="low")
         services.submit_report_to_department(self.report, self.users["audit"])
-        self.rec.refresh_from_db()
-        services.submit_response(self.rec, self.users["head"], decision="agree")
-        self.assertEqual(self.dashboard("audit")["late_in_audit_queue"]["count"], 0)
+        for rec in (self.rec, second):
+            rec.refresh_from_db()
+            services.submit_response(rec, self.users["head"], decision="agree")
+        # The first case reached the queue five days ago, the second just now.
+        backdate_status(self.rec, 5)
 
-        backdate_status(self.rec, 9)
+        block = self.dashboard("audit")["action_center"]["responses_to_review"]
+        self.assertEqual(block["count"], 2)
+        self.assertEqual([item["id"] for item in block["items"]], [second.id, self.rec.id])
+        self.assertGreater(block["items"][0]["waiting_since"], block["items"][1]["waiting_since"])
+        # "View more" opens the same subset in the same order.
+        res = client_for(self.users["audit"]).get("/api/recommendations/?status=audit_review&ordering=-waiting")
+        self.assertEqual([row["id"] for row in res.data["results"]], [second.id, self.rec.id])
+
+    def test_audit_home_has_no_retired_blocks(self):
         data = self.dashboard("audit")
-        self.assertEqual(data["late_in_audit_queue"]["count"], 1)
-        self.assertEqual(data["late_in_audit_queue"]["threshold_days"], 7)
-        self.assertEqual(self.register_count("audit", "waiting_on=audit&waiting_over=7"), 1)
+        for key in ("late_in_audit_queue", "high_risk_stale", "overdue_by_department"):
+            self.assertNotIn(key, data)
+        self.assertNotIn("possible_recurrences", data["action_center"])
 
-    def test_high_risk_stale_and_overdue_by_department(self):
+    def test_department_overdue_queue_matches_its_register_link(self):
         drive_to_in_progress(self.users, self.report, self.rec)
         ActionPlan.objects.filter(recommendation=self.rec).update(
             target_date=timezone.localdate() - datetime.timedelta(days=3)
         )
-        backdate_status(self.rec, 40)
         data = self.dashboard("audit")
-        self.assertEqual(data["high_risk_stale"]["count"], 1)
-        self.assertEqual(self.register_count("audit", "risk_level=high&open=true&waiting_over=30"), 1)
-        finance = next(row for row in data["overdue_by_department"] if row["department"]["id"] == self.dept.id)
-        self.assertEqual(finance["overdue"], 1)
-        self.assertEqual(finance["open"], 1)
-        self.assertEqual(self.register_count("audit", f"overdue=true&report__department={self.dept.id}"), 1)
+        self.assertEqual(data["action_center"]["overdue"]["count"], 1)
+        self.assertEqual(self.register_count("audit", "overdue=true"), 1)
+        self.assertEqual(data["stats"]["open"], self.register_count("audit", "open=true&issued=true"))
+
+    def test_report_list_flags_reports_ready_for_council(self):
+        services.submit_report_to_department(self.report, self.users["audit"])
+        self.rec.refresh_from_db()
+        services.submit_response(self.rec, self.users["head"], decision="agree")
+
+        def flag():
+            res = client_for(self.users["audit"]).get("/api/reports/")
+            return next(row for row in res.data["results"] if row["id"] == self.report.id)["ready_for_council"]
+
+        self.assertFalse(flag())
+        self.rec.refresh_from_db()
+        services.review_response(self.rec, self.users["audit"], accept=True)
+        self.assertTrue(flag())
+        self.assertEqual(self.dashboard("audit")["reports_ready_for_council"]["count"], 1)
 
     # -- department head -----------------------------------------------------
     def test_head_sees_due_soon_waiting_on_others_and_team(self):

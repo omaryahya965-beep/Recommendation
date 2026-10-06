@@ -24,17 +24,12 @@ from apps.audits.models import (
 from apps.audits.serializers import RecommendationListSerializer
 from apps.core.analytics import IN_EXECUTION_STATUSES, portfolio_totals
 from apps.core.models import AuditTrail
-from apps.workflow.presentation import overdue_q, waiting_longer_than_q, waiting_on_q
+from apps.workflow.presentation import overdue_q, waiting_on_q
 
 S = Recommendation.Status
 
 VERSION = 2
 ITEM_LIMIT = 10
-# Audit's own service level: a case in an audit queue longer than this is
-# "late in our queue" (the department is never blamed for it — W2).
-AUDIT_QUEUE_LATE_DAYS = 7
-# A high-risk case whose status has not moved for this long is "stale".
-STALE_DAYS = 30
 DUE_SOON_DAYS = 7
 UPCOMING_DAYS = 30
 # The employee's own submitted work under review (head, audit, Council).
@@ -50,6 +45,9 @@ COUNCIL_DECISION_ACTIONS = {
 
 # Oldest first in a queue: the case that has waited longest is served first.
 BY_WAIT = (F("status_entered_at").asc(), "-priority_score", "id")
+# Newest first: the case that most recently reached the queue leads (audit's
+# work queues, so a new submission is never buried under older ones).
+BY_ARRIVAL = (F("status_entered_at").desc(), "-id")
 BY_DEADLINE = (F("binding_deadline").asc(nulls_last=True), "-priority_score", "id")
 
 
@@ -122,50 +120,23 @@ def audit_dashboard(request, issued, today):
         at_council_gate=F("recommendations_total"),
     ).order_by("updated_at", "id")
     drafts = reports.filter(status=AuditReport.Status.DRAFT).order_by("-updated_at", "-id")
-
     overdue = issued.filter(overdue_q(today))
-    by_department = (
-        issued.filter(status__in=OPEN_STATUSES)
-        .values("report__department_id", "report__department__name")
-        .annotate(open=Count("id"), overdue=Count("id", filter=overdue_q(today)))
-        .order_by("-overdue", "-open", "report__department__name")
-    )
 
     return _envelope(
         "audit",
         request,
         issued,
         action_center={
-            "responses_to_review": _block(issued.filter(status=S.AUDIT_REVIEW), request),
-            "plans_to_review": _block(issued.filter(status=S.ACTION_PLAN_REVIEW), request),
-            "verifications_pending": _block(issued.filter(status=S.SUBMITTED_FOR_VERIFICATION), request),
-            "closure_reviews": _block(issued.filter(status=S.CLOSURE_REVIEW), request),
+            "responses_to_review": _block(issued.filter(status=S.AUDIT_REVIEW), request, order=BY_ARRIVAL),
+            "plans_to_review": _block(issued.filter(status=S.ACTION_PLAN_REVIEW), request, order=BY_ARRIVAL),
+            "verifications_pending": _block(
+                issued.filter(status=S.SUBMITTED_FOR_VERIFICATION), request, order=BY_ARRIVAL
+            ),
+            "closure_reviews": _block(issued.filter(status=S.CLOSURE_REVIEW), request, order=BY_ARRIVAL),
             "overdue": _block(overdue, request, order=BY_DEADLINE),
-            "possible_recurrences": _block(issued.filter(is_recurring=True, recurrence_confirmed=False), request),
         },
         reports_ready_for_council=_reports_block(ready_for_council),
         draft_reports=_reports_block(drafts),
-        late_in_audit_queue={
-            "threshold_days": AUDIT_QUEUE_LATE_DAYS,
-            **_block(issued.filter(waiting_on_q("audit"), waiting_longer_than_q(AUDIT_QUEUE_LATE_DAYS, today)), request),
-        },
-        high_risk_stale={
-            "threshold_days": STALE_DAYS,
-            **_block(
-                issued.filter(
-                    waiting_longer_than_q(STALE_DAYS, today), status__in=OPEN_STATUSES, risk_level="high"
-                ),
-                request,
-            ),
-        },
-        overdue_by_department=[
-            {
-                "department": {"id": row["report__department_id"], "name": row["report__department__name"]},
-                "open": row["open"],
-                "overdue": row["overdue"],
-            }
-            for row in by_department
-        ],
     )
 
 

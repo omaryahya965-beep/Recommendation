@@ -2,7 +2,7 @@ import csv
 import logging
 
 from django.contrib.auth import get_user_model
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.http import StreamingHttpResponse
 from django_filters.rest_framework import DjangoFilterBackend
 from django.utils import timezone
@@ -110,7 +110,15 @@ class AuditReportViewSet(viewsets.ModelViewSet):
                 "department", "municipality",
                 "created_by__department", "created_by__municipality",
             )
-            .annotate(recommendations_count=Count("recommendations"))
+            .annotate(
+                recommendations_count=Count("recommendations", distinct=True),
+                # For `ready_for_council` without a query per report.
+                at_council_gate=Count(
+                    "recommendations",
+                    filter=Q(recommendations__status=Recommendation.Status.PENDING_COUNCIL),
+                    distinct=True,
+                ),
+            )
             # Meta.ordering is ignored once Count() adds a GROUP BY; without
             # this the register came back in arbitrary order.
             .order_by("-created_at", "-id")
