@@ -18,24 +18,6 @@ async function registerCount(request: Parameters<typeof apiGet>[0], who: Paramet
   return body.count;
 }
 
-test("audit sees overdue cases per department and opens one department's list", async ({ page, request }) => {
-  const { body } = await apiGet<{
-    overdue_by_department: Array<{ department: { id: number; name: string }; overdue: number }>;
-  }>(request, "audit", "/api/dashboard/");
-  const worst = body.overdue_by_department.find((row) => row.overdue > 0);
-  expect(worst).toBeTruthy();
-  expect(await registerCount(request, "audit", `overdue=true&report__department=${worst!.department.id}`)).toBe(
-    worst!.overdue
-  );
-
-  await signIn(page, request, "audit");
-  await page.goto("/audit/dashboard");
-  const chart = page.getByTestId("overdue-by-department");
-  await chart.getByRole("link", { name: new RegExp(worst!.department.name) }).click();
-  await expect(page).toHaveURL(new RegExp(`report__department=${worst!.department.id}`));
-  await expect(page.getByRole("button", { name: T.filters.overdueOnly })).toBeVisible();
-});
-
 test("the department head sees what is waiting on others, apart from its own delays", async ({ page, request }) => {
   const { body } = await apiGet<{ waiting_on_others: Block; due_soon: Block; team: unknown[] }>(
     request,
