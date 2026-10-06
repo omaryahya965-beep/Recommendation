@@ -4,10 +4,10 @@ import { ClipboardList, FilePlus2, FileText } from "lucide-react";
 
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { HomeHero, type HeroSummaryItem } from "@/components/home/HomeHero";
-import { AuditPriorities, CaseQueueCard, PortfolioStrip, ReportQueueCard } from "@/components/home/WorkQueue";
+import { AuditPriorities, CaseQueueCard, ReportQueueCard } from "@/components/home/WorkQueue";
 import { ErrorBanner } from "@/components/ui/Base";
 import { DashboardBodySkeleton } from "@/components/ui/EmptyState";
-import { formatNumber, plural } from "@/lib/format";
+import { plural } from "@/lib/format";
 import { useDashboard } from "@/lib/hooks";
 import { T, useI18n } from "@/lib/i18n";
 import { AUDIT_REVIEW_QUEUES, queueHref } from "@/lib/registerQueues";
@@ -17,16 +17,14 @@ const REPORTS = "/audit/reports";
 
 /**
  * Internal audit's home: what is waiting on audit's decision (newest first),
- * what is late at the departments, reports to move on, drafts, the latest
- * activity, and a slim portfolio strip. Every count opens the exact list it
- * counted.
+ * what is late at the departments, drafts, and the latest activity. Every
+ * count opens the exact list it counted.
  */
 export default function AuditDashboard() {
   useI18n();
   const { data, isLoading, isError, refetch } = useDashboard();
   const awaiting = data ? AUDIT_REVIEW_QUEUES.reduce((sum, queue) => sum + (data.action_center[queue]?.count ?? 0), 0) : 0;
   const overdue = data?.action_center.overdue?.count ?? 0;
-  const ready = data?.reports_ready_for_council?.count ?? 0;
   const summary: HeroSummaryItem[] = data
     ? [
         awaiting
@@ -34,9 +32,6 @@ export default function AuditDashboard() {
           : { label: T.queues.allClear, href: BASE, tone: "success" as const },
         ...(overdue
           ? [{ label: plural(overdue, T.queues.overdueAtDepartments), href: queueHref(BASE, "department_overdue"), tone: "danger" as const }]
-          : []),
-        ...(ready
-          ? [{ label: plural(ready, T.queues.reportsReady), href: `${REPORTS}?view=ready_for_council`, tone: "warning" as const }]
           : []),
       ]
     : [];
@@ -63,14 +58,13 @@ export default function AuditDashboard() {
     );
   }
 
-  const stats = data.stats;
   return (
     <div className="animate-fade-in min-w-0 space-y-5 md:space-y-6">
       {hero}
 
-      <div className="grid min-w-0 grid-cols-1 items-start gap-4 md:gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(20rem,1fr)]">
+      <div className="grid min-w-0 grid-cols-1 items-start gap-4 md:gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(21rem,1fr)]">
         <AuditPriorities blocks={data.action_center} detailBase={BASE} registerBase={BASE} />
-        <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 md:gap-5 xl:grid-cols-1">
+        <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 md:gap-5 xl:sticky xl:top-20 xl:grid-cols-1">
           <CaseQueueCard
             queue="department_overdue"
             block={data.action_center.overdue}
@@ -80,49 +74,18 @@ export default function AuditDashboard() {
             testId="department-overdue"
           />
           <ReportQueueCard
-            title={T.home.readyForCouncil}
-            hint={T.home.readyForCouncilHint}
-            block={data.reports_ready_for_council}
+            title={T.queues.drafts}
+            hint={T.queues.draftsHint}
+            block={data.draft_reports}
             hrefFor={(report) => `${REPORTS}/${report.id}`}
-            moreHref={`${REPORTS}?view=ready_for_council`}
-            emptyLabel={T.home.noReadyReports}
-            testId="ready-for-council"
+            moreHref={`${REPORTS}?status=draft`}
+            emptyLabel={T.home.noDraftReports}
+            testId="draft-reports"
           />
         </div>
       </div>
 
-      <div className="grid min-w-0 grid-cols-1 items-start gap-4 md:gap-5 lg:grid-cols-2">
-        <ReportQueueCard
-          title={T.queues.drafts}
-          hint={T.queues.draftsHint}
-          block={data.draft_reports}
-          hrefFor={(report) => `${REPORTS}/${report.id}`}
-          moreHref={`${REPORTS}?status=draft`}
-          emptyLabel={T.home.noDraftReports}
-          testId="draft-reports"
-        />
-        <RecentActivity role="audit" compact />
-      </div>
-
-      <PortfolioStrip
-        title={T.queues.portfolio}
-        items={[
-          { label: T.queues.portfolioOpen, value: formatNumber(stats.open), href: queueHref(BASE, "open_cases") },
-          {
-            label: T.queues.portfolioOverdue,
-            value: formatNumber(stats.overdue),
-            href: queueHref(BASE, "department_overdue"),
-            tone: stats.overdue ? "danger" : undefined,
-          },
-          {
-            label: T.queues.portfolioHighRisk,
-            value: formatNumber(stats.high_risk_open ?? 0),
-            href: queueHref(BASE, "high_risk_open"),
-            tone: stats.high_risk_open ? "warning" : undefined,
-          },
-          { label: T.queues.portfolioCompletion, value: `${Math.round(stats.completion_rate)}%`, href: queueHref(BASE, "closed_cases") },
-        ]}
-      />
+      <RecentActivity role="audit" compact />
     </div>
   );
 }
