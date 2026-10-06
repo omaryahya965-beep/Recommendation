@@ -7,6 +7,7 @@ from django.db import transaction as db_transaction
 from django.utils import timezone
 
 from apps.audits.models import Recommendation
+from apps.core.arabic import date_ar
 from apps.core.exceptions import WorkflowError
 from apps.notifications.models import Notification
 
@@ -93,7 +94,7 @@ def verify(recommendation, user, decision, notes="", rejected_items="", rejectio
             (
                 f"قرار التحقق على {_rec_ref(recommendation)}: {_VERIFICATION_LABELS_AR.get(decision, decision)}. "
                 f"المرفوض: {rejected_items}. السبب: {rejection_reason}. "
-                f"المطلوب: {required_action}. الموعد النهائي: {action_deadline}."
+                f"المطلوب: {required_action}. الموعد النهائي: {date_ar(action_deadline)}."
             ),
         )
     return verification

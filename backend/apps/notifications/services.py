@@ -35,6 +35,7 @@ from django.utils import timezone
 from apps.accounts.models import User
 from apps.audits.finding import case_title
 from apps.audits.models import DEPARTMENT_DEADLINE_STATUSES, Recommendation
+from apps.core.arabic import date_ar, days
 from apps.organizations.models import Municipality
 
 from .models import Notification, ReminderDispatch, ReminderRule, ReminderRun
@@ -134,10 +135,10 @@ def _message(rec, offset, anchor, deadline):
         "response": "موعد رد الدائرة",
     }[anchor]
     if offset < 0:
-        return f"تذكير: يتبقى {-offset} يوم على {what} ({deadline}) — «{title}» {ref}."
+        return f"تذكير: يتبقى {days(-offset)} على {what} ({date_ar(deadline)}) — «{title}» {ref}."
     if offset == 0:
-        return f"اليوم هو {what} ({deadline}) — «{title}» {ref}."
-    return f"متأخرة: مضى {offset} يوم على {what} ({deadline}) — «{title}» {ref}."
+        return f"اليوم هو {what} ({date_ar(deadline)}) — «{title}» {ref}."
+    return f"متأخرة: مضى {days(offset)} على {what} ({date_ar(deadline)}) — «{title}» {ref}."
 
 
 def _dispatch_key(rule, rec, user, anchor, deadline):

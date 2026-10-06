@@ -3,6 +3,7 @@ from django.db import transaction as db_transaction
 from django.utils import timezone
 
 from apps.audits.models import AuditReport, Recommendation
+from apps.core.arabic import date_ar
 from apps.core.exceptions import WorkflowError
 from apps.core.models import log_action
 from apps.notifications.models import Notification
@@ -41,7 +42,7 @@ def submit_report_to_department(report, user):
         if rec.status == S.DRAFT:
             transition(rec, S.PENDING_RESPONSE, user, "report_submitted_to_department")
             issued.append(rec)
-    deadline = f" — موعد الرد {report.response_deadline}" if report.response_deadline else ""
+    deadline = f" — موعد الرد {date_ar(report.response_deadline)}" if report.response_deadline else ""
     _notify_report(
         _department_heads(report.department),
         report,

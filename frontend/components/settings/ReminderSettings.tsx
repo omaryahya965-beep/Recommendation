@@ -7,7 +7,7 @@ import { Info, Plus, Trash2 } from "lucide-react";
 import { Button, Callout, Card, ErrorBanner, Field, Select, TextInput, ToggleSwitch } from "@/components/ui/Base";
 import { CardSkeleton } from "@/components/ui/EmptyState";
 import { api, errorMessage } from "@/lib/api";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, plural } from "@/lib/format";
 import { RECIPIENT_ROLE_LABELS, T, useI18n } from "@/lib/i18n";
 import type { Paginated, ReminderRule, Role, WorkflowPolicy } from "@/lib/types";
 
@@ -119,8 +119,8 @@ function EngineStatus({ status }: { status: ReminderEngineStatus }) {
         {status.last_run ? (
           <p className="text-ink-soft">
             {T.reminders.engineLastRun
-              .replace("{sent}", String(status.last_run.sent))
-              .replace("{superseded}", String(status.last_run.superseded))}
+              .replace("{sent}", plural(status.last_run.sent, T.reminders.reminderCount))
+              .replace("{superseded}", plural(status.last_run.superseded, T.reminders.reminderCount))}
           </p>
         ) : null}
         <p className="text-ink-soft">{T.reminders.engineCatchUp}</p>

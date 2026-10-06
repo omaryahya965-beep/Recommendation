@@ -25,6 +25,7 @@ from django.utils import timezone
 
 from apps.audits.finding import brief_excerpt, case_title
 from apps.audits.models import AuditReport, Recommendation
+from apps.core.arabic import date_ar, recommendations
 from apps.core.models import log_action
 from apps.workflow.presentation import stage_index, stage_of, status_label
 
@@ -229,6 +230,10 @@ def _focus_items(items):
     return [item for score, item in ranked if score > 0][:5]
 
 
+def _plural_en(n):
+    return "recommendation" if n == 1 else "recommendations"
+
+
 def build_followup_executive_summary(snapshot, period_start, period_end, language="ar"):
     totals = snapshot.get("totals") or {}
     items = snapshot.get("items") or []
@@ -247,13 +252,13 @@ def build_followup_executive_summary(snapshot, period_start, period_end, languag
     if ar:
         title = "ملخص تنفيذي لهذه المتابعة"
         if total == 0:
-            text = f"حتى {as_of} لا توجد توصيات صادرة (غير مسودة) في السجل لهذه المتابعة."
+            text = f"حتى {date_ar(as_of)} لا توجد توصيات صادرة (غير مسودة) في السجل لهذه المتابعة."
             findings = [{"text": "السجل فارغ من التوصيات الصادرة حتى نهاية الفترة المحددة."}]
             steps = [{"text": "تأكد أن التوصيات غادرت حالة المسودة ثم أعد التوليد."}]
         else:
             text = (
-                f"حال السجل كما كان في {as_of} (الفترة من {period_start}): "
-                f"{total} توصية، مغلق منها {closed} وبقي {open_count} مفتوحاً، والمتأخر على الدوائر {overdue}."
+                f"حال السجل كما كان في {date_ar(as_of)} (الفترة من {date_ar(period_start)}): "
+                f"{recommendations(total)}، أُغلق منها {closed} وبقي {open_count} مفتوحة، والمتأخر على الدوائر {overdue}."
             )
             if closed_in_period is not None:
                 text += f" أُغلق خلال الفترة {closed_in_period}."
@@ -281,9 +286,9 @@ def build_followup_executive_summary(snapshot, period_start, period_end, languag
                 findings = [{"text": f"إغلاق {closed} من {total} حتى نهاية الفترة."}]
             steps = []
             if overdue:
-                steps.append({"text": f"معالجة {overdue} توصية متأخرة أولاً، بدءاً بما هو مذكور أعلاه."})
+                steps.append({"text": f"معالجة {recommendations(overdue)} متأخرة أولاً، بدءاً بما هو مذكور أعلاه."})
             if open_count:
-                steps.append({"text": f"متابعة {open_count} توصية ما زالت مفتوحة حتى الإغلاق أو التحقق."})
+                steps.append({"text": f"متابعة {recommendations(open_count)} ما زالت مفتوحة حتى الإغلاق أو التحقق."})
             if not steps:
                 steps.append({"text": "لا إجراء متابعة عاجل؛ التوصيات في هذه الفترة مغلقة."})
     else:
@@ -295,7 +300,7 @@ def build_followup_executive_summary(snapshot, period_start, period_end, languag
         else:
             text = (
                 f"The register as it stood on {as_of} (period from {period_start}): "
-                f"{total} recommendations, {closed} closed, {open_count} open, "
+                f"{total} {_plural_en(total)}, {closed} closed, {open_count} open, "
                 f"{overdue} overdue with the departments."
             )
             if closed_in_period is not None:
@@ -321,9 +326,9 @@ def build_followup_executive_summary(snapshot, period_start, period_end, languag
             ] or [{"text": f"{closed} of {total} closed by the end of the period."}]
             steps = []
             if overdue:
-                steps.append({"text": f"Address {overdue} overdue recommendation(s) first."})
+                steps.append({"text": f"Address {overdue} overdue {_plural_en(overdue)} first."})
             if open_count:
-                steps.append({"text": f"Follow {open_count} still-open recommendation(s) through to closure."})
+                steps.append({"text": f"Follow {open_count} still-open {_plural_en(open_count)} through to closure."})
             if not steps:
                 steps.append({"text": "No urgent follow-up; recommendations in this period are closed."})
 

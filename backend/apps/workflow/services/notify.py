@@ -1,6 +1,7 @@
 """Ad-hoc workflow notifications (reminder jobs use dedupe keys instead)."""
 
 from apps.accounts.models import User
+from apps.core.arabic import recommendations
 from apps.notifications.models import Notification
 
 # Notification text is written in Arabic, but the model's choice labels are
@@ -42,7 +43,7 @@ def _notify_report(users, report, recommendations, ntype, message):
 
 
 def _count_phrase(count):
-    return "توصية واحدة" if count == 1 else f"{count} توصيات"
+    return recommendations(count)
 
 
 def _rec_ref(recommendation):
