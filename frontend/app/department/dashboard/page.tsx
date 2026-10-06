@@ -125,7 +125,7 @@ export default function DepartmentDashboard() {
         />
       </div>
 
-      <RecentActivity detailBase={BASE} compact />
+      <RecentActivity role="department_head" compact />
     </div>
   );
 }

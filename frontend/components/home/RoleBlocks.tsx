@@ -1,86 +1,18 @@
 "use client";
 
-import { FileText, Gavel, RotateCcw, Stamp, UserRound, Users } from "lucide-react";
+import { Gavel, RotateCcw, Stamp, UserRound, Users } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { CountChip, ViewAllLink } from "@/components/home/Queues";
+import { ViewAllLink } from "@/components/home/Queues";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { RecordId } from "@/components/ui/Ledger";
 import { Section } from "@/components/ui/Section";
 import { cn } from "@/lib/cn";
 import { clipTitle } from "@/lib/finding";
-import { formatDate, formatDateTime, plural } from "@/lib/format";
-import { REPORT_TYPE_LABELS, T, useI18n } from "@/lib/i18n";
-import type { ActionCenterBlock, CouncilDecision, DashboardData, DashboardReport } from "@/lib/types";
-
-/** Reports in one state (ready for council, drafts), each linking to its page. */
-export function ReportQueuePanel({
-  title,
-  hint,
-  block,
-  hrefFor,
-  viewAllHref,
-  emptyLabel,
-  testId,
-}: {
-  title: string;
-  hint?: ReactNode;
-  block: ActionCenterBlock<DashboardReport> | undefined;
-  hrefFor: (report: DashboardReport) => string;
-  viewAllHref: string;
-  emptyLabel: string;
-  testId?: string;
-}) {
-  useI18n();
-  const items = block?.items ?? [];
-  const count = block?.count ?? 0;
-  return (
-    <Section
-      title={
-        <span className="inline-flex items-center gap-2">
-          {title}
-          <CountChip count={count} />
-        </span>
-      }
-      hint={hint}
-      actions={count > items.length ? <ViewAllLink href={viewAllHref} /> : null}
-    >
-      <div data-testid={testId}>
-        {items.length ? (
-          <ul className="divide-y divide-line/70">
-            {items.map((report) => (
-              <li key={report.id}>
-                <Link
-                  href={hrefFor(report)}
-                  className="group flex min-h-14 items-start gap-3 px-4 py-3 transition-colors hover:bg-subtle/50 md:px-6"
-                >
-                  <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary-light text-primary-dark">
-                    <FileText className="size-4" aria-hidden />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[14px] font-semibold leading-snug text-navy group-hover:text-primary-dark">
-                      <bdi>{report.title}</bdi>
-                    </span>
-                    <span className="mt-0.5 block text-[12px] text-ink-soft">
-                      {report.department_name} · {REPORT_TYPE_LABELS[report.engagement_type]} ·{" "}
-                      {plural(report.recommendations_count, T.home.recommendationsCount)}
-                    </span>
-                  </span>
-                  <span className="shrink-0 font-mono text-[11.5px] text-muted" dir="ltr">
-                    {formatDate(report.updated_at)}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="px-4 py-6 text-center text-[13px] text-muted md:px-6">{emptyLabel}</p>
-        )}
-      </div>
-    </Section>
-  );
-}
+import { formatDateTime } from "@/lib/format";
+import { T, useI18n } from "@/lib/i18n";
+import type { CouncilDecision, DashboardData } from "@/lib/types";
 
 /** Head: open and overdue cases per employee, each opening that person's list. */
 export function TeamPanel({

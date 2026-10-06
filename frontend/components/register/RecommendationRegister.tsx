@@ -31,6 +31,7 @@ import {
   STATUS_NEXT_ACTION,
 } from "@/lib/workflow";
 import { statusesForStage } from "@/lib/contract";
+import { activeQueue, queueFilterKeys, queueParamKeys, queueTitle } from "@/lib/registerQueues";
 
 const PAGE_SIZE = 25;
 
@@ -44,6 +45,8 @@ function sortOptions() {
     // The binding deadline (plan, audit-set after verification, or response).
     { value: "deadline", label: T.register.sortDeadline },
     { value: "waiting", label: T.register.sortWaiting },
+    // Newest arrival in the current status first (the home queues' order).
+    { value: "-waiting", label: T.queues.newestFirst },
     { value: "target_date", label: T.register.sortPlanDate },
   ] as const;
 }
@@ -445,6 +448,13 @@ function RegisterInner({
     recurringOnly ? { key: "is_recurring", label: T.filters.recurringOnly } : null,
     ...linkFilterChips(searchParams),
   ].filter(Boolean) as Array<{ key: string; label: string }>;
+  // Opened from a home queue: one chip names the queue instead of its parts.
+  const queue = activeQueue(searchParams);
+  if (queue) {
+    const parts = new Set(queueFilterKeys(queue));
+    chips.splice(0, chips.length, { key: "queue", label: T.queues.queueChip.replace("{name}", queueTitle(queue)) },
+      ...chips.filter((chip) => !parts.has(chip.key)));
+  }
 
   // Exports the complete filtered result set from the server (not just this page).
   const [exporting, setExporting] = useState(false);
@@ -734,7 +744,11 @@ function RegisterInner({
             type="button"
             onClick={() => {
               if (chip.key === "search") setSearchDraft("");
-              setParams({ [chip.key]: null });
+              if (chip.key === "queue" && queue) {
+                setParams(Object.fromEntries(queueParamKeys(queue).map((key) => [key, null])));
+              } else {
+                setParams({ [chip.key]: null });
+              }
             }}
             className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-primary/20 bg-primary-light/50 px-3 py-1 text-[13px] font-bold text-primary-dark"
           >
@@ -760,6 +774,7 @@ function RegisterInner({
         scope={pathname}
         currentQuery={viewQuery(searchParams)}
         canSave={chips.length > 0 || searchParams.has("ordering")}
+        suggestedName={queue ? queueTitle(queue) : undefined}
         onApply={(query) => {
           setSearchDraft(new URLSearchParams(query).get("search") ?? "");
           router.replace(query ? `${pathname}?${query}` : pathname);

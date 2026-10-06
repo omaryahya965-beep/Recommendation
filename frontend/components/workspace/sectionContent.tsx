@@ -21,6 +21,7 @@ import { Button, Callout } from "@/components/ui/Base";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { VerificationHistory } from "@/components/verification/VerificationPanel";
 import { CaseHistory, DecisionsList } from "@/components/workspace/CaseSections";
+import { sectionLabel } from "@/lib/caseLinks";
 import { plural } from "@/lib/format";
 import type { WorkflowAction } from "@/lib/hooks";
 import { DECISION_LABELS, PLAN_STATUS_LABELS, REVIEW_STATUS_LABELS, T, VERIFICATION_LABELS, useI18n } from "@/lib/i18n";
@@ -34,16 +35,7 @@ import { isOffered } from "@/lib/workflow";
  */
 
 export function sectionTitle(id: SectionId): string {
-  const titles: Record<SectionId, string> = {
-    finding: T.case.finding,
-    response: T.case.response,
-    plan: T.case.plan,
-    evidence: T.case.evidence,
-    verification: T.case.verification,
-    decisions: T.caseView.decisions,
-    history: T.caseView.history,
-  };
-  return titles[id];
+  return sectionLabel(id);
 }
 
 export function sectionSummary(id: SectionId, rec: RecommendationDetail, facts: SectionFacts): string | null {

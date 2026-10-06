@@ -1,5 +1,13 @@
-import { redirect } from "next/navigation";
+"use client";
+
+import { NotificationCenter } from "@/components/notifications/NotificationCenter";
+import { useI18n } from "@/lib/i18n";
 
 export default function DepartmentNotificationsPage() {
-  redirect("/department/settings?tab=notifications");
+  useI18n();
+  return (
+    <div className="animate-fade-in">
+      <NotificationCenter role="department_head" />
+    </div>
+  );
 }

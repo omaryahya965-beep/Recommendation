@@ -235,7 +235,7 @@ export default function PendingApprovalsPage() {
         </div>
       ) : null}
 
-      <RecentActivity detailBase={BASE} compact />
+      <RecentActivity role="council" compact />
     </div>
   );
 }

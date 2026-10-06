@@ -1,21 +1,21 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect } from "react";
 
-import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 import { AppearanceSettings } from "@/components/settings/AppearanceSettings";
 import { ReminderSettings } from "@/components/settings/ReminderSettings";
 import { Tabs } from "@/components/ui/Base";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { T, useI18n } from "@/lib/i18n";
+import { notificationsCenter } from "@/lib/notifications";
 import type { Role } from "@/lib/types";
 
-type SettingsTab = "appearance" | "notifications" | "reminders";
+type SettingsTab = "appearance" | "reminders";
 
 function tabsFor(): Array<{ id: SettingsTab; label: string }> {
   return [
     { id: "appearance", label: T.nav.appearance },
-    { id: "notifications", label: T.nav.notifications },
     { id: "reminders", label: T.nav.reminders },
   ];
 }
@@ -27,6 +27,10 @@ export function SettingsHub({ role }: { role: Role }) {
   const searchParams = useSearchParams();
   const tabs = tabsFor();
   const requested = searchParams.get("tab");
+  // The inbox has its own page now; old links to the settings tab land there.
+  useEffect(() => {
+    if (requested === "notifications") router.replace(notificationsCenter(role));
+  }, [requested, role, router]);
   const current: SettingsTab = tabs.some((tab) => tab.id === requested)
     ? (requested as SettingsTab)
     : "appearance";
@@ -47,7 +51,6 @@ export function SettingsHub({ role }: { role: Role }) {
 
       <div className="mt-6">
         {current === "appearance" ? <AppearanceSettings /> : null}
-        {current === "notifications" ? <NotificationCenter role={role} embedded /> : null}
         {current === "reminders" ? <ReminderSettings role={role} /> : null}
       </div>
     </div>

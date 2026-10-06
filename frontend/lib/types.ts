@@ -152,6 +152,8 @@ export interface RecommendationListItem {
   response_overdue: boolean;
   /** Days since the case entered its current status (queue age). */
   days_waiting: number;
+  /** When the case entered its current status (ISO); queues list newest first. */
+  waiting_since: string | null;
   /** True when the case is waiting on the requesting user. */
   my_turn: boolean;
   created_at: string;
@@ -286,6 +288,8 @@ export interface AuditReport {
   response_deadline: string | null;
   council_approval_date: string | null;
   recommendations_count: number;
+  /** Under review with every recommendation approved for council. */
+  ready_for_council?: boolean;
   created_at: string;
   recommendations?: ReportRecommendationItem[];
 }
@@ -474,6 +478,8 @@ export interface DashboardStats {
   closed: number;
   completion_rate: number;
   overdue: number;
+  high_risk_open?: number;
+  in_execution?: number;
   by_status: Record<string, number>;
   by_risk: Record<string, number>;
 }
@@ -509,9 +515,6 @@ export interface DashboardData {
   // Internal audit
   reports_ready_for_council?: ActionCenterBlock<DashboardReport>;
   draft_reports?: ActionCenterBlock<DashboardReport>;
-  late_in_audit_queue?: ActionCenterBlock & { threshold_days: number };
-  high_risk_stale?: ActionCenterBlock & { threshold_days: number };
-  overdue_by_department?: Array<{ department: { id: number; name: string }; open: number; overdue: number }>;
   // Department head
   due_soon?: ActionCenterBlock;
   waiting_on_others?: ActionCenterBlock;

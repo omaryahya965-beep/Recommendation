@@ -1,49 +1,44 @@
 "use client";
 
-import { Bell, ChevronDown, ChevronUp, X } from "lucide-react";
+import { Bell, BellOff, CheckCheck, X } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { useFocusTrap } from "@/components/mobile/useFocusTrap";
+import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { cn } from "@/lib/cn";
-import { formatDateTime, recordCode, relativeTimeAr } from "@/lib/format";
-import { T, useI18n } from "@/lib/i18n";
-import {
-  notificationHref,
-  notificationTitle,
-  notificationsCenter,
-  notifyMeta,
-  requiredAction,
-  userMustAct,
-} from "@/lib/notifications";
+import { plural } from "@/lib/format";
 import {
   useMarkAllNotificationsRead,
-  useMarkNotificationRead,
   useNotifications,
   usePrefetchNotifications,
   useUnreadCount,
 } from "@/lib/hooks";
-import type { AppNotification, Role } from "@/lib/types";
+import { T, useI18n } from "@/lib/i18n";
+import { groupByTime, notificationsCenter } from "@/lib/notifications";
+import { useIsPhone } from "@/lib/useMediaQuery";
+import type { Role } from "@/lib/types";
 
-const TONE: Record<string, string> = {
-  danger: "text-danger-dark",
-  warning: "text-warning-dark",
-  primary: "text-primary-dark",
-  info: "text-info-dark",
-  neutral: "text-muted",
-};
+const PREVIEW = 15;
 
-function newestFirst(items: AppNotification[]) {
-  return [...items].sort((a, b) => {
-    if (a.is_read !== b.is_read) return a.is_read ? 1 : -1;
-    return new Date(b.sent_at).getTime() - new Date(a.sent_at).getTime();
-  });
-}
-
+/**
+ * The bell and its panel.
+ *
+ * Phones: a full-screen sheet rendered into <body>. The app bar it is opened
+ * from has a backdrop blur, which makes it the containing block of any
+ * `position: fixed` child — a panel inside it was squeezed into the bar's
+ * 56px and drawn under the bottom tabs. From the body it covers the screen,
+ * above the bars, with the page behind locked.
+ *
+ * Wider screens: a dropdown under the bell.
+ */
 export function NotificationBell({ role }: { role: Role }) {
   useI18n();
+  const phone = useIsPhone();
   const [open, setOpen] = useState(false);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [unreadOnly, setUnreadOnly] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const { data: count } = useUnreadCount();
@@ -52,197 +47,188 @@ export function NotificationBell({ role }: { role: Role }) {
   const { data: list, isLoading, isError, refetch } = useNotifications(open);
   const prefetchList = usePrefetchNotifications();
   const markAll = useMarkAllNotificationsRead();
-  const markRead = useMarkNotificationRead();
 
-  // Declared before first use: `const` is not hoisted, so defining this
-  // below useFocusTrap would be a temporal-dead-zone error at render.
-  const closePanel = useCallback(() => {
-    setOpen(false);
-    setSelectedId(null);
-  }, []);
-
+  const closePanel = useCallback(() => setOpen(false), []);
   useFocusTrap(open, panelRef, closePanel, closeRef);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || phone) return;
     const onDoc = (event: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(event.target as Node)) closePanel();
+      const target = event.target as Node;
+      if (panelRef.current?.contains(target) || buttonRef.current?.contains(target)) return;
+      closePanel();
     };
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
-  }, [open, closePanel]);
-
-  const preview = useMemo(() => newestFirst(list?.results ?? []).slice(0, 20), [list]);
-
-  /**
-   * Which row is expanded.
-   *
-   * This used to be synchronised from an effect, which meant an extra render
-   * pass every time the panel opened and a lint error for setting state
-   * during an effect. The default is derived instead: with nothing explicitly
-   * chosen, the newest notification is the open one. Closing the panel clears
-   * the explicit choice in the handler, where that state change belongs.
-   */
-  const activeId = selectedId ?? preview[0]?.id ?? null;
+  }, [open, phone, closePanel]);
 
   const unread = count?.unread ?? 0;
   const badge = unread > 9 ? T.notify.badgeMore : unread > 0 ? String(unread) : null;
+  const all = useMemo(() => list?.results ?? [], [list]);
+  const listUnread = all.filter((item) => !item.is_read).length;
+  const groups = useMemo(
+    () => groupByTime((unreadOnly ? all.filter((item) => !item.is_read) : all).slice(0, 100)),
+    [all, unreadOnly]
+  );
+  // The newest PREVIEW notifications, keeping their day groups.
+  const limited = groups
+    .map((group, index) => {
+      const before = groups.slice(0, index).reduce((sum, previous) => sum + previous.items.length, 0);
+      return { ...group, items: group.items.slice(0, Math.max(0, PREVIEW - before)) };
+    })
+    .filter((group) => group.items.length);
+
+  const panel = open ? (
+    <div
+      ref={panelRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="notify-panel-title"
+      data-testid="notification-panel"
+      className={cn(
+        "flex flex-col bg-surface",
+        phone
+          ? "fixed inset-0 z-[60] animate-fade-in"
+          : "absolute end-0 top-full z-50 mt-2 max-h-[min(36rem,calc(100dvh-5rem))] w-[26rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-line shadow-xl"
+      )}
+    >
+      <header
+        className={cn(
+          "border-b border-line px-4 pb-2.5",
+          phone ? "pt-[max(0.75rem,env(safe-area-inset-top))]" : "pt-3.5"
+        )}
+      >
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <h2 id="notify-panel-title" className="font-heading text-[17px] font-bold text-navy md:text-[15px]">
+              {T.notify.title}
+            </h2>
+            <p className="text-[12.5px] font-medium text-muted md:text-[12px]" data-testid="notification-panel-count">
+              {unread ? plural(unread, T.notify.unreadCount) : T.notify.allRead}
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
+            {unread > 0 ? (
+              <button
+                type="button"
+                onClick={() => markAll.mutate()}
+                disabled={markAll.isPending}
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2.5 text-[12.5px] font-bold text-primary-dark hover:bg-primary-light/50 md:min-h-9"
+              >
+                <CheckCheck className="size-4" aria-hidden />
+                {T.notify.markAllRead}
+              </button>
+            ) : null}
+            <button
+              ref={closeRef}
+              type="button"
+              onClick={closePanel}
+              className="flex size-11 items-center justify-center rounded-lg text-ink-soft hover:bg-subtle md:size-9"
+              aria-label={T.nav.close}
+            >
+              <X className="size-5" aria-hidden />
+            </button>
+          </div>
+        </div>
+        <div className="mt-2.5 flex gap-1.5" role="group" aria-label={T.notify.title}>
+          {([false, true] as const).map((only) => (
+            <button
+              key={String(only)}
+              type="button"
+              aria-pressed={unreadOnly === only}
+              onClick={() => setUnreadOnly(only)}
+              className={cn(
+                "inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 text-[12.5px] font-bold transition-colors",
+                unreadOnly === only ? "bg-inverse text-on-inverse" : "bg-subtle text-ink-soft hover:text-ink"
+              )}
+            >
+              {only ? T.notify.unread : T.notify.all}
+              {only && listUnread ? (
+                <span className="min-w-5 rounded-full bg-danger px-1.5 text-center font-mono text-[10.5px] text-surface" dir="ltr">
+                  {listUnread}
+                </span>
+              ) : null}
+            </button>
+          ))}
+        </div>
+      </header>
+
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        {isLoading && !list ? (
+          <p className="px-4 py-10 text-center text-[14px] font-semibold text-ink-soft">{T.common.loading}</p>
+        ) : isError ? (
+          <div className="px-4 py-8 text-center">
+            <p className="text-[14px] font-semibold text-ink-soft">{T.common.error}</p>
+            <button type="button" onClick={() => refetch()} className="mt-2 min-h-11 text-[14px] font-bold text-primary-dark">
+              {T.common.retry}
+            </button>
+          </div>
+        ) : limited.length ? (
+          limited.map((group) => (
+            <section key={group.id} aria-label={group.label}>
+              <h3 className="sticky top-0 z-10 border-b border-line/60 bg-surface/95 px-4 py-1.5 text-[11.5px] font-bold text-muted backdrop-blur-sm">
+                {group.label}
+              </h3>
+              <ul className="divide-y divide-line/60">
+                {group.items.map((item) => (
+                  <li key={item.id}>
+                    <NotificationItem item={item} role={role} onNavigate={closePanel} dense />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))
+        ) : (
+          <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
+            <span className="flex size-12 items-center justify-center rounded-full bg-subtle text-muted">
+              <BellOff className="size-5" aria-hidden />
+            </span>
+            <p className="text-[14px] font-bold text-navy">{unreadOnly ? T.notify.emptyUnread : T.notify.empty}</p>
+            <p className="text-[12.5px] text-muted">{unreadOnly ? T.notify.emptyUnreadHint : T.notify.emptyHint}</p>
+          </div>
+        )}
+      </div>
+
+      <footer className={cn("border-t border-line bg-subtle/40", phone && "pb-[env(safe-area-inset-bottom)]")}>
+        <Link
+          href={notificationsCenter(role)}
+          onClick={closePanel}
+          data-testid="notification-view-all"
+          className="flex min-h-12 items-center justify-center text-[14px] font-bold text-primary-dark hover:bg-primary-light/40"
+        >
+          {T.notify.viewAll}
+        </Link>
+      </footer>
+    </div>
+  ) : null;
 
   return (
-    <div className="relative" ref={panelRef}>
+    <div className="relative">
       <button
+        ref={buttonRef}
         type="button"
-        onClick={() => (open ? closePanel() : setOpen(true))}
+        onClick={() => setOpen((value) => !value)}
         onMouseEnter={prefetchList}
         onFocus={prefetchList}
         className="relative flex size-12 items-center justify-center rounded-xl text-ink-soft transition-colors hover:bg-subtle hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary md:size-9"
-        aria-label={T.nav.notifications}
+        aria-label={unread ? `${T.nav.notifications} — ${plural(unread, T.notify.unreadCount)}` : T.nav.notifications}
         aria-expanded={open}
+        aria-haspopup="dialog"
+        data-testid="notification-bell"
       >
-        <Bell className="size-5" />
+        <Bell className="size-5" aria-hidden />
         {badge ? (
-          <span className="absolute -top-0.5 -end-0.5 z-10 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger px-1 text-[9px] font-bold leading-none text-surface ring-2 ring-surface">
+          <span
+            className="absolute -top-0.5 -end-0.5 z-10 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger px-1 text-[9.5px] font-bold leading-none text-surface ring-2 ring-surface"
+            data-testid="notification-badge"
+            dir="ltr"
+            aria-hidden
+          >
             {badge}
           </span>
         ) : null}
       </button>
-
-      {open ? (
-        <div
-          className="fixed inset-0 z-50 flex flex-col bg-surface md:absolute md:inset-auto md:end-0 md:mt-2 md:max-h-[min(32rem,80vh)] md:w-[26rem] md:max-w-[92vw] md:overflow-hidden md:rounded-2xl md:border md:border-line md:shadow-xl"
-          role="dialog"
-          aria-modal="true"
-          aria-label={T.nav.notifications}
-        >
-          <header className="flex items-center justify-between gap-2 border-b border-line px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 md:pt-3">
-            <div className="min-w-0">
-              <p className="text-[15px] font-bold text-navy md:text-[13.5px]">{T.notify.previewTitle}</p>
-              <p className="text-[13px] font-medium text-muted md:text-[11px]">{T.notify.nowHint}</p>
-            </div>
-            <div className="flex shrink-0 items-center gap-1">
-              {unread > 0 ? (
-                <button
-                  type="button"
-                  onClick={() => markAll.mutate()}
-                  className="min-h-11 rounded-lg px-3 text-[13px] font-bold text-primary-dark"
-                >
-                  {T.notify.markAllRead}
-                </button>
-              ) : null}
-              <button
-                ref={closeRef}
-                type="button"
-                onClick={closePanel}
-                className="flex size-11 items-center justify-center rounded-lg text-ink-soft hover:bg-subtle md:size-9"
-                aria-label={T.nav.close}
-              >
-                <X className="size-5" />
-              </button>
-            </div>
-          </header>
-
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            {isLoading && !list ? (
-              <p className="px-4 py-10 text-center text-[15px] font-semibold text-ink-soft">{T.common.loading}</p>
-            ) : isError ? (
-              <div className="px-4 py-8 text-center">
-                <p className="text-[15px] font-semibold text-ink-soft">{T.common.error}</p>
-                <button type="button" onClick={() => refetch()} className="mt-2 min-h-11 text-[15px] font-bold text-primary-dark">
-                  {T.common.retry}
-                </button>
-              </div>
-            ) : preview.length ? (
-              <ul>
-                {preview.map((item) => {
-                  const meta = notifyMeta(item.type);
-                  const action = requiredAction(item, role);
-                  const mustAct = userMustAct(item, role);
-                  const expanded = activeId === item.id;
-                  return (
-                    <li key={item.id} className={cn("border-b border-line last:border-0", !item.is_read && "bg-primary/5")}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedId(expanded ? null : item.id);
-                          if (!item.is_read) markRead.mutate(item.id);
-                        }}
-                        className="block w-full min-h-14 px-4 py-3.5 text-start"
-                      >
-                        <p className="flex items-center justify-between gap-2">
-                          <span className={cn("inline-flex items-center gap-1.5 text-[12.5px] font-bold", TONE[meta.tone])}>
-                            <span aria-hidden>{meta.marker}</span>
-                            {meta.label}
-                            {!item.is_read ? (
-                              <span className="size-2 rounded-full bg-primary" aria-label={T.notify.unread} />
-                            ) : null}
-                          </span>
-                          {expanded ? <ChevronUp className="size-4 text-muted" /> : <ChevronDown className="size-4 text-muted" />}
-                        </p>
-                        <p className={cn("mt-1.5 text-[14.5px] leading-snug text-ink", !item.is_read && "font-bold")}>
-                          <bdi>{item.message}</bdi>
-                        </p>
-                        {item.recommendation ? (
-                          <p className="mt-1 font-mono text-[12px] font-medium text-muted" dir="ltr">
-                            {recordCode(item.recommendation)}
-                          </p>
-                        ) : null}
-                        <time
-                          className="mt-1 block font-mono text-[12px] text-muted"
-                          dateTime={item.sent_at}
-                          title={formatDateTime(item.sent_at)}
-                        >
-                          {relativeTimeAr(item.sent_at)}
-                        </time>
-                      </button>
-                      {expanded ? (
-                        <div className="space-y-2.5 border-t border-line/70 bg-subtle/40 px-4 py-3">
-                          <p className="text-[12px] font-bold text-muted">{T.notify.whatHappened}</p>
-                          <p className="text-[13.5px] font-medium leading-relaxed text-ink"><bdi>{item.message}</bdi></p>
-                          {item.recommendation ? (
-                            <p className="text-[13px] text-ink-soft">
-                              <span className="font-bold text-navy">{T.notify.related}: </span>
-                              <span className="font-mono" dir="ltr">
-                                {recordCode(item.recommendation)}
-                              </span>
-                              {" — "}
-                              <bdi>{notificationTitle(item)}</bdi>
-                            </p>
-                          ) : null}
-                          {mustAct && action ? (
-                            <p className="rounded-lg border border-navy/10 bg-navy/5 px-3 py-2 text-[12.5px] font-semibold text-navy">
-                              <span className="font-bold">{T.notify.requiredAction}: </span>
-                              {action}
-                            </p>
-                          ) : null}
-                          <Link
-                            href={notificationHref(item, role)}
-                            onClick={closePanel}
-                            className="inline-flex min-h-11 items-center text-[13.5px] font-bold text-primary-dark hover:underline"
-                          >
-                            {mustAct ? T.notify.takeAction : T.notify.openCase}
-                          </Link>
-                        </div>
-                      ) : null}
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
-              <p className="px-4 py-10 text-center text-[15px] font-semibold text-ink-soft">{T.notify.emptyHint}</p>
-            )}
-          </div>
-
-          <footer className="border-t border-line bg-subtle/30 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-            <Link
-              href={notificationsCenter(role)}
-              onClick={closePanel}
-              className="flex min-h-12 items-center justify-center text-center text-[15px] font-bold text-primary-dark"
-            >
-              {T.notify.viewAll}
-            </Link>
-          </footer>
-        </div>
-      ) : null}
+      {panel && phone && typeof document !== "undefined" ? createPortal(panel, document.body) : panel}
     </div>
   );
 }

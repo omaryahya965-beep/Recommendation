@@ -155,7 +155,8 @@ export function MobileCaseScreen({
   const [sheet, setSheet] = useState<{ kind: SheetKind; at: number } | null>(null);
   const [dirty, setDirty] = useState(false);
 
-  const initial = new Set<SectionId>([defaultOpenSection(rec), ...(linked ? [linked] : [])]);
+  // A linked section opens on its own, so the action card stays just above it.
+  const initial = new Set<SectionId>([linked ?? defaultOpenSection(rec)]);
   const isOpen = (id: SectionId | "details") => opened[id] ?? (id !== "details" && initial.has(id));
   const toggle = (id: SectionId | "details") => setOpened((current) => ({ ...current, [id]: !isOpen(id) }));
 

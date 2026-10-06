@@ -3,7 +3,7 @@
 import { Printer, SearchX } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { CaseSkeleton } from "@/components/case/CaseHeader";
 import { Button, ErrorBanner, SuccessBanner } from "@/components/ui/Base";
@@ -72,6 +72,17 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
 
   const phone = useIsPhone();
 
+  // A link to a section (?section=, from a notification or a home queue)
+  // opens it and brings it into view once the case has loaded.
+  const loadedId = rec?.id;
+  useEffect(() => {
+    if (!linked || loadedId !== id) return;
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById(`section-${linked}`)?.scrollIntoView({ block: "start" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [linked, loadedId, id]);
+
   const back = backLink(role, rec?.status);
   if (isLoading) return <CaseSkeleton id={id} backHref={back.href} backLabel={back.label} />;
   // A case that does not exist or is outside the viewer's scope: retrying
@@ -111,7 +122,8 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
   const facts = sectionFacts(rec);
   const primary = rec.workflow?.primary_action ?? null;
   const deskOpen = isExecutionDesk(primary);
-  const initial = new Set<SectionId>([defaultOpenSection(rec), ...(linked ? [linked] : [])]);
+  // A linked section opens on its own, so the action card stays just above it.
+  const initial = new Set<SectionId>([linked ?? defaultOpenSection(rec)]);
   const choices = toggled.recId === id ? toggled.open : {};
   const isOpen = (section: SectionId) => choices[section] ?? initial.has(section);
   const setOpen = (section: SectionId, open: boolean) =>

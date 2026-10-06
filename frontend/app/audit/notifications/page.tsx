@@ -1,5 +1,13 @@
-import { redirect } from "next/navigation";
+"use client";
+
+import { NotificationCenter } from "@/components/notifications/NotificationCenter";
+import { useI18n } from "@/lib/i18n";
 
 export default function AuditNotificationsPage() {
-  redirect("/audit/settings?tab=notifications");
+  useI18n();
+  return (
+    <div className="animate-fade-in">
+      <NotificationCenter role="audit" />
+    </div>
+  );
 }

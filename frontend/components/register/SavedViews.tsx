@@ -55,11 +55,14 @@ export function SavedViews({
   currentQuery,
   canSave,
   onApply,
+  suggestedName,
 }: {
   scope: string;
   currentQuery: string;
   canSave: boolean;
   onApply: (query: string) => void;
+  /** Pre-filled name (the queue the list was opened from). */
+  suggestedName?: string;
 }) {
   useI18n();
   // The register renders on the client only (it suspends on the URL while
@@ -124,7 +127,10 @@ export function SavedViews({
       {canSave && !naming ? (
         <button
           type="button"
-          onClick={() => setNaming(true)}
+          onClick={() => {
+            setName(suggestedName ?? "");
+            setNaming(true);
+          }}
           className="inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 text-[12.5px] font-bold text-primary-dark hover:bg-primary-light/50"
         >
           <BookmarkPlus className="size-4" aria-hidden />

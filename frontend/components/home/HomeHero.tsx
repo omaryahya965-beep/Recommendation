@@ -1,6 +1,6 @@
 "use client";
 
-import type { LucideIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, type LucideIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -11,6 +11,20 @@ import { loadAuth } from "@/lib/api";
 import { formatLongDate } from "@/lib/format";
 import { ROLE_LABELS, T, useI18n } from "@/lib/i18n";
 import type { Role } from "@/lib/types";
+
+/** A headline count in the hero, opening the queue it counts. */
+export interface HeroSummaryItem {
+  label: string;
+  href: string;
+  tone?: "danger" | "warning" | "primary" | "success";
+}
+
+const SUMMARY_DOT: Record<NonNullable<HeroSummaryItem["tone"]>, string> = {
+  danger: "bg-danger",
+  warning: "bg-warning",
+  primary: "bg-primary",
+  success: "bg-success",
+};
 
 export interface QuickAction {
   href: string;
@@ -31,14 +45,18 @@ export function HomeHero({
   title,
   subtitle,
   actions,
+  summary,
 }: {
   role: Role;
   title: string;
   subtitle: string;
   actions: QuickAction[];
+  /** The primary summary: what needs the user now, one link per count. */
+  summary?: HeroSummaryItem[];
 }) {
   const { locale } = useI18n();
   const [name, setName] = useState<string | null>(null);
+  const ChevronForward = locale === "ar" ? ChevronLeft : ChevronRight;
 
   // Pages mount after the session check (never in the static HTML), so this
   // is the real viewport on first render: phones never request the photo.
@@ -65,6 +83,22 @@ export function HomeHero({
         </p>
         <h1 className="mt-1 font-heading text-[1.3rem] font-bold leading-tight text-navy">{title}</h1>
         <p className="mt-0.5 text-[12.5px] text-muted">{formatLongDate()}</p>
+        {summary?.length ? (
+          <ul className="mt-3 grid gap-1.5" data-testid="home-summary">
+            {summary.map((item) => (
+              <li key={item.label}>
+                <Link
+                  href={item.href}
+                  className="flex min-h-11 items-center gap-2.5 rounded-xl bg-subtle/60 px-3 text-[13.5px] font-bold text-ink active:scale-[0.99]"
+                >
+                  <span className={cn("size-2 shrink-0 rounded-full", SUMMARY_DOT[item.tone ?? "primary"])} aria-hidden />
+                  <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                  <ChevronForward className="size-4 shrink-0 text-muted" aria-hidden />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : null}
         {actions.length ? (
           <div
             className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-0.5 scrollbar-none"
@@ -120,7 +154,7 @@ export function HomeHero({
         className="absolute inset-0 bg-gradient-to-t from-[#062b3d]/55 via-transparent to-transparent"
       />
 
-      <div className="relative z-10 flex h-full min-h-[15rem] flex-col justify-end gap-2 px-4 py-5 md:min-h-[17rem] md:gap-3 md:px-8 md:py-7 lg:min-h-[23rem] lg:gap-5 lg:px-10 lg:py-10">
+      <div className="relative z-10 flex h-full min-h-[15rem] flex-col justify-end gap-2 px-4 py-5 md:min-h-[17rem] md:gap-3 md:px-8 md:pb-7 md:pt-20 lg:min-h-[23rem] lg:gap-5 lg:px-10 lg:pb-10 lg:pt-24">
         <div className="absolute inset-x-4 top-4 flex items-start justify-between gap-3 md:inset-x-10 md:top-6">
           <div className="flex min-w-0 flex-wrap items-center gap-2 md:gap-3">
             <p className="text-[14px] font-medium text-white drop-shadow-md">
@@ -144,6 +178,21 @@ export function HomeHero({
             {formatLongDate()}
           </p>
           <p className="mt-1.5 hidden max-w-2xl text-[13px] md:block leading-snug text-white/90 md:mt-3 md:text-[15px] md:leading-relaxed">{subtitle}</p>
+          {summary?.length ? (
+            <ul className="mt-3 hidden flex-wrap gap-2 md:flex" data-testid="home-summary">
+              {summary.map((item) => (
+                <li key={item.label}>
+                  <Link
+                    href={item.href}
+                    className="inline-flex min-h-9 items-center gap-2 rounded-full bg-[#062b3d]/45 px-3.5 text-[13px] font-bold text-white ring-1 ring-white/30 backdrop-blur-md transition-colors hover:bg-[#062b3d]/65"
+                  >
+                    <span className={cn("size-2 rounded-full", SUMMARY_DOT[item.tone ?? "primary"])} aria-hidden />
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </div>
 
         {actions.length ? (

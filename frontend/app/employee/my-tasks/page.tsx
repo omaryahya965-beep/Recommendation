@@ -167,7 +167,7 @@ export default function MyTasksPage() {
         testId="active-tasks"
       />
 
-      <RecentActivity detailBase={HOME} compact />
+      <RecentActivity role="employee" compact />
     </div>
   );
 }

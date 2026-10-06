@@ -1,47 +1,28 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, ArrowLeftRight, Bell, CalendarClock, Undo2, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, History } from "lucide-react";
 import Link from "next/link";
-import type { ReactNode } from "react";
 
-import { CardSkeleton, EmptyState } from "@/components/ui/EmptyState";
+import { NotificationItem } from "@/components/notifications/NotificationItem";
+import { CardSkeleton } from "@/components/ui/EmptyState";
 import { api } from "@/lib/api";
-import { cn } from "@/lib/cn";
-import { caseTitle } from "@/lib/finding";
-import { formatDateTime } from "@/lib/format";
-import { NOTIFICATION_TYPE_LABELS, T, useI18n } from "@/lib/i18n";
-import type { AppNotification, Paginated } from "@/lib/types";
+import { T, useI18n } from "@/lib/i18n";
+import { notificationsCenter } from "@/lib/notifications";
+import type { AppNotification, Paginated, Role } from "@/lib/types";
 
-const MARKER: Record<string, { icon: ReactNode; ring: string }> = {
-  overdue: { icon: <AlertTriangle className="size-4" />, ring: "bg-danger-light text-danger-dark ring-danger/20" },
-  returned: { icon: <Undo2 className="size-4" />, ring: "bg-danger-light text-danger-dark ring-danger/20" },
-  action_required: { icon: <Bell className="size-4" />, ring: "bg-warning-light text-warning-dark ring-warning/20" },
-  response_needed: { icon: <Bell className="size-4" />, ring: "bg-warning-light text-warning-dark ring-warning/20" },
-  deadline_approaching: { icon: <CalendarClock className="size-4" />, ring: "bg-info-light text-info-dark ring-info/20" },
-  due_today: { icon: <CalendarClock className="size-4" />, ring: "bg-info-light text-info-dark ring-info/20" },
-  status_change: { icon: <ArrowLeftRight className="size-4" />, ring: "bg-subtle text-ink-soft ring-line" },
-};
-
-const FALLBACK = { icon: <Bell className="size-4" />, ring: "bg-subtle text-ink-soft ring-line" };
-
-function notificationsHref(detailBase: string) {
-  if (detailBase.startsWith("/department")) return "/department/notifications";
-  if (detailBase.startsWith("/employee")) return "/employee/notifications";
-  if (detailBase.startsWith("/council")) return "/council/notifications";
-  return "/audit/notifications";
-}
-
+/**
+ * The latest notifications on a home page, newest first. Each opens its exact
+ * target (the case at the right section, or the report) and is marked read.
+ */
 export function RecentActivity({
-  detailBase,
-  limit = 3,
+  role,
+  limit = 4,
   compact = false,
-  moreHref,
 }: {
-  detailBase: string;
+  role: Role;
   limit?: number;
   compact?: boolean;
-  moreHref?: string;
 }) {
   const { locale } = useI18n();
   const { data, isLoading, isError } = useQuery({
@@ -55,86 +36,50 @@ export function RecentActivity({
   if (isLoading) return <CardSkeleton />;
   if (isError) return null;
 
-  const allItems = (data?.results ?? [])
+  const items = (data?.results ?? [])
     .slice()
-    .sort((a, b) => new Date(b.sent_at).getTime() - new Date(a.sent_at).getTime());
-  const items = allItems.slice(0, limit);
-  const moreTo = moreHref ?? notificationsHref(detailBase);
+    .sort((a, b) => new Date(b.sent_at).getTime() - new Date(a.sent_at).getTime() || b.id - a.id)
+    .slice(0, limit);
 
   return (
-    <section className="section-elevated flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-line bg-surface">
-      <header className="border-b border-line/70 px-4 py-3.5 md:px-6 md:py-5 flex items-center gap-3">
-        <div className="h-5 w-[3px] shrink-0 rounded-full bg-primary" aria-hidden />
+    <section
+      className="section-elevated flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-line bg-surface"
+      data-testid="recent-activity"
+    >
+      <header className="flex items-start gap-3 border-b border-line/70 px-4 py-3.5 md:px-6 md:py-4">
+        <div className="mt-1 h-5 w-[3px] shrink-0 rounded-full bg-primary" aria-hidden />
         <div className="min-w-0">
-          <h2 className="font-heading text-[17px] font-bold text-navy">{T.analytics.activity}</h2>
-          <p className="mt-1.5 text-[13px] text-muted">{T.analytics.activityHint}</p>
+          <h2 className="font-heading text-[16.5px] font-bold text-navy md:text-[17px]">{T.analytics.activity}</h2>
+          <p className="mt-1 text-[12.5px] text-muted md:text-[13px]">{T.analytics.activityHint}</p>
         </div>
       </header>
 
       {items.length ? (
         <>
-          <ol className={cn("min-h-0 flex-1 px-5 py-4", compact ? "" : "space-y-1")}>
-            {items.map((item, index) => {
-              const marker = MARKER[item.type] ?? FALLBACK;
-              const last = index === items.length - 1;
-
-              return (
-                <li key={item.id} className={cn("group relative flex gap-4 transition-colors duration-200 rounded-xl", compact ? "pb-4" : "p-3 hover:bg-subtle/40", !item.is_read && !compact && "bg-primary-light/10 list-accent-bar overflow-hidden")}>
-                  {compact && !last ? (
-                    <span aria-hidden className="absolute top-8 bottom-0 start-[0.875rem] w-px bg-line/80" />
-                  ) : null}
-
-                  <span
-                    className={cn(
-                      "relative z-10 flex size-7 shrink-0 items-center justify-center rounded-full ring-2 ring-offset-2 ring-offset-surface shadow-sm transition-transform duration-200 group-hover:scale-110",
-                      marker.ring
-                    )}
-                  >
-                    {marker.icon}
-                  </span>
-
-                  <div className={cn("min-w-0 flex-1", item.is_read && "opacity-80")}>
-                    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-muted">
-                        {NOTIFICATION_TYPE_LABELS[item.type] ?? item.type}
-                      </span>
-                      <time className="font-mono text-[11px] font-medium text-muted" dir="ltr">
-                        {formatDateTime(item.sent_at)}
-                      </time>
-                    </div>
-
-                    <p className={cn("mt-1.5 text-[14px] leading-relaxed text-ink", compact && "line-clamp-2", !item.is_read && "font-semibold")}>
-                      <bdi>{item.message}</bdi>
-                    </p>
-
-                    {item.recommendation ? (
-                      <Link
-                        href={`${detailBase}/${item.recommendation}`}
-                        className="mt-2 inline-flex items-center gap-1.5 text-[12.5px] font-bold text-primary-dark hover:text-primary transition-colors"
-                      >
-                        {item.recommendation_text
-                          ? caseTitle(item.recommendation_text, 70)
-                          : T.analytics.openCase}
-                        <DirForward className="size-3.5" />
-                      </Link>
-                    ) : null}
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
-          <footer className="mt-auto border-t border-line bg-subtle/50 px-5 py-4 text-center">
-              <Link
-                href={moreTo}
-                className="inline-flex min-h-11 items-center justify-center gap-2 text-[14px] font-bold text-primary-dark hover:text-primary transition-colors"
-              >
-                {T.notify.loadMore}
-                <DirForward className="size-4.5" />
-              </Link>
-            </footer>
+          <ul className="divide-y divide-line/60">
+            {items.map((item) => (
+              <li key={item.id}>
+                <NotificationItem item={item} role={role} dense={compact} />
+              </li>
+            ))}
+          </ul>
+          <footer className="mt-auto border-t border-line/70 bg-subtle/40">
+            <Link
+              href={notificationsCenter(role)}
+              className="flex min-h-12 items-center justify-center gap-1.5 text-[13.5px] font-bold text-primary-dark transition-colors hover:bg-primary-light/40 hover:text-primary"
+            >
+              {T.notify.viewAll}
+              <DirForward className="size-4" aria-hidden />
+            </Link>
+          </footer>
         </>
       ) : (
-        <EmptyState compact title={T.analytics.activityEmpty} className="border-0 shadow-none py-10" />
+        <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
+          <span className="flex size-11 items-center justify-center rounded-full bg-subtle text-muted">
+            <History className="size-5" aria-hidden />
+          </span>
+          <p className="text-[13.5px] font-semibold text-ink-soft">{T.analytics.activityEmpty}</p>
+        </div>
       )}
     </section>
   );

@@ -3,7 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { CalendarClock, FileText, LayoutList, Plus, Rows3, Search, X, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useMemo, useState } from "react";
 
 import { ReportPipeline, REPORT_STATUS_FAMILY, type ReportStatus } from "@/components/reports/ReportPipeline";
 import { Button, ErrorBanner, Select, TextInput } from "@/components/ui/Base";
@@ -135,10 +136,38 @@ function ReportCard({ report }: { report: AuditReport }) {
   );
 }
 
+/**
+ * Status tab and the "ready for council" view live in the URL
+ * (`?status=draft`, `?view=ready_for_council`) so the home queues can open
+ * exactly the reports they counted.
+ */
 export function ReportsRegister() {
+  return (
+    <Suspense fallback={<TableSkeleton />}>
+      <ReportsRegisterInner />
+    </Suspense>
+  );
+}
+
+function ReportsRegisterInner() {
   useI18n();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const requested = searchParams.get("status");
+  const status: ReportStatus | "all" = STATUS_FILTERS.includes(requested as ReportStatus) ? (requested as ReportStatus) : "all";
+  const readyOnly = searchParams.get("view") === "ready_for_council";
+  const setUrl = (patch: Record<string, string | null>) => {
+    const next = new URLSearchParams(searchParams.toString());
+    for (const [key, value] of Object.entries(patch)) {
+      if (value) next.set(key, value);
+      else next.delete(key);
+    }
+    const query = next.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  };
+  const setStatus = (value: ReportStatus | "all") => setUrl({ status: value === "all" ? null : value });
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<ReportStatus | "all">("all");
   const [department, setDepartment] = useState("");
   const [engagement, setEngagement] = useState("");
   const [sort, setSort] = useState<SortId>("newest");
@@ -167,6 +196,7 @@ export function ReportsRegister() {
   const visible = useMemo(() => {
     const rows = all.filter((report) => {
       if (status !== "all" && report.status !== status) return false;
+      if (readyOnly && !report.ready_for_council) return false;
       if (department && report.department_name !== department) return false;
       if (engagement && report.engagement_type !== engagement) return false;
       return matchesSearch(report, search);
@@ -181,9 +211,10 @@ export function ReportsRegister() {
       return b.created_at.localeCompare(a.created_at);
     });
     return rows;
-  }, [all, status, department, engagement, search, sort]);
+  }, [all, status, readyOnly, department, engagement, search, sort]);
 
   const chips = [
+    readyOnly ? { key: "view", label: T.queues.readyForCouncilView } : null,
     status !== "all" ? { key: "status", label: REPORT_STATUS_LABELS[status] } : null,
     department ? { key: "department", label: department } : null,
     engagement ? { key: "engagement", label: REPORT_TYPE_LABELS[engagement] } : null,
@@ -192,7 +223,7 @@ export function ReportsRegister() {
 
   const clearFilters = () => {
     setSearch("");
-    setStatus("all");
+    setUrl({ status: null, view: null });
     setDepartment("");
     setEngagement("");
   };
@@ -305,6 +336,7 @@ export function ReportsRegister() {
             type="button"
             onClick={() => {
               if (chip.key === "status") setStatus("all");
+              if (chip.key === "view") setUrl({ view: null });
               if (chip.key === "department") setDepartment("");
               if (chip.key === "engagement") setEngagement("");
               if (chip.key === "search") setSearch("");
