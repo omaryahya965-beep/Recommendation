@@ -61,3 +61,17 @@ test("an employee uploads evidence, then views and downloads it", async ({ page,
   const downloads = body.trail.filter((entry) => entry.action === "evidence_downloaded");
   expect(downloads.length).toBeGreaterThanOrEqual(2);
 });
+
+test("a file the system cannot accept is refused as soon as it is chosen", async ({ page, request }) => {
+  const rec = await firstRecommendationOf(request, "employee", FIXTURES.financeInProgress);
+  await signIn(page, request, "employee");
+  await openCase(page, "employee", rec.id);
+  const panel = actionPanel(page);
+  await panel.locator('input[type="file"]').first().setInputFiles({
+    name: "setup.exe",
+    mimeType: "application/octet-stream",
+    buffer: Buffer.from("MZ"),
+  });
+  await expect(panel.getByRole("alert").filter({ hasText: T.evidenceRegister.disallowedType })).toBeVisible();
+  await expect(panel.getByRole("button", { name: T.evidenceRegister.upload })).toBeDisabled();
+});

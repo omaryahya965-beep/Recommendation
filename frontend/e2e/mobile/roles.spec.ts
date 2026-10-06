@@ -1,9 +1,10 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 import { T } from "../../lib/i18n/ar";
 import { firstRecommendationOf } from "../support/api";
 import { signIn } from "../support/auth";
 import { FIXTURES, type UserKey } from "../support/env";
+import { expectNoHorizontalScroll } from "../support/layout";
 import { caseUrl, expectStatus } from "../support/workspace";
 
 /** Every role's phone home: the app shell, the role's tabs, nothing wider than the screen. */
@@ -13,11 +14,6 @@ const HOMES: Array<{ who: UserKey; path: string; firstTab: string }> = [
   { who: "employee", path: "/employee/my-tasks", firstTab: T.mobile.tabs.home },
   { who: "council", path: "/council/pending-approvals", firstTab: T.mobile.tabs.approvals },
 ];
-
-async function expectNoHorizontalScroll(page: Page) {
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-  expect(overflow).toBeLessThanOrEqual(1);
-}
 
 for (const home of HOMES) {
   test(`${home.who}: the phone home has the role's tabs`, async ({ page, request }) => {

@@ -52,6 +52,56 @@ test("the responsible employee works from one execution desk", async ({ page, re
   await expect(desk).toContainText(T.caseView.desk.steps);
   await expect(desk.locator('input[type="file"]')).toHaveCount(1);
   // The uploader lives in the desk only; the evidence section lists files.
-  await expect(page.locator("#section-evidence button[aria-expanded]")).toHaveAttribute("aria-expanded", "true");
+  // The section's own toggle (evidence cards hold their own, for the AI review).
+  await expect(page.locator("#section-evidence button[aria-expanded]").first()).toHaveAttribute("aria-expanded", "true");
   await expect(page.locator('#section-evidence input[type="file"]')).toHaveCount(0);
+});
+
+test("a case outside the viewer's scope says so and leads back to the register", async ({ page, request }) => {
+  const engineering = await firstRecommendationOf(request, "headEng", FIXTURES.engineeringPending);
+  await signIn(page, request, "head");
+  await page.goto(caseUrl("department_head", engineering.id));
+  await expect(page.getByRole("heading", { name: T.caseView.unavailableTitle })).toBeVisible();
+  await expect(page.getByText(T.errors.notFoundDescription)).toBeVisible();
+  await expect(page.getByRole("link", { name: T.register.title }).last()).toHaveAttribute(
+    "href",
+    "/department/recommendations"
+  );
+});
+
+test("at 1024px the case gets the full column and the timeline is not cut off", async ({ page, request }) => {
+  const rec = await firstRecommendationOf(request, "employee", FIXTURES.financeInProgress);
+  await page.setViewportSize({ width: 1024, height: 800 });
+  await signIn(page, request, "employee");
+  await openCase(page, "employee", rec.id);
+  const card = await page.locator("#case-action").boundingBox();
+  // With the sidebar open, a side rail beside the forms squeezed them to ~390px.
+  expect(card?.width ?? 0).toBeGreaterThan(600);
+  const timeline = page.getByRole("region", { name: T.caseView.timelineTitle });
+  const overflow = await timeline.evaluate((section) => {
+    const scroller = section.querySelector(".overflow-x-auto") as HTMLElement | null;
+    return scroller ? scroller.scrollWidth - scroller.clientWidth : 0;
+  });
+  expect(overflow).toBeLessThanOrEqual(1);
+});
+
+test("the evidence ledger keeps View and Download inside its column", async ({ page, request }) => {
+  const rec = await firstRecommendationOf(request, "audit", FIXTURES.financeAwaitingClosure);
+  await signIn(page, request, "audit");
+  for (const width of [1280, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await openCase(page, "audit", rec.id);
+    await openSection(page, "evidence");
+    const item = page.getByTestId("evidence-item").filter({ visible: true }).first();
+    const view = item.getByRole("button", { name: T.evidence.view });
+    await expect(view).toBeVisible();
+    const section = await page.locator("#section-evidence").boundingBox();
+    const button = await view.boundingBox();
+    const viewport = page.viewportSize()!;
+    expect(button && button.x >= 0 && button.x + button.width <= viewport.width, `View button inside the page at ${width}px`).toBe(true);
+    if (section && button) {
+      expect(button.x).toBeGreaterThanOrEqual(section.x - 1);
+      expect(button.x + button.width).toBeLessThanOrEqual(section.x + section.width + 1);
+    }
+  }
 });

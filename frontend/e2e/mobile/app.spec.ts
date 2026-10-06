@@ -1,20 +1,16 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 import { T } from "../../lib/i18n/ar";
 import { apiGet, firstRecommendationOf } from "../support/api";
 import { signIn } from "../support/auth";
 import { FIXTURES, uniqueSuffix } from "../support/env";
+import { expectNoHorizontalScroll } from "../support/layout";
 import { caseUrl, expectStatus } from "../support/workspace";
 
 /**
  * The phone app (Pixel 7): the shell, the case screen with its sheets, and
  * the register's filter sheet. Same API and forms as desktop.
  */
-
-async function expectNoHorizontalScroll(page: Page) {
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-  expect(overflow).toBeLessThanOrEqual(1);
-}
 
 test("the employee home has role tabs, a badge and a More sheet", async ({ page, request }) => {
   await signIn(page, request, "employee");
@@ -104,6 +100,12 @@ test("the head records the department's response from the action sheet", async (
   // A half-filled form is not lost to a stray close.
   await sheet.getByRole("dialog").getByRole("button", { name: T.nav.close }).click();
   await expect(sheet.getByRole("alertdialog")).toContainText(T.mobile.discardChanges);
+  // The question takes focus (on the safe answer); Escape means "keep editing".
+  await expect(sheet.getByRole("button", { name: T.mobile.keepEditing })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(sheet.getByRole("alertdialog")).toHaveCount(0);
+  await expect(sheet.getByLabel(T.response.notes)).toHaveValue("نوافق وسنعد خطة عمل.");
+  await sheet.getByRole("dialog").getByRole("button", { name: T.nav.close }).click();
   await sheet.getByRole("button", { name: T.mobile.keepEditing }).click();
 
   await sheet.getByRole("button", { name: T.response.submit }).click();
@@ -119,7 +121,9 @@ test("audit filters the register from a sheet", async ({ page, request }) => {
   await expect(sheet.getByRole("dialog")).toBeVisible();
   await sheet.getByRole("combobox", { name: T.register.waitingColumn, exact: true }).selectOption("department");
   await expect(page).toHaveURL(/waiting_on=department/);
-  await sheet.getByRole("button", { name: new RegExp(T.mobile.showResults.replace("{n}", "\\d+")) }).click();
+  // "Show N results" is worded by plural form, whatever N turns out to be.
+  const showResults = new RegExp(Object.values(T.mobile.showResults).map((form) => form.replace("{n}", "\\d+")).join("|"));
+  await sheet.getByRole("button", { name: showResults }).click();
   await expect(sheet).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: T.register.chipWaitingOn.replace("{who}", T.workflow.waitingOn.department) })
