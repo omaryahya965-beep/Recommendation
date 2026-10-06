@@ -394,7 +394,7 @@ export function ReportQueueCard({
   const count = block?.count ?? 0;
   const items = (block?.items ?? []).slice(0, limit);
   return (
-    <section className="section-elevated flex min-w-0 flex-col overflow-hidden rounded-2xl border border-line bg-surface" data-testid={testId}>
+    <section className="section-elevated flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-line bg-surface" data-testid={testId}>
       <CardHeader title={title} hint={hint} count={count} />
       {items.length ? (
         <>

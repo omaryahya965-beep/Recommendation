@@ -64,7 +64,7 @@ export default function AuditDashboard() {
 
       <div className="grid min-w-0 grid-cols-1 items-start gap-4 md:gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(21rem,1fr)]">
         <AuditPriorities blocks={data.action_center} detailBase={BASE} registerBase={BASE} />
-        <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2 md:gap-5 xl:sticky xl:top-20 xl:grid-cols-1">
+        <div className="min-w-0 xl:sticky xl:top-20">
           <CaseQueueCard
             queue="department_overdue"
             block={data.action_center.overdue}
@@ -73,19 +73,22 @@ export default function AuditDashboard() {
             emptyLabel={T.home.noOverdue}
             testId="department-overdue"
           />
-          <ReportQueueCard
-            title={T.queues.drafts}
-            hint={T.queues.draftsHint}
-            block={data.draft_reports}
-            hrefFor={(report) => `${REPORTS}/${report.id}`}
-            moreHref={`${REPORTS}?status=draft`}
-            emptyLabel={T.home.noDraftReports}
-            testId="draft-reports"
-          />
         </div>
       </div>
 
-      <RecentActivity role="audit" compact />
+      <div className="grid min-w-0 grid-cols-1 items-stretch gap-4 md:gap-5 lg:grid-cols-2">
+        <ReportQueueCard
+          title={T.queues.drafts}
+          hint={T.queues.draftsHint}
+          block={data.draft_reports}
+          hrefFor={(report) => `${REPORTS}/${report.id}`}
+          moreHref={`${REPORTS}?status=draft`}
+          emptyLabel={T.home.noDraftReports}
+          limit={4}
+          testId="draft-reports"
+        />
+        <RecentActivity role="audit" limit={3} compact />
+      </div>
     </div>
   );
 }
