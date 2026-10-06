@@ -98,6 +98,9 @@ class RecommendationFilterSet(filters.FilterSet):
     recurrence_confirmed = filters.BooleanFilter(field_name="recurrence_confirmed")
     overdue = filters.BooleanFilter(method="filter_overdue")
     open = filters.BooleanFilter(method="filter_open")
+    # Issued to the department (not an audit draft): the population every
+    # analytics figure counts, so a KPI link lists exactly what it counted.
+    issued = filters.BooleanFilter(method="filter_issued")
     responsible_employee = filters.NumberFilter(
         field_name="action_plan__responsible_employee_id"
     )
@@ -123,6 +126,7 @@ class RecommendationFilterSet(filters.FilterSet):
             "recurrence_confirmed",
             "overdue",
             "open",
+            "issued",
             "responsible_employee",
             "stage",
             "waiting_on",
@@ -203,6 +207,12 @@ class RecommendationFilterSet(filters.FilterSet):
             binding_deadline__gte=today,
             binding_deadline__lte=today + timedelta(days=max(0, int(value))),
         )
+
+    def filter_issued(self, queryset, name, value):
+        if value is None:
+            return queryset
+        draft = Q(status=Recommendation.Status.DRAFT)
+        return queryset.exclude(draft) if value else queryset.filter(draft)
 
     def filter_open(self, queryset, name, value):
         if value is None:

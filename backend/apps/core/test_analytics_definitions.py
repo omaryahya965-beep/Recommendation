@@ -66,6 +66,29 @@ class AnalyticsDefinitionTests(TestCase):
             for key in ("total", "open", "closed", "overdue", "completion_rate"):
                 self.assertEqual(dashboard[key], totals[key], f"{user}: {key}")
 
+    def test_each_kpi_link_lists_what_the_kpi_counted(self):
+        """The analytics tiles link to the register with these filters; with a
+        draft in the audit's scope, `issued=true` keeps the two equal."""
+        drive_to_in_progress(self.users, self.report, self.rec)
+        draft_report = AuditReport.objects.create(
+            municipality=self.muni, department=self.dept, title="draft",
+            engagement_type=AuditReport.EngagementType.ASSURANCE, created_by=self.users["audit"],
+        )
+        Recommendation.objects.create(report=draft_report, text="draft", risk_level="high")
+        client = client_for(self.users["audit"])
+        data = self.analytics()
+
+        def listed(query):
+            return client.get(f"/api/recommendations/?page_size=1&{query}").data["count"]
+
+        self.assertEqual(listed("issued=true"), data["totals"]["total"])
+        self.assertEqual(listed(""), data["totals"]["total"] + data["totals"]["drafts"])
+        self.assertEqual(listed("issued=false"), data["totals"]["drafts"])
+        for side in ("department", "audit", "council"):
+            self.assertEqual(listed(f"waiting_on={side}&issued=true"), data["queues"][side]["count"], side)
+        self.assertEqual(listed("open=true"), data["totals"]["open"])
+        self.assertEqual(listed("risk_level=high&open=true"), data["totals"]["high_risk_open"])
+
     def test_drafts_are_reported_apart_and_never_in_rates(self):
         Recommendation.objects.create(report=self.report, text="draft two", risk_level="low")
         totals = self.analytics()["totals"]

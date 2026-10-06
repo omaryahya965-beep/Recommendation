@@ -88,6 +88,58 @@ class NotificationApiTest(TestCase):
         self.assertIn("overdue", item)
         self.assertFalse(item["is_read"])
 
+    def _notify_head(self):
+        Notification.objects.create(
+            user=self.users["head"],
+            recommendation=self.rec,
+            type=Notification.Type.OVERDUE,
+            message="late",
+        )
+        self.client.force_authenticate(self.users["head"])
+        return self.client.get("/api/notifications/").json()["results"][0]
+
+    def test_lateness_follows_the_audit_set_deadline_not_the_plan_date(self):
+        # W1: after a partial verification the deadline audit set binds, so
+        # the inbox counts lateness from it even while the plan date is ahead.
+        from apps.workflow.models import VerificationDecision
+        from apps.workflow.tests import finish_steps_and_evidence, submit_to_audit
+
+        today = timezone.localdate()
+        drive_to_in_progress(self.users, self.report, self.rec)
+        self.rec.action_plan.target_date = today + datetime.timedelta(days=30)
+        self.rec.action_plan.save()
+        finish_steps_and_evidence(self.users, self.rec)
+        submit_to_audit(self.users, self.rec)
+        services.verify(
+            self.rec, self.users["audit"], decision="partial", notes="n",
+            rejected_items="x", rejection_reason="y", required_action="z",
+            action_deadline=today + datetime.timedelta(days=1),
+        )
+        VerificationDecision.objects.filter(recommendation=self.rec).update(
+            action_deadline=today - datetime.timedelta(days=3)
+        )
+
+        item = self._notify_head()
+        self.assertTrue(item["overdue"])
+        self.assertEqual(item["deadline"], (today - datetime.timedelta(days=3)).isoformat())
+        self.assertEqual(item["days_overdue"], 3)
+        self.assertEqual(item["target_date"], (today + datetime.timedelta(days=30)).isoformat())
+
+    def test_a_case_waiting_on_audit_is_not_late_for_the_department(self):
+        # W2: the plan date passed, but audit holds the case.
+        from apps.workflow.tests import finish_steps_and_evidence, submit_to_audit
+
+        drive_to_in_progress(self.users, self.report, self.rec)
+        finish_steps_and_evidence(self.users, self.rec)
+        submit_to_audit(self.users, self.rec)
+        self.rec.action_plan.target_date = timezone.localdate() - datetime.timedelta(days=5)
+        self.rec.action_plan.save()
+
+        item = self._notify_head()
+        self.assertFalse(item["overdue"])
+        self.assertEqual(item["days_overdue"], 0)
+        self.assertIsNone(item["deadline"])
+
     def test_user_only_sees_own_notifications(self):
         Notification.objects.create(
             user=self.users["audit"],

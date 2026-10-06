@@ -212,6 +212,14 @@ class AsOfDeadlineRulesTests(TestCase):
         self.assertTrue(item["late_in_review"])
         self.assertEqual(snapshot["totals"]["late_in_review"], 1)
 
+    def test_waiting_on_the_council_at_period_end_is_not_overdue(self):
+        services.verify_and_submit_for_closure(self.rec, self.users["audit"], notes="ok")
+        at(self.rec, ["verified_sufficient", "closure_submitted_to_council"], moment(3, 3))
+        item = item_for(build_followup_snapshot(self.muni, MARCH_START, MARCH_END), self.rec)
+        self.assertEqual(item["status"], S.PENDING_CLOSURE_COUNCIL)
+        self.assertFalse(item["overdue"])  # plan date 5 March passed, but the council holds it (W2)
+        self.assertEqual(item["days_overdue"], 0)
+
     def test_verification_deadline_binds_returned_work_as_of_the_period(self):
         services.verify(
             self.rec, self.users["audit"], decision="partial",

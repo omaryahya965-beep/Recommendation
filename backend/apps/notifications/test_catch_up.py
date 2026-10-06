@@ -93,6 +93,14 @@ class CatchUpTests(TestCase):
         submit_to_audit(self.users, self.rec)
         self.assertEqual(run_reminders(), 0)
 
+    def test_waiting_on_the_council_gets_no_department_reminders(self):
+        self.set_deadline(TODAY - 2 * DAY)
+        finish_steps_and_evidence(self.users, self.rec)
+        submit_to_audit(self.users, self.rec)
+        self.rec.refresh_from_db()
+        services.verify_and_submit_for_closure(self.rec, self.users["audit"], notes="ok")
+        self.assertEqual(run_reminders(), 0)
+
     def test_deactivated_user_is_skipped(self):
         self.set_deadline(TODAY)
         User.objects.filter(pk=self.users["emp"].pk).update(is_active=False)
