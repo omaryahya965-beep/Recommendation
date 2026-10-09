@@ -28,6 +28,7 @@ Priority: **P1** fix before wider rollout · **P2** fix soon · **P3** improve.
 |---|---|---|---|---|---|
 | S6 | Raw storage URLs | Evidence (`file`) and response attachments (`attachment`) serialize the storage URL; Cloudinary delivery is public. V2 changed the **UI** to view/download evidence only through the authenticated API endpoint (Blob), but the raw URL is still in the API payload, and the response attachment is still a direct link. | Anyone with a leaked URL can fetch the file, indefinitely; no access log. | Private/authenticated Cloudinary delivery (or signed, expiring URLs) and drop raw URLs from payloads; serve the response attachment through the same authenticated endpoint. | P1 |
 | S7 | File type checks | Uploads are validated by extension and size. | A file can claim a harmless extension. | Validate magic bytes (and re-encode images) server-side; consider malware scanning for Office files and archives. | P2 |
+| S16 | CSV formula injection | The register CSV export (`/api/recommendations/export/`) writes user-entered text (finding text, root cause, report title, names) as-is. Found in the final V2 QA. | A cell that starts with `=`, `+`, `-` or `@` is evaluated as a formula when the file is opened in Excel or Sheets (data exfiltration via external links, misleading values). | Prefix such cells with an apostrophe (or a leading tab) in `_csv_cell` for text values; keep numbers and dates untouched; add a test. | P2 |
 
 ## Authorization scope
 
