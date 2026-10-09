@@ -1,17 +1,12 @@
 "use client";
 
-import { AlarmClock, CalendarClock, CheckCircle2, ChevronLeft, ChevronRight, Hourglass } from "lucide-react";
+import { AlarmClock, CalendarClock, ChevronLeft, ChevronRight, Hourglass } from "lucide-react";
 import Link from "next/link";
-import type { ReactNode } from "react";
 
-import { RecordId } from "@/components/ui/Ledger";
-import { RiskBadge } from "@/components/ui/RiskBadge";
-import { Section } from "@/components/ui/Section";
 import { cn } from "@/lib/cn";
-import { clipTitle } from "@/lib/finding";
 import { dayCount, formatDate } from "@/lib/format";
-import { STATUS_LABELS, T, useI18n } from "@/lib/i18n";
-import type { ActionCenterBlock, RecommendationListItem } from "@/lib/types";
+import { T, useI18n } from "@/lib/i18n";
+import type { RecommendationListItem } from "@/lib/types";
 
 export type QueueMeta = "deadline" | "waiting";
 
@@ -92,92 +87,5 @@ export function CountChip({ count, tone = "neutral" }: { count: number; tone?: "
     >
       {count}
     </span>
-  );
-}
-
-/**
- * A titled list of cases from one dashboard block. The count is the exact
- * server count; "view all" opens the register with the same filter.
- */
-export function QueuePanel({
-  title,
-  hint,
-  block,
-  href,
-  detailBase,
-  meta = "deadline",
-  showDepartment = true,
-  emptyLabel,
-  limit = 5,
-  tone = "neutral",
-  testId,
-  className,
-}: {
-  title: string;
-  hint?: ReactNode;
-  block: ActionCenterBlock | undefined;
-  href: string;
-  detailBase: string;
-  meta?: QueueMeta;
-  showDepartment?: boolean;
-  emptyLabel: string;
-  limit?: number;
-  tone?: "neutral" | "danger" | "warning";
-  testId?: string;
-  className?: string;
-}) {
-  useI18n();
-  const items = (block?.items ?? []).slice(0, limit);
-  const count = block?.count ?? 0;
-  return (
-    <Section
-      className={className}
-      title={
-        <span className="inline-flex items-center gap-2">
-          {title}
-          <CountChip count={count} tone={tone} />
-        </span>
-      }
-      hint={hint}
-      actions={count > 0 ? <ViewAllLink href={href} /> : null}
-    >
-      <div data-testid={testId} className="flex min-h-0 flex-1 flex-col">
-        {items.length ? (
-          <ul className="divide-y divide-line/70">
-            {items.map((item) => (
-              <li key={item.id}>
-                <Link
-                  href={`${detailBase}/${item.id}`}
-                  className="group flex min-h-14 flex-col gap-1.5 px-4 py-3 transition-colors hover:bg-subtle/50 md:px-6"
-                >
-                  <span className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="flex min-w-0 items-center gap-2">
-                      <RecordId id={item.id} />
-                      <RiskBadge level={item.risk_level} />
-                    </span>
-                    <CaseDue item={item} meta={meta} />
-                  </span>
-                  <span className="text-[14px] font-semibold leading-snug text-navy group-hover:text-primary-dark">
-                    <bdi>{clipTitle(item.title, 100)}</bdi>
-                  </span>
-                  <span className="flex flex-wrap items-center gap-x-2 text-[12px] text-ink-soft">
-                    {showDepartment ? <span>{item.department_name}</span> : null}
-                    {showDepartment ? <span aria-hidden className="text-line">•</span> : null}
-                    <span>{item.responsible_employee ?? T.team.unassigned}</span>
-                    <span aria-hidden className="text-line">•</span>
-                    <span>{STATUS_LABELS[item.status] ?? item.status}</span>
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="flex items-center justify-center gap-2 px-4 py-6 text-center text-[13px] text-muted md:px-6">
-            <CheckCircle2 className="size-4 shrink-0 text-success" aria-hidden />
-            {emptyLabel}
-          </p>
-        )}
-      </div>
-    </Section>
   );
 }

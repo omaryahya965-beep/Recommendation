@@ -1,34 +1,50 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, ChevronUp, ClipboardCheck, ClipboardList, FileCheck2, Gavel, Stamp } from "lucide-react";
+import {
+  Building2,
+  ChevronDown,
+  ChevronUp,
+  ClipboardCheck,
+  ClipboardList,
+  FileCheck2,
+  Gavel,
+  RotateCcw,
+  ShieldCheck,
+  Stamp,
+} from "lucide-react";
 import { useState } from "react";
 
-import { queueLabel, type ActionSource } from "@/components/dashboard/queues";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
-import { ActionNow } from "@/components/home/ActionNow";
-import { HomeHero } from "@/components/home/HomeHero";
-import { PriorityMetrics } from "@/components/home/PriorityMetrics";
-import { QueuePanel } from "@/components/home/Queues";
+import { HomeHero, type HeroStat } from "@/components/home/HomeHero";
 import { DecisionFeed } from "@/components/home/RoleBlocks";
+import { CardHeader, QueueListCard, REASON_TONE } from "@/components/home/WorkQueue";
 import { RecommendationTable } from "@/components/RecommendationTable";
 import { Button, Callout, ErrorBanner, Field, TextArea } from "@/components/ui/Base";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { RecordId } from "@/components/ui/Ledger";
 import { DashboardBodySkeleton, EmptyState } from "@/components/ui/EmptyState";
-import { Section } from "@/components/ui/Section";
 import { useDashboard } from "@/lib/hooks";
 import { api, errorMessage } from "@/lib/api";
 import { invalidateRecommendationViews } from "@/lib/queryPolicy";
+import { caseHref, sectionForStatus } from "@/lib/caseLinks";
+import { cn } from "@/lib/cn";
 import { clipTitle } from "@/lib/finding";
-import { plural } from "@/lib/format";
-import { REPORT_TYPE_LABELS, T, useI18n } from "@/lib/i18n";
+import { formatDate, plural } from "@/lib/format";
+import { REPORT_TYPE_LABELS, RISK_LABELS, T, useI18n } from "@/lib/i18n";
 import { LIVE } from "@/lib/queryPolicy";
-import type { AuditReport } from "@/lib/types";
+import type { AuditReport, RecommendationListItem } from "@/lib/types";
 
 const BASE = "/council/recommendations";
 
-function PendingReportCard({ report }: { report: AuditReport }) {
+const RISK_DOT = { high: "bg-danger", medium: "bg-warning", low: "bg-success" } as const;
+
+/**
+ * One report awaiting ratification: what it holds (risk mix, what will be
+ * implemented and what ratification closes), then — on "decide" — its
+ * recommendations, notes and the confirmed ratification.
+ */
+function PendingReportCard({ report, updatedAt }: { report: AuditReport; updatedAt: string | null }) {
   useI18n();
   const queryClient = useQueryClient();
   const [notes, setNotes] = useState("");
@@ -36,10 +52,10 @@ function PendingReportCard({ report }: { report: AuditReport }) {
   const [expanded, setExpanded] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
+  // Loaded up front: the card's summary (risk mix, what closes) needs it.
   const { data: detail } = useQuery({
     queryKey: ["report", report.id],
     queryFn: () => api<AuditReport>(`/api/reports/${report.id}/`),
-    enabled: expanded,
   });
 
   const ratify = useMutation({
@@ -61,24 +77,68 @@ function PendingReportCard({ report }: { report: AuditReport }) {
   const items = detail?.recommendations ?? [];
   const closing = items.filter((item) => item.response_decision === "disagree");
   const implementing = items.length - closing.length;
+  const risks = (["high", "medium", "low"] as const)
+    .map((level) => ({ level, n: items.filter((item) => item.risk_level === level).length }))
+    .filter((entry) => entry.n);
 
   return (
-    <li className="border-b border-line px-4 py-4 last:border-b-0">
-      <div className="flex min-w-0 flex-col gap-3">
-        <div className="min-w-0">
-          <h3 className="font-heading text-[16px] font-semibold text-ink"><bdi>{report.title}</bdi></h3>
-          <p className="mt-1 text-[13px] text-ink-soft">
-            {report.department_name} · {REPORT_TYPE_LABELS[report.engagement_type]} ·{" "}
-            <span dir="ltr">{report.recommendations_count}</span> {T.reports.recommendations}
+    <li className="px-4 py-4 md:px-6 md:py-5" data-testid="ratify-card">
+      <div className="flex min-w-0 flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-6">
+        <div className="min-w-0 flex-1">
+          <h3 className="font-heading text-[16px] font-bold leading-snug text-navy">
+            <bdi>{report.title}</bdi>
+          </h3>
+          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-ink-soft">
+            <span className="inline-flex items-center gap-1">
+              <Building2 className="size-3.5 text-muted" aria-hidden />
+              {report.department_name}
+            </span>
+            <span aria-hidden className="text-line">•</span>
+            <span>{REPORT_TYPE_LABELS[report.engagement_type]}</span>
+            <span aria-hidden className="text-line">•</span>
+            <span>{plural(report.recommendations_count, T.home.recommendationsCount)}</span>
+            {updatedAt ? (
+              <>
+                <span aria-hidden className="text-line">•</span>
+                <span className="font-mono text-[11.5px] text-muted">{T.roleHome.updatedOn.replace("{date}", formatDate(updatedAt))}</span>
+              </>
+            ) : null}
           </p>
+          {detail ? (
+            <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+              {risks.map(({ level, n }) => (
+                <span key={level} className="inline-flex items-center gap-1.5 rounded-full bg-subtle px-2.5 py-1 text-[11.5px] font-bold text-ink-soft">
+                  <span className={cn("size-2 rounded-full", RISK_DOT[level])} aria-hidden />
+                  <span className="font-mono tabular-nums">{n}</span>
+                  {RISK_LABELS[level]}
+                </span>
+              ))}
+              <span className="inline-flex items-center gap-1 rounded-full bg-primary-light px-2.5 py-1 text-[11.5px] font-bold text-primary-dark">
+                <span className="font-mono tabular-nums">{implementing}</span>
+                {T.roleHome.willImplement}
+              </span>
+              {closing.length ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-warning-light px-2.5 py-1 text-[11.5px] font-bold text-warning-dark">
+                  <span className="font-mono tabular-nums">{closing.length}</span>
+                  {T.roleHome.willClose}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
         </div>
-        <Button variant="ghost" className="min-h-12 w-full justify-center sm:w-auto" onClick={() => setExpanded((value) => !value)}>
-          {expanded ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+        <Button
+          variant={expanded ? "ghost" : "primary"}
+          className={cn("min-h-11 w-full shrink-0 justify-center font-bold md:w-auto", expanded && "ring-1 ring-line")}
+          onClick={() => setExpanded((value) => !value)}
+          aria-expanded={expanded}
+        >
+          {expanded ? <ChevronUp className="size-4" /> : <Stamp className="size-4" />}
           {expanded ? T.common.details : T.dashboard.ratifyDecision}
+          {expanded ? null : <ChevronDown className="size-4 opacity-70" />}
         </Button>
       </div>
       {expanded ? (
-        <div className="mt-3 space-y-3">
+        <div className="mt-4 space-y-3 border-t border-line/70 pt-4">
           {detail?.recommendations ? (
             <RecommendationTable
               items={detail.recommendations}
@@ -90,14 +150,17 @@ function PendingReportCard({ report }: { report: AuditReport }) {
             <TextArea value={notes} onChange={(event) => setNotes(event.target.value)} rows={2} />
           </Field>
           <ErrorBanner message={error} />
-          <Button
-            onClick={() => setConfirming(true)}
-            disabled={ratify.isPending || !detail}
-            className="min-h-12 w-full sm:w-auto"
-          >
-            <Stamp className="size-4" />
-            {T.council.ratifyReport}
-          </Button>
+          <div className="flex flex-col gap-3 md:flex-row md:items-center">
+            <Button
+              onClick={() => setConfirming(true)}
+              disabled={ratify.isPending || !detail}
+              className="min-h-12 w-full font-bold md:w-auto"
+            >
+              <Stamp className="size-4" />
+              {T.council.ratifyReport}
+            </Button>
+            <p className="text-[12.5px] text-ink-soft">{T.confirm.irreversible}</p>
+          </div>
           <Callout tone="neutral">{T.council.ratifyHint}</Callout>
           <ConfirmDialog
             open={confirming}
@@ -137,6 +200,13 @@ function PendingReportCard({ report }: { report: AuditReport }) {
   );
 }
 
+const closureHref = (item: RecommendationListItem) => caseHref(BASE, item.id, sectionForStatus(item.status));
+
+/**
+ * The Council's home is its decision center: reports to ratify and
+ * recommendations awaiting a closure decision first, then what it reopened
+ * and what it recently decided.
+ */
 export default function PendingApprovalsPage() {
   useI18n();
   const { data, isLoading, isError, refetch } = useQuery({
@@ -145,97 +215,117 @@ export default function PendingApprovalsPage() {
     ...LIVE,
   });
   const { data: dashboard } = useDashboard();
+  const pendingReports = data ?? [];
+  const closures = dashboard?.action_center.closures_pending;
+  const reportRows = dashboard?.action_center.reports_pending_ratification?.items as
+    | Array<{ id: number; updated_at?: string }>
+    | undefined;
+
+  const stats: HeroStat[] = dashboard
+    ? [
+        { label: T.roleHome.statToRatify, count: pendingReports.length, href: "#council-ratify", icon: Stamp, tone: "primary" },
+        { label: T.roleHome.statToClose, count: closures?.count ?? 0, href: "/council/closure-reviews", icon: Gavel, tone: "primary" },
+        { label: T.roleHome.statReopened, count: dashboard.reopened?.count ?? 0, href: `${BASE}?status=reopened`, icon: RotateCcw, tone: "warning" },
+      ]
+    : [];
 
   const hero = (
     <HomeHero
       role="council"
       title={T.dashboard.councilTitle}
       subtitle={T.dashboard.councilHint}
+      stats={stats}
+      compact
       actions={[
         { href: "/council/pending-approvals", label: T.nav.pendingApprovals, icon: ClipboardCheck, primary: true },
         { href: "/council/closure-reviews", label: T.nav.closureReviews, icon: Gavel },
-        { href: BASE, label: T.nav.recommendations, icon: ClipboardList },
+        { href: BASE, label: T.roleHome.registerShort, shortLabel: T.roleHome.registerTile, icon: ClipboardList },
       ]}
     />
   );
 
   // The hero is static: it renders at once, while only the data sections
-  // wait for /api/dashboard/. Same wrapper in both branches, so the hero is
+  // wait for their data. Same wrapper in both branches, so the hero is
   // updated in place (not remounted) when the data arrives.
   if (isLoading || isError) {
     return (
-      <div className="animate-fade-in space-y-5">
+      <div className="animate-fade-in min-w-0 space-y-5">
         {hero}
         {isLoading ? <DashboardBodySkeleton /> : <ErrorBanner message={T.common.error} onRetry={() => refetch()} />}
       </div>
     );
   }
 
-  const pendingReports = data ?? [];
-  const closures = dashboard?.action_center.closures_pending;
-  const sources: ActionSource[] = closures
-    ? [{ key: "closures_pending", block: closures, href: "/council/closure-reviews" }]
-    : [];
-
   return (
-    <div className="animate-fade-in space-y-5">
+    <div className="animate-fade-in min-w-0 space-y-5 md:space-y-6">
       {hero}
 
-      {dashboard ? (
-        <PriorityMetrics
-          items={[
-            {
-              label: queueLabel("reports_pending_ratification"),
-              value: pendingReports.length,
-              href: "/council/pending-approvals",
-              tone: "warning",
-            },
-            { label: queueLabel("closures_pending"), value: closures?.count ?? 0, href: "/council/closure-reviews", tone: "warning" },
-            { label: T.home.reopened, value: dashboard.reopened?.count ?? 0, href: `${BASE}?status=reopened`, tone: "primary" },
-          ]}
-        />
-      ) : null}
+      <div className="grid min-w-0 grid-cols-1 items-start gap-4 md:gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(19rem,32%)]">
+        <div className="min-w-0 space-y-4 md:space-y-5">
+          <section
+            id="council-ratify"
+            className="section-elevated scroll-mt-24 overflow-hidden rounded-2xl border border-line bg-surface"
+            aria-labelledby="council-ratify-title"
+            data-testid="council-ratify"
+          >
+            <CardHeader id="council-ratify-title" title={T.roleHome.ratifyTitle} hint={T.roleHome.ratifyHint} count={pendingReports.length} tone="warning" />
+            {pendingReports.length ? (
+              <ul className="divide-y divide-line/70">
+                {pendingReports.map((report) => (
+                  <PendingReportCard
+                    key={report.id}
+                    report={report}
+                    updatedAt={reportRows?.find((row) => row.id === report.id)?.updated_at ?? null}
+                  />
+                ))}
+              </ul>
+            ) : (
+              <EmptyState
+                compact
+                icon={<FileCheck2 className="size-5" />}
+                title={T.roleHome.noRatify}
+                className="border-0 py-8 shadow-none"
+              />
+            )}
+          </section>
 
-      <Section title={T.dashboard.decisionCenter} hint={T.dashboard.decisionCenterHint}>
-        {pendingReports.length ? (
-          <ul>
-            {pendingReports.map((report) => (
-              <PendingReportCard key={report.id} report={report} />
-            ))}
-          </ul>
-        ) : (
-          <EmptyState
-            compact
-            icon={<FileCheck2 className="size-5" />}
-            title={T.council.emptyPendingReports}
-            className="border-0 shadow-none"
-          />
-        )}
-      </Section>
-
-      <ActionNow
-        sources={sources}
-        detailBase={BASE}
-        viewAllHref="/council/closure-reviews"
-        title={T.dashboard.closureQueue}
-        hint={T.dashboard.closureQueueHint}
-      />
-
-      {dashboard ? (
-        <div className="grid min-w-0 grid-cols-1 items-start gap-4 lg:grid-cols-2">
-          <DecisionFeed decisions={dashboard.recent_decisions ?? []} detailBase={BASE} />
-          <QueuePanel
-            title={T.home.reopened}
-            hint={T.home.reopenedHint}
-            block={dashboard.reopened}
-            href={`${BASE}?status=reopened`}
-            detailBase={BASE}
-            emptyLabel={T.home.noReopened}
+          <QueueListCard
+            title={T.roleHome.closeTitle}
+            hint={T.roleHome.closeHint}
+            block={closures}
+            href="/council/closure-reviews"
+            reason={{ id: "closures_pending", label: T.roleHome.auditRecommendsClosure, icon: ShieldCheck, tone: REASON_TONE.success }}
+            detailHref={closureHref}
+            tone="warning"
+            showReason
+            emptyLabel={T.roleHome.noClose}
+            limit={5}
+            testId="council-closures"
+            className="h-auto"
           />
         </div>
-      ) : null}
 
-      <RecentActivity role="council" compact />
+        {dashboard ? (
+          <div className="min-w-0 space-y-4 md:space-y-5">
+            <QueueListCard
+              title={T.home.reopened}
+              hint={T.home.reopenedHint}
+              block={dashboard.reopened}
+              href={`${BASE}?status=reopened`}
+              reason={{ id: "reopened", label: T.home.reopened, icon: RotateCcw, tone: REASON_TONE.warning }}
+              detailHref={closureHref}
+              timing="deadline"
+              emptyLabel={T.home.noReopened}
+              limit={3}
+              className="h-auto"
+            />
+            <DecisionFeed decisions={(dashboard.recent_decisions ?? []).slice(0, 5)} detailBase={BASE} />
+            <div className="max-md:hidden">
+              <RecentActivity role="council" limit={3} compact />
+            </div>
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

@@ -52,7 +52,7 @@ export default function AuditDashboard() {
       actions={[
         { href: "/audit/reports/new", label: T.reports.addReport, icon: FilePlus2, primary: true },
         { href: REPORTS, label: T.nav.reports, icon: FileText },
-        { href: BASE, label: T.register.title, icon: ClipboardList },
+        { href: BASE, label: T.roleHome.registerShort, shortLabel: T.roleHome.registerTile, icon: ClipboardList },
       ]}
     />
   );

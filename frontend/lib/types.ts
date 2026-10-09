@@ -519,10 +519,12 @@ export interface DashboardData {
   due_soon?: ActionCenterBlock;
   waiting_on_others?: ActionCenterBlock;
   in_execution?: ActionCenterBlock;
-  team?: Array<{ employee: { id: number; name: string }; open: number; overdue: number }>;
+  team?: Array<{ employee: { id: number; name: string }; open: number; overdue: number; due_soon: number }>;
   // Employee
   active_tasks?: ActionCenterBlock;
   next_deadline?: string | null;
+  /** Plan progress and evidence per listed case, keyed by case id. */
+  task_facts?: Record<string, TaskFacts>;
   // Council
   reopened?: ActionCenterBlock;
   recent_decisions?: CouncilDecision[];
@@ -599,4 +601,12 @@ export interface AIAssistantResponse {
   model: string;
   advisory: boolean;
   messages: Array<{ role: string; content: string; created_at: string; metadata?: Record<string, unknown> }>;
+}
+
+/** The employee home's per-task facts (apps.core.dashboard._task_facts). */
+export interface TaskFacts {
+  progress: number;
+  steps_done: number;
+  steps_total: number;
+  evidence: number;
 }

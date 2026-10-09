@@ -26,31 +26,97 @@ const SUMMARY_DOT: Record<NonNullable<HeroSummaryItem["tone"]>, string> = {
   success: "bg-success",
 };
 
-/** A phone summary card: a big number that opens the exact list it counts. */
+/** A summary card: a big number that opens the exact list it counts. */
 export interface HeroStat {
   label: string;
   count: number;
   href: string;
   icon: LucideIcon;
   /** The tone while the count is above zero; an empty queue reads as success. */
-  tone: "primary" | "danger";
+  tone: "primary" | "danger" | "warning";
 }
 
 const STAT_CARD: Record<HeroStat["tone"] | "success", string> = {
   primary: "bg-surface ring-line shadow-card",
+  warning: "bg-surface ring-line shadow-card",
   danger: "bg-danger-light/45 ring-danger/15",
   success: "bg-surface ring-line shadow-card",
 };
 
 const STAT_ICON: Record<HeroStat["tone"] | "success", string> = {
   primary: "bg-primary-light text-primary-dark",
+  warning: "bg-warning-light text-warning-dark",
   danger: "bg-danger-light text-danger-dark ring-1 ring-danger/15",
   success: "bg-success-light text-success-dark",
 };
 
+// Static class names (Tailwind cannot see computed ones).
+const STAT_COLUMNS: Record<number, string> = {
+  1: "md:grid-cols-1",
+  2: "md:grid-cols-2",
+  3: "md:grid-cols-3",
+  4: "md:grid-cols-4",
+};
+
+/**
+ * The role home's headline counts as cards: two to a row on phones, one row
+ * from tablets up. Each opens the exact register list it counts.
+ */
+export function StatCards({ stats, testId = "home-stats" }: { stats: HeroStat[]; testId?: string }) {
+  const { locale } = useI18n();
+  const ChevronForward = locale === "ar" ? ChevronLeft : ChevronRight;
+  return (
+    <ul className={cn("grid grid-cols-2 gap-3 md:gap-4", STAT_COLUMNS[Math.min(stats.length, 4)])} data-testid={testId}>
+      {stats.map((stat, index) => {
+        const Icon = stat.icon;
+        const tone = stat.count ? stat.tone : "success";
+        // An odd last card takes the whole phone row instead of half of it.
+        const spans = stats.length % 2 === 1 && index === stats.length - 1;
+        return (
+          <li key={stat.label} className={cn("min-w-0", spans && "max-md:col-span-2")}>
+            <Link
+              href={stat.href}
+              data-testid="home-stat"
+              className={cn(
+                "group flex h-full min-h-[6.75rem] min-w-0 flex-col justify-between gap-2 rounded-2xl p-3.5 ring-1 transition-[transform,box-shadow] active:scale-[0.98] md:p-4 md:hover:shadow-card-hover",
+                STAT_CARD[tone]
+              )}
+            >
+              <span className="flex items-start justify-between gap-2">
+                <span className={cn("flex size-10 items-center justify-center rounded-full", STAT_ICON[tone])} aria-hidden>
+                  <Icon className="size-5" />
+                </span>
+                <span
+                  className="flex size-7 items-center justify-center rounded-full bg-surface/80 text-ink-soft ring-1 ring-line/60 transition-colors group-hover:text-primary-dark"
+                  aria-hidden
+                >
+                  <ChevronForward className="size-4" />
+                </span>
+              </span>
+              <span className="min-w-0">
+                <span
+                  className={cn(
+                    "block font-heading text-[1.75rem] font-bold leading-none tabular-nums",
+                    tone === "danger" ? "text-danger-dark" : "text-navy"
+                  )}
+                >
+                  {stat.count}
+                </span>
+                <span className="mt-1.5 block text-[12.5px] font-bold leading-snug text-ink md:text-[13px]">{stat.label}</span>
+              </span>
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 export interface QuickAction {
   href: string;
   label: string;
+  /** Phones' three-up tiles: a shorter word when the label would not fit. */
+  shortLabel?: string;
   icon: LucideIcon;
   primary?: boolean;
 }
@@ -69,6 +135,7 @@ export function HomeHero({
   actions,
   summary,
   stats,
+  compact = false,
 }: {
   role: Role;
   title: string;
@@ -76,8 +143,10 @@ export function HomeHero({
   actions: QuickAction[];
   /** The primary summary: what needs the user now, one link per count. */
   summary?: HeroSummaryItem[];
-  /** Phones: the summary as count cards (falls back to `summary`). */
+  /** The summary as count cards: on phones always; on wider screens with `compact`. */
   stats?: HeroStat[];
+  /** Wider screens: a shorter banner with the stat cards under it. */
+  compact?: boolean;
 }) {
   const { locale } = useI18n();
   const [name, setName] = useState<string | null>(null);
@@ -148,39 +217,7 @@ export function HomeHero({
         </section>
 
         {stats?.length ? (
-          <ul className="grid grid-cols-2 gap-3" data-testid="home-summary">
-            {stats.map((stat) => {
-              const Icon = stat.icon;
-              const tone = stat.count ? stat.tone : "success";
-              return (
-                <li key={stat.label} className="min-w-0">
-                  <Link
-                    href={stat.href}
-                    data-testid="home-stat"
-                    className={cn(
-                      "flex h-full min-h-[6.75rem] min-w-0 flex-col justify-between gap-2 rounded-2xl p-3.5 ring-1 transition-transform active:scale-[0.98]",
-                      STAT_CARD[tone]
-                    )}
-                  >
-                    <span className="flex items-start justify-between gap-2">
-                      <span className={cn("flex size-10 items-center justify-center rounded-full", STAT_ICON[tone])} aria-hidden>
-                        <Icon className="size-5" />
-                      </span>
-                      <span className="flex size-7 items-center justify-center rounded-full bg-surface/80 text-ink-soft ring-1 ring-line/60" aria-hidden>
-                        <ChevronForward className="size-4" />
-                      </span>
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block font-heading text-[1.75rem] font-bold leading-none tabular-nums text-navy">
-                        {stat.count}
-                      </span>
-                      <span className="mt-1.5 block text-[12.5px] font-bold leading-snug text-ink">{stat.label}</span>
-                    </span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+          <StatCards stats={stats} testId="home-summary" />
         ) : summary?.length ? (
           <ul className="grid gap-2" data-testid="home-summary">
             {summary.map((item) => (
@@ -226,7 +263,7 @@ export function HomeHero({
                   >
                     <Icon className="size-[18px]" />
                   </span>
-                  <span className="min-w-0 max-w-full break-words hyphens-auto">{action.label}</span>
+                  <span className="min-w-0 max-w-full break-words">{action.shortLabel ?? action.label}</span>
                 </Link>
               );
             })}
@@ -236,8 +273,13 @@ export function HomeHero({
     );
   }
 
-  return (
-    <section className="relative overflow-hidden section-elevated bg-[#062b3d] min-h-[15rem] md:min-h-[17rem] lg:min-h-[23rem]">
+  const banner = (
+    <section
+      className={cn(
+        "relative overflow-hidden section-elevated bg-[#062b3d] min-h-[15rem] md:min-h-[17rem]",
+        compact ? "lg:min-h-[17rem]" : "lg:min-h-[23rem]"
+      )}
+    >
       {/* Wide banner photo covering the whole card (decorative). Tablets get a
           shorter banner (17rem) so the first queue shows above the fold. */}
       <Image
@@ -264,7 +306,12 @@ export function HomeHero({
         className="absolute inset-0 bg-gradient-to-t from-[#062b3d]/55 via-transparent to-transparent"
       />
 
-      <div className="relative z-10 flex h-full min-h-[15rem] flex-col justify-end gap-2 px-4 py-5 md:min-h-[17rem] md:gap-3 md:px-8 md:pb-7 md:pt-20 lg:min-h-[23rem] lg:gap-5 lg:px-10 lg:pb-10 lg:pt-24">
+      <div
+        className={cn(
+          "relative z-10 flex h-full min-h-[15rem] flex-col justify-end gap-2 px-4 py-5 md:min-h-[17rem] md:gap-3 md:px-8 md:pb-7 md:pt-20 lg:px-10",
+          compact ? "lg:min-h-[17rem] lg:gap-4 lg:pb-8 lg:pt-20" : "lg:min-h-[23rem] lg:gap-5 lg:pb-10 lg:pt-24"
+        )}
+      >
         <div className="absolute inset-x-4 top-4 flex items-start justify-between gap-3 md:inset-x-10 md:top-6">
           <div className="flex min-w-0 flex-wrap items-center gap-2 md:gap-3">
             <p className="text-[14px] font-medium text-white drop-shadow-md">
@@ -288,7 +335,7 @@ export function HomeHero({
             {formatLongDate()}
           </p>
           <p className="mt-1.5 hidden max-w-2xl text-[13px] md:block leading-snug text-white/90 md:mt-3 md:text-[15px] md:leading-relaxed">{subtitle}</p>
-          {summary?.length ? (
+          {summary?.length && !(compact && stats?.length) ? (
             <ul className="mt-3 hidden flex-wrap gap-2 md:flex" data-testid="home-summary">
               {summary.map((item) => (
                 <li key={item.label}>
@@ -329,5 +376,12 @@ export function HomeHero({
         ) : null}
       </div>
     </section>
+  );
+  if (!compact || !stats?.length) return banner;
+  return (
+    <div className="space-y-4">
+      {banner}
+      <StatCards stats={stats} />
+    </div>
   );
 }
