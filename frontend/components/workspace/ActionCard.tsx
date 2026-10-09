@@ -249,7 +249,7 @@ export function ActionCard({
               href={reportActionHref(role, reportAction.report)}
               className={cn(
                 "inline-flex min-h-11 items-center gap-1.5 rounded-lg px-4 text-[14px] font-bold shadow-sm",
-                tone === "mine" ? "bg-white text-navy hover:bg-white/90" : "bg-primary text-white hover:bg-primary-dark"
+                tone === "mine" ? "bg-white text-[#183b4e] hover:bg-white/90" : "bg-primary text-white hover:bg-primary-dark"
               )}
             >
               {T.caseView.reportActions[reportAction.id]}

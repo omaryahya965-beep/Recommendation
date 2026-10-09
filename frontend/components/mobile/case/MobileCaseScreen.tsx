@@ -114,7 +114,7 @@ function StatusHero({ rec, role }: { rec: RecommendationDetail; role: Role }) {
           href={role === "council" ? "/council/pending-approvals" : `/audit/reports/${report.report}`}
           className={cn(
             "mt-3 flex min-h-12 items-center justify-center gap-1.5 rounded-xl text-[14px] font-bold",
-            mine ? "bg-white text-navy" : "bg-primary text-white"
+            mine ? "bg-white text-[#183b4e]" : "bg-primary text-white"
           )}
         >
           {T.caseView.reportActions[report.id]}
