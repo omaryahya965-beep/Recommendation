@@ -1,9 +1,9 @@
 "use client";
 
-import { ClipboardList, FilePlus2, FileText } from "lucide-react";
+import { AlarmClock, ClipboardList, FilePlus2, FileText } from "lucide-react";
 
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
-import { HomeHero, type HeroSummaryItem } from "@/components/home/HomeHero";
+import { HomeHero, type HeroStat, type HeroSummaryItem } from "@/components/home/HomeHero";
 import { AuditPriorities, CaseQueueCard, ReportQueueCard } from "@/components/home/WorkQueue";
 import { ErrorBanner } from "@/components/ui/Base";
 import { DashboardBodySkeleton } from "@/components/ui/EmptyState";
@@ -35,6 +35,12 @@ export default function AuditDashboard() {
           : []),
       ]
     : [];
+  const stats: HeroStat[] = data
+    ? [
+        { label: T.queues.statAwaiting, count: awaiting, href: queueHref(BASE, "audit_priorities"), icon: ClipboardList, tone: "primary" },
+        { label: T.queues.statOverdue, count: overdue, href: queueHref(BASE, "department_overdue"), icon: AlarmClock, tone: "danger" },
+      ]
+    : [];
 
   const hero = (
     <HomeHero
@@ -42,6 +48,7 @@ export default function AuditDashboard() {
       title={T.dashboard.auditTitle}
       subtitle={T.dashboard.auditHint}
       summary={summary}
+      stats={stats}
       actions={[
         { href: "/audit/reports/new", label: T.reports.addReport, icon: FilePlus2, primary: true },
         { href: REPORTS, label: T.nav.reports, icon: FileText },
@@ -62,15 +69,16 @@ export default function AuditDashboard() {
     <div className="animate-fade-in min-w-0 space-y-5 md:space-y-6">
       {hero}
 
-      <div className="grid min-w-0 grid-cols-1 items-start gap-4 md:gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(21rem,1fr)]">
+      <div className="grid min-w-0 grid-cols-1 items-stretch gap-4 md:gap-5 lg:grid-cols-2">
         <AuditPriorities blocks={data.action_center} detailBase={BASE} registerBase={BASE} />
-        <div className="min-w-0 xl:sticky xl:top-20">
+        <div className="flex min-w-0 flex-col">
           <CaseQueueCard
             queue="department_overdue"
             block={data.action_center.overdue}
             detailBase={BASE}
             registerBase={BASE}
             emptyLabel={T.home.noOverdue}
+            limit={5}
             testId="department-overdue"
           />
         </div>
@@ -87,7 +95,10 @@ export default function AuditDashboard() {
           limit={4}
           testId="draft-reports"
         />
-        <RecentActivity role="audit" limit={3} compact />
+        {/* Phones reach the same feed from the bell; the home stays short. */}
+        <div className="flex min-w-0 flex-col max-md:hidden">
+          <RecentActivity role="audit" limit={3} compact />
+        </div>
       </div>
     </div>
   );

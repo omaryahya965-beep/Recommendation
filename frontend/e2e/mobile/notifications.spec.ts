@@ -82,6 +82,11 @@ test("the audit home on a phone: summary, newest-first queue and view-more", asy
   await page.goto("/audit/dashboard");
   await expect(page.getByTestId("home-hero-compact")).toBeVisible();
   await expect(page.getByTestId("home-summary")).toBeVisible();
+  // Each count card opens the exact list it counts.
+  const stats = page.getByTestId("home-stat");
+  await expect(stats).toHaveCount(2);
+  await expect(stats.nth(0)).toHaveAttribute("href", /queue=audit_priorities/);
+  await expect(stats.nth(1)).toHaveAttribute("href", /queue=department_overdue/);
   const priorities = page.getByTestId("audit-priorities");
   await expect(priorities).toBeVisible();
   await expectNoHorizontalScroll(page);

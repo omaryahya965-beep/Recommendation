@@ -27,6 +27,7 @@ import { cn } from "@/lib/cn";
 import { clipTitle } from "@/lib/finding";
 import { dayCount, formatDate, plural } from "@/lib/format";
 import { REPORT_TYPE_LABELS, STATUS_LABELS, T, useI18n } from "@/lib/i18n";
+import { useIsPhone } from "@/lib/useMediaQuery";
 import {
   AUDIT_REVIEW_QUEUES,
   queueHint,
@@ -85,12 +86,73 @@ export function QueueCaseRow({
   showReason?: boolean;
 }) {
   useI18n();
+  const phone = useIsPhone();
   const Icon = QUEUE_ICON[queue];
   const overdueQueue = queue === "department_overdue";
+  const href = caseHref(detailBase, item.id, sectionForStatus(item.status));
+
+  if (phone) {
+    // Phones: title and reference first, then who and where, then one line
+    // of chips (why it is here, high risk, how long). The whole row is the link.
+    return (
+      <li>
+        <Link
+          href={href}
+          data-testid="queue-item"
+          data-id={item.id}
+          data-queue={queue}
+          className="flex min-w-0 items-center gap-2.5 px-4 py-3.5 active:bg-subtle/70"
+        >
+          <span className="min-w-0 flex-1">
+            <span className="flex min-w-0 items-start justify-between gap-2">
+              <span className="line-clamp-2 min-w-0 text-[15px] font-bold leading-snug text-navy">
+                <bdi>{clipTitle(item.title, 120)}</bdi>
+              </span>
+              <span className="mt-0.5 shrink-0">
+                <RecordId id={item.id} />
+              </span>
+            </span>
+            <span className="mt-1.5 flex min-w-0 items-center gap-x-3 text-[12.5px] text-ink-soft">
+              <span className="inline-flex min-w-0 items-center gap-1">
+                <Building2 className="size-3.5 shrink-0 text-muted" aria-hidden />
+                <span className="truncate">{item.department_name}</span>
+              </span>
+              <span className="inline-flex min-w-0 items-center gap-1">
+                <UserRound className="size-3.5 shrink-0 text-muted" aria-hidden />
+                <span className="sr-only">{T.queues.owner}: </span>
+                <span className="truncate">{item.responsible_employee ?? T.team.unassigned}</span>
+              </span>
+            </span>
+            <span className="mt-2.5 flex min-w-0 flex-wrap items-center gap-1.5">
+              {overdueQueue ? (
+                <CaseDue item={item} />
+              ) : showReason ? (
+                <span
+                  className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11.5px] font-bold", QUEUE_TONE[queue])}
+                  data-testid="queue-reason"
+                >
+                  <Icon className="size-3.5" aria-hidden />
+                  {queueTitle(queue)}
+                </span>
+              ) : null}
+              {/* Risk only where it changes the order of work. */}
+              {item.risk_level === "high" ? <RiskBadge level={item.risk_level} /> : null}
+              <span className="ms-auto inline-flex items-center gap-1 text-[11.5px] font-semibold text-muted" data-testid="queue-arrival">
+                <Clock3 className="size-3.5" aria-hidden />
+                {arrival(item)}
+              </span>
+            </span>
+          </span>
+          <DirForward className="size-5 shrink-0 text-muted" />
+        </Link>
+      </li>
+    );
+  }
+
   return (
     <li>
       <Link
-        href={caseHref(detailBase, item.id, sectionForStatus(item.status))}
+        href={href}
         data-testid="queue-item"
         data-id={item.id}
         data-queue={queue}
@@ -165,6 +227,8 @@ export function QueueCaseRow({
 /** The card footer that opens the queue's full list in the register. */
 export function QueueMore({ href, count, testId }: { href: string; count: number; testId?: string }) {
   useI18n();
+  // Phones carry "view all" in the card header instead.
+  if (useIsPhone()) return null;
   return (
     <footer className="mt-auto border-t border-line/70 bg-subtle/40">
       <Link
@@ -176,6 +240,22 @@ export function QueueMore({ href, count, testId }: { href: string; count: number
         <DirForward className="size-4" />
       </Link>
     </footer>
+  );
+}
+
+/** Phones: "view all" in the card header, in place of the footer link. */
+function HeaderMore({ href, testId }: { href: string; testId?: string }) {
+  useI18n();
+  if (!useIsPhone()) return null;
+  return (
+    <Link
+      href={href}
+      data-testid={testId}
+      className="-me-2 inline-flex min-h-11 shrink-0 items-center gap-1 rounded-full px-2 text-[13.5px] font-bold text-primary-dark active:bg-primary-light/50"
+    >
+      {T.home.viewAll}
+      <DirForward className="size-4" />
+    </Link>
   );
 }
 
@@ -193,7 +273,7 @@ function CardHeader({
   aside?: ReactNode;
 }) {
   return (
-    <header className="flex items-start justify-between gap-3 border-b border-line/70 px-4 py-3.5 md:px-6 md:py-4">
+    <header className="flex items-center justify-between gap-3 border-b border-line/70 px-4 py-3.5 md:items-start md:px-6 md:py-4">
       <div className="flex min-w-0 items-start gap-3">
         <div className="mt-1 h-5 w-[3px] shrink-0 rounded-full bg-primary" aria-hidden />
         <div className="min-w-0">
@@ -201,7 +281,7 @@ function CardHeader({
             {title}
             <CountChip count={count} tone={tone} />
           </h2>
-          {hint ? <p className="mt-1 text-[12.5px] leading-snug text-muted md:text-[13px]">{hint}</p> : null}
+          {hint ? <p className="mt-1 text-[12.5px] leading-snug text-muted max-md:hidden md:text-[13px]">{hint}</p> : null}
         </div>
       </div>
       {aside}
@@ -240,11 +320,11 @@ export function AuditPriorities({
 
   return (
     <section
-      className="section-elevated flex min-w-0 flex-col overflow-hidden rounded-2xl border border-line bg-surface"
+      className="section-elevated flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-line bg-surface"
       data-testid="audit-priorities"
       aria-labelledby="audit-priorities-title"
     >
-      <header className="flex flex-wrap items-start justify-between gap-3 px-4 pb-3 pt-4 md:px-6 md:pt-5">
+      <header className="flex items-center justify-between gap-3 px-4 pb-3 pt-4 md:flex-wrap md:items-start md:px-6 md:pt-5">
         <div className="flex min-w-0 items-start gap-3">
           <div className="mt-1 h-5 w-[3px] shrink-0 rounded-full bg-primary" aria-hidden />
           <div className="min-w-0">
@@ -254,10 +334,11 @@ export function AuditPriorities({
                 {total}
               </span>
             </h2>
-            <p className="mt-1 text-[12.5px] leading-snug text-muted md:text-[13px]">{T.queues.audit_prioritiesHint}</p>
+            <p className="mt-1 text-[12.5px] leading-snug text-muted max-md:hidden md:text-[13px]">{T.queues.audit_prioritiesHint}</p>
           </div>
         </div>
-        <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full bg-subtle px-3 text-[12px] font-bold text-ink-soft">
+        {count ? <HeaderMore href={queueHref(registerBase, view)} testId="priorities-more" /> : null}
+        <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full bg-subtle px-3 text-[12px] font-bold text-ink-soft max-md:hidden">
           <ArrowDownWideNarrow className="size-3.5" aria-hidden />
           {T.queues.newestFirst}
         </span>
@@ -349,8 +430,14 @@ export function CaseQueueCard({
   const count = block?.count ?? 0;
   const items = (block?.items ?? []).slice(0, limit);
   return (
-    <section className="section-elevated flex min-w-0 flex-col overflow-hidden rounded-2xl border border-line bg-surface" data-testid={testId}>
-      <CardHeader title={queueTitle(queue)} hint={queueHint(queue)} count={count} tone="danger" />
+    <section className="section-elevated flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-line bg-surface" data-testid={testId}>
+      <CardHeader
+        title={queueTitle(queue)}
+        hint={queueHint(queue)}
+        count={count}
+        tone="danger"
+        aside={count ? <HeaderMore href={queueHref(registerBase, queue)} testId={testId ? `${testId}-more` : undefined} /> : null}
+      />
       {items.length ? (
         <>
           <ul className="divide-y divide-line/60">
@@ -395,7 +482,12 @@ export function ReportQueueCard({
   const items = (block?.items ?? []).slice(0, limit);
   return (
     <section className="section-elevated flex h-full min-w-0 flex-col overflow-hidden rounded-2xl border border-line bg-surface" data-testid={testId}>
-      <CardHeader title={title} hint={hint} count={count} />
+      <CardHeader
+        title={title}
+        hint={hint}
+        count={count}
+        aside={count ? <HeaderMore href={moreHref} testId={testId ? `${testId}-more` : undefined} /> : null}
+      />
       {items.length ? (
         <>
           <ul className="divide-y divide-line/60">

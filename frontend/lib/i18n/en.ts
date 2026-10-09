@@ -1819,6 +1819,8 @@ export const T = {
     overdueAtDepartments: { one: "1 case overdue at departments", two: "{n} cases overdue at departments", few: "{n} cases overdue at departments", many: "{n} cases overdue at departments", other: "{n} cases overdue at departments" },
     reportsReady: { one: "1 report ready for the council", two: "{n} reports ready for the council", few: "{n} reports ready for the council", many: "{n} reports ready for the council", other: "{n} reports ready for the council" },
     allClear: "Nothing is waiting on you",
+    statAwaiting: "Awaiting your decision",
+    statOverdue: "Overdue at departments",
     drafts: "Drafts and internal work",
     draftsHint: "Reports not yet sent to departments.",
     readyForCouncilView: "Ready for the council",

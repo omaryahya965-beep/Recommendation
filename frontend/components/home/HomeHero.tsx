@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, type LucideIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, MapPin, type LucideIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -26,6 +26,28 @@ const SUMMARY_DOT: Record<NonNullable<HeroSummaryItem["tone"]>, string> = {
   success: "bg-success",
 };
 
+/** A phone summary card: a big number that opens the exact list it counts. */
+export interface HeroStat {
+  label: string;
+  count: number;
+  href: string;
+  icon: LucideIcon;
+  /** The tone while the count is above zero; an empty queue reads as success. */
+  tone: "primary" | "danger";
+}
+
+const STAT_CARD: Record<HeroStat["tone"] | "success", string> = {
+  primary: "bg-surface ring-line shadow-card",
+  danger: "bg-danger-light/45 ring-danger/15",
+  success: "bg-surface ring-line shadow-card",
+};
+
+const STAT_ICON: Record<HeroStat["tone"] | "success", string> = {
+  primary: "bg-primary-light text-primary-dark",
+  danger: "bg-danger-light text-danger-dark ring-1 ring-danger/15",
+  success: "bg-success-light text-success-dark",
+};
+
 export interface QuickAction {
   href: string;
   label: string;
@@ -46,6 +68,7 @@ export function HomeHero({
   subtitle,
   actions,
   summary,
+  stats,
 }: {
   role: Role;
   title: string;
@@ -53,13 +76,16 @@ export function HomeHero({
   actions: QuickAction[];
   /** The primary summary: what needs the user now, one link per count. */
   summary?: HeroSummaryItem[];
+  /** Phones: the summary as count cards (falls back to `summary`). */
+  stats?: HeroStat[];
 }) {
   const { locale } = useI18n();
   const [name, setName] = useState<string | null>(null);
   const ChevronForward = locale === "ar" ? ChevronLeft : ChevronRight;
 
   // Pages mount after the session check (never in the static HTML), so this
-  // is the real viewport on first render: phones never request the photo.
+  // is the real viewport on first render: each layout requests only its own
+  // photo size.
   const phone = useIsPhone();
 
   useEffect(() => {
@@ -70,26 +96,98 @@ export function HomeHero({
 
   if (phone) {
     return (
-      <section className="rounded-2xl border border-line bg-surface px-4 pb-4 pt-3.5" data-testid="home-hero-compact">
-        <p className="truncate text-[13px] text-ink-soft">
-          {greeting()}
-          {name ? (
-            <>
-              {locale === "ar" ? "، " : ", "}
-              <span className="font-bold text-ink">{name}</span>
-            </>
-          ) : null}
-          <span className="text-muted"> · {ROLE_LABELS[role]}</span>
-        </p>
-        <h1 className="mt-1 font-heading text-[1.3rem] font-bold leading-tight text-navy">{title}</h1>
-        <p className="mt-0.5 text-[12.5px] text-muted">{formatLongDate()}</p>
-        {summary?.length ? (
-          <ul className="mt-3 grid gap-1.5" data-testid="home-summary">
+      <div className="space-y-3" data-testid="home-hero-compact">
+        <section className="relative isolate overflow-hidden rounded-[1.375rem] bg-[#062b3d] shadow-[0_10px_28px_rgb(6_43_61/0.22)]">
+          <Image
+            src="/images/al-bireh-hero.webp"
+            alt=""
+            aria-hidden
+            fill
+            priority
+            fetchPriority="high"
+            sizes="100vw"
+            className="-z-10 object-cover object-[30%_35%]"
+          />
+          {/* Darkest behind the text (the foot and the reading edge), so the
+              white type stays readable over the photo. */}
+          <div
+            aria-hidden
+            className="absolute inset-0 -z-10 bg-gradient-to-t from-[#062b3d] via-[#062b3d]/65 to-[#062b3d]/15"
+          />
+          <div
+            aria-hidden
+            className="absolute inset-0 -z-10 bg-gradient-to-l from-[#062b3d]/85 via-[#062b3d]/35 to-transparent ltr:bg-gradient-to-r"
+          />
+          <div className="flex min-h-[12.5rem] flex-col justify-between gap-6 px-4 pb-4 pt-3.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="inline-flex min-w-0 items-center gap-1.5 rounded-full bg-[#062b3d]/55 px-2.5 py-1 text-[11.5px] font-semibold text-white ring-1 ring-white/30 backdrop-blur-sm">
+                <MapPin className="size-3.5 shrink-0" aria-hidden />
+                <span className="truncate">{T.dashboard.placeCaption}</span>
+              </span>
+              <span className="shrink-0 rounded-full bg-white/20 px-2.5 py-1 text-[11.5px] font-bold text-white ring-1 ring-white/35 backdrop-blur-sm">
+                {ROLE_LABELS[role]}
+              </span>
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-[12.5px] font-medium text-white/85">
+                {greeting()}
+                {name ? (
+                  <>
+                    {locale === "ar" ? "، " : ", "}
+                    <span className="font-bold text-white">{name}</span>
+                  </>
+                ) : null}
+              </p>
+              <h1 className="mt-0.5 font-heading text-[1.5rem] font-bold leading-tight text-white drop-shadow-sm">
+                {title}
+              </h1>
+              <p className="mt-1 text-[12.5px] font-medium text-white/85">{formatLongDate()}</p>
+              <p className="mt-1.5 line-clamp-2 text-[12.5px] leading-relaxed text-white/75">{subtitle}</p>
+            </div>
+          </div>
+        </section>
+
+        {stats?.length ? (
+          <ul className="grid grid-cols-2 gap-3" data-testid="home-summary">
+            {stats.map((stat) => {
+              const Icon = stat.icon;
+              const tone = stat.count ? stat.tone : "success";
+              return (
+                <li key={stat.label} className="min-w-0">
+                  <Link
+                    href={stat.href}
+                    data-testid="home-stat"
+                    className={cn(
+                      "flex h-full min-h-[6.75rem] min-w-0 flex-col justify-between gap-2 rounded-2xl p-3.5 ring-1 transition-transform active:scale-[0.98]",
+                      STAT_CARD[tone]
+                    )}
+                  >
+                    <span className="flex items-start justify-between gap-2">
+                      <span className={cn("flex size-10 items-center justify-center rounded-full", STAT_ICON[tone])} aria-hidden>
+                        <Icon className="size-5" />
+                      </span>
+                      <span className="flex size-7 items-center justify-center rounded-full bg-surface/80 text-ink-soft ring-1 ring-line/60" aria-hidden>
+                        <ChevronForward className="size-4" />
+                      </span>
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block font-heading text-[1.75rem] font-bold leading-none tabular-nums text-navy">
+                        {stat.count}
+                      </span>
+                      <span className="mt-1.5 block text-[12.5px] font-bold leading-snug text-ink">{stat.label}</span>
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        ) : summary?.length ? (
+          <ul className="grid gap-2" data-testid="home-summary">
             {summary.map((item) => (
               <li key={item.label}>
                 <Link
                   href={item.href}
-                  className="flex min-h-11 items-center gap-2.5 rounded-xl bg-subtle/60 px-3 text-[13.5px] font-bold text-ink active:scale-[0.99]"
+                  className="flex min-h-12 items-center gap-2.5 rounded-2xl bg-surface px-3.5 text-[13.5px] font-bold text-ink shadow-card ring-1 ring-line active:scale-[0.99]"
                 >
                   <span className={cn("size-2 shrink-0 rounded-full", SUMMARY_DOT[item.tone ?? "primary"])} aria-hidden />
                   <span className="min-w-0 flex-1 truncate">{item.label}</span>
@@ -99,9 +197,10 @@ export function HomeHero({
             ))}
           </ul>
         ) : null}
+
         {actions.length ? (
-          <div
-            className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-0.5 scrollbar-none"
+          <nav
+            className={cn("grid gap-3", actions.length >= 3 ? "grid-cols-3" : actions.length === 2 ? "grid-cols-2" : "grid-cols-1")}
             aria-label={T.dashboard.quickActions}
           >
             {actions.map((action) => {
@@ -111,18 +210,29 @@ export function HomeHero({
                   key={action.href + action.label}
                   href={action.href}
                   className={cn(
-                    "inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full px-4 text-[13.5px] font-bold active:scale-[0.98]",
-                    action.primary ? "bg-primary text-white" : "bg-surface text-ink ring-1 ring-line"
+                    "flex min-w-0 items-center justify-center gap-2 rounded-2xl px-1.5 py-3 text-center text-[12.5px] font-bold leading-tight transition-transform active:scale-[0.97]",
+                    actions.length === 1 ? "min-h-14 flex-row" : "min-h-[5.75rem] flex-col",
+                    action.primary
+                      ? "bg-[#0f4f49] text-white shadow-[0_6px_16px_rgb(15_79_73/0.25)] ring-1 ring-white/10"
+                      : "bg-surface text-navy shadow-card ring-1 ring-line"
                   )}
                 >
-                  <Icon className="size-4 shrink-0" aria-hidden />
-                  {action.label}
+                  <span
+                    className={cn(
+                      "flex size-9 shrink-0 items-center justify-center rounded-full",
+                      action.primary ? "bg-white/15 text-white ring-1 ring-white/25" : "bg-primary-light text-primary-dark"
+                    )}
+                    aria-hidden
+                  >
+                    <Icon className="size-[18px]" />
+                  </span>
+                  <span className="min-w-0 max-w-full break-words hyphens-auto">{action.label}</span>
                 </Link>
               );
             })}
-          </div>
+          </nav>
         ) : null}
-      </section>
+      </div>
     );
   }
 
