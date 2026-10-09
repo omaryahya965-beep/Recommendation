@@ -66,6 +66,63 @@ export function sectionSummary(id: SectionId, rec: RecommendationDetail, facts: 
   }
 }
 
+export type SectionTone = "success" | "warning" | "danger";
+
+/** A section's review state as a short pill: response review, plan, verification. */
+export function sectionStatus(
+  id: SectionId,
+  rec: RecommendationDetail,
+  facts: SectionFacts
+): { label: string; tone: SectionTone } | null {
+  const labels = T.caseView.sectionStatus;
+  switch (id) {
+    case "response": {
+      const review = facts.responseReview;
+      if (!review) return null;
+      return { label: labels[review], tone: review === "accepted" ? "success" : review === "rejected" ? "danger" : "warning" };
+    }
+    case "plan": {
+      const status = rec.action_plan?.status;
+      if (!status) return null;
+      return {
+        label: labels[status],
+        tone: status === "approved" ? "success" : status === "revision_required" ? "danger" : "warning",
+      };
+    }
+    case "verification": {
+      const decision = facts.latestVerification;
+      if (!decision) return null;
+      return {
+        label: labels[decision],
+        tone: decision === "sufficient" ? "success" : decision === "partial" ? "warning" : "danger",
+      };
+    }
+    default:
+      return null;
+  }
+}
+
+/** The one-line summary beside a status pill, without repeating the pill. */
+export function sectionRowSummary(id: SectionId, rec: RecommendationDetail, facts: SectionFacts): string | null {
+  switch (id) {
+    case "response":
+      return facts.responseDecision ? DECISION_LABELS[facts.responseDecision] : T.caseView.summary.noResponse;
+    case "plan":
+      return rec.action_plan
+        ? T.caseView.summary.steps
+            .replace("{done}", String(facts.stepsDone))
+            .replace("{total}", String(facts.stepsTotal))
+            .replace("{progress}", String(facts.progress))
+        : T.caseView.summary.noPlan;
+    case "verification":
+      return facts.latestVerification
+        ? plural(rec.verifications?.length ?? 1, T.caseView.rounds)
+        : T.caseView.summary.noVerification;
+    default:
+      return sectionSummary(id, rec, facts);
+  }
+}
+
 export const SECTION_ICON: Record<SectionId, ReactNode> = {
   finding: <FileSearch className="size-4.5" />,
   response: <MessageSquareText className="size-4.5" />,

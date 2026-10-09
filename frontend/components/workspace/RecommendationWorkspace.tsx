@@ -16,6 +16,8 @@ import {
   RecurrencePanel,
   SECTION_ICON,
   SectionBody,
+  sectionRowSummary,
+  sectionStatus,
   sectionSummary,
   sectionTitle,
 } from "@/components/workspace/sectionContent";
@@ -52,10 +54,16 @@ function backLink(role: Role, status?: RecommendationStatus): { href: string; la
   return map[role];
 }
 
+/** The working record, in stage order, and the reference sections after it. */
+const RECORD_SECTIONS: SectionId[] = ["finding", "response", "plan", "evidence", "verification"];
+const TRAIL_SECTIONS: SectionId[] = ["decisions", "history"];
+
 /**
- * One recommendation case. The action card (whose turn, by when, and the form
- * when it is this user's turn) comes first; the record follows as collapsible
- * sections; dates, people and context sit in a side rail.
+ * One recommendation case. A header card (what the case is, and the stage
+ * timeline) leads; the action card (whose turn, by when, and the form when it
+ * is this user's turn) opens the working column, followed by the record in
+ * one frame and the decisions/history in a lighter one. Dates, people and
+ * context sit in a side rail.
  */
 export function RecommendationWorkspace({ id, role }: { id: number; role: Role }) {
   useI18n();
@@ -140,6 +148,15 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
   const setAll = (open: boolean) =>
     setToggled({ recId: id, open: Object.fromEntries(SECTION_IDS.map((section) => [section, open])) });
 
+  const sectionProps = (section: SectionId) => ({
+    id: section,
+    title: sectionTitle(section),
+    count: section === "evidence" ? facts.files : section === "decisions" ? facts.decisions : null,
+    icon: SECTION_ICON[section],
+    open: isOpen(section),
+    onToggle: () => setOpen(section, !isOpen(section)),
+  });
+
   return (
     <div className="space-y-5">
       <CaseHeaderBar
@@ -152,13 +169,14 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
             {T.caseView.print}
           </Button>
         }
-      />
-      <CaseTimeline rec={rec} />
+      >
+        <CaseTimeline rec={rec} embedded />
+      </CaseHeaderBar>
 
-      {/* Two columns from 1280px. At 1024–1279 the full sidebar leaves ~700px,
-          and a side rail beside the forms would squeeze them to ~390px, so the
-          rail stacks below as on tablets. */}
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
+      {/* Two columns from 1280px, the rail about 30%. At 1024–1279 the full
+          sidebar leaves ~700px, and a rail beside the forms would squeeze them
+          to ~390px, so the rail stacks below with its groups side by side. */}
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,30%)] 2xl:gap-6">
         <div className="min-w-0 space-y-5">
           <SuccessBanner message={action.success ?? (searchParams.get("saved") ? T.create.editSaved : null)} />
           {/* A refused action whose form is gone (the case moved on) still says why. */}
@@ -172,44 +190,64 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
             <RecurrencePanel action={action} />
           ) : null}
 
-          <div>
-            <div className="mb-2.5 flex items-center justify-end" data-print="hide">
+          {/* The record: the working sections in stage order, in one frame. */}
+          <section
+            aria-labelledby="case-record-title"
+            className="overflow-hidden rounded-2xl border border-line bg-surface shadow-section"
+          >
+            <header className="flex items-center justify-between gap-3 border-b border-line/70 px-4 py-3 md:px-5">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span className="h-5 w-[3px] shrink-0 rounded-full bg-primary" aria-hidden />
+                <h2 id="case-record-title" className="font-heading text-[15.5px] font-bold text-navy">
+                  {T.caseView.recordTitle}
+                </h2>
+                <p className="hidden truncate text-[12.5px] text-muted lg:block">{T.caseView.recordHint}</p>
+              </div>
               <button
                 type="button"
                 onClick={() => setAll(!allOpen)}
-                className="min-h-9 rounded-md px-2 text-[12.5px] font-semibold text-primary-dark hover:underline"
+                data-print="hide"
+                className="min-h-9 shrink-0 rounded-md px-2 text-[12.5px] font-semibold text-primary-dark hover:underline"
               >
                 {allOpen ? T.caseView.collapseAll : T.caseView.expandAll}
               </button>
-            </div>
-            <div className="space-y-3">
-              {SECTION_IDS.map((section) => (
+            </header>
+            <div className="divide-y divide-line/70">
+              {RECORD_SECTIONS.map((section) => (
                 <CaseSection
                   key={section}
-                  id={section}
-                  title={sectionTitle(section)}
-                  summary={sectionSummary(section, rec, facts)}
-                  count={
-                    section === "evidence"
-                      ? facts.files
-                      : section === "decisions"
-                        ? facts.decisions
-                        : section === "plan"
-                          ? facts.stepsTotal
-                          : null
-                  }
-                  icon={SECTION_ICON[section]}
-                  open={isOpen(section)}
-                  onToggle={() => setOpen(section, !isOpen(section))}
+                  {...sectionProps(section)}
+                  variant="row"
+                  summary={sectionRowSummary(section, rec, facts)}
+                  status={sectionStatus(section, rec, facts)}
                 >
                   <SectionBody id={section} rec={rec} action={action} deskOpen={deskOpen} />
                 </CaseSection>
               ))}
             </div>
-          </div>
+          </section>
+
+          {/* Decisions and the trail: reference material, drawn lighter. */}
+          <section aria-labelledby="case-trail-title" className="rounded-2xl border border-line/80 bg-subtle/40">
+            <h2 id="case-trail-title" className="px-4 pb-1 pt-3 text-[12.5px] font-bold text-muted md:px-5">
+              {T.caseView.trailTitle}
+            </h2>
+            <div className="divide-y divide-line/60">
+              {TRAIL_SECTIONS.map((section) => (
+                <CaseSection
+                  key={section}
+                  {...sectionProps(section)}
+                  variant="quiet"
+                  summary={sectionSummary(section, rec, facts)}
+                >
+                  <SectionBody id={section} rec={rec} action={action} deskOpen={deskOpen} />
+                </CaseSection>
+              ))}
+            </div>
+          </section>
         </div>
 
-        <aside className="min-w-0" aria-label={T.mobile.details}>
+        <aside className="min-w-0" aria-label={T.caseView.detailsTitle}>
           <SideRail rec={rec} role={role} />
         </aside>
       </div>

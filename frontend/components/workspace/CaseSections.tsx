@@ -10,16 +10,31 @@ import { dayCount, formatDate, formatDateTime } from "@/lib/format";
 import { APPROVAL_TYPE_LABELS, RECIPIENT_ROLE_LABELS, T, useI18n } from "@/lib/i18n";
 import type { CaseReminder, RecommendationDetail } from "@/lib/types";
 import { historyEntries, type HistoryFilter, type SectionId } from "@/lib/viewmodels/caseView";
+import type { SectionTone } from "@/components/workspace/sectionContent";
 
-/** One collapsible part of the case record. */
+const STATUS_PILL: Record<SectionTone, string> = {
+  success: "bg-success-light text-success-dark ring-success/20",
+  warning: "bg-warning-light/70 text-warning-dark ring-warning/25",
+  danger: "bg-danger-light text-danger-dark ring-danger/20",
+};
+
+/**
+ * One collapsible part of the case record.
+ *
+ * - `card`: a framed card of its own (phone case screen).
+ * - `row`: a row inside the desktop "case record" group; the group draws the frame.
+ * - `quiet`: a lighter, smaller row for the secondary decisions/history group.
+ */
 export function CaseSection({
   id,
   title,
   summary,
   count,
+  status,
   icon,
   open,
   onToggle,
+  variant = "card",
   children,
 }: {
   /** A record section, or an extra one (the phone's "details"). */
@@ -27,17 +42,30 @@ export function CaseSection({
   title: string;
   summary?: string | null;
   count?: number | null;
+  /** A short review-state pill (accepted, sufficient, ...). */
+  status?: { label: string; tone: SectionTone } | null;
   icon: ReactNode;
   open: boolean;
   onToggle: () => void;
+  variant?: "card" | "row" | "quiet";
   children: ReactNode;
 }) {
   const contentId = `section-${id}-content`;
   const titleId = `section-${id}-title`;
   const summaryId = `section-${id}-summary`;
+  const quiet = variant === "quiet";
+  const Heading = variant === "card" ? "h2" : "h3";
   return (
-    <section id={`section-${id}`} className="scroll-mt-24 overflow-hidden rounded-2xl border border-line bg-surface">
-      <h2>
+    <section
+      id={`section-${id}`}
+      data-open={open || undefined}
+      className={cn(
+        "scroll-mt-24",
+        variant === "card" && "overflow-hidden rounded-2xl border border-line bg-surface",
+        variant === "row" && open && "bg-surface"
+      )}
+    >
+      <Heading>
         <button
           type="button"
           aria-expanded={open}
@@ -45,19 +73,27 @@ export function CaseSection({
           aria-labelledby={titleId}
           aria-describedby={summary ? summaryId : undefined}
           onClick={onToggle}
-          className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-start transition-colors hover:bg-subtle/50 focus-visible:bg-subtle/50 md:px-5"
+          className={cn(
+            "flex w-full items-center gap-3 text-start transition-colors hover:bg-subtle/50 focus-visible:bg-subtle/50",
+            quiet ? "min-h-12 px-4 py-2.5 md:px-5" : "min-h-14 px-4 py-3 md:px-5",
+            variant === "row" && open && "bg-primary-light/25 hover:bg-primary-light/35"
+          )}
         >
           <span
             className={cn(
-              "flex size-9 shrink-0 items-center justify-center rounded-lg",
-              open ? "bg-primary-light text-primary-dark" : "bg-subtle text-muted"
+              "flex shrink-0 items-center justify-center rounded-lg",
+              quiet ? "size-8" : "size-9",
+              open ? "bg-primary-light text-primary-dark" : quiet ? "text-muted" : "bg-subtle text-muted"
             )}
             aria-hidden
           >
             {icon}
           </span>
           <span className="min-w-0 flex-1">
-            <span id={titleId} className="block font-heading text-[15px] font-bold text-navy">
+            <span
+              id={titleId}
+              className={cn("block font-heading font-bold text-navy", quiet ? "text-[14px]" : "text-[15px]")}
+            >
               {title}
             </span>
             {summary ? (
@@ -66,6 +102,16 @@ export function CaseSection({
               </span>
             ) : null}
           </span>
+          {status ? (
+            <span
+              className={cn(
+                "hidden shrink-0 rounded-full px-2.5 py-0.5 text-[11.5px] font-bold ring-1 sm:inline-flex",
+                STATUS_PILL[status.tone]
+              )}
+            >
+              {status.label}
+            </span>
+          ) : null}
           {count ? (
             <span className="rounded-full bg-subtle px-2 py-0.5 font-mono text-[11.5px] font-bold text-ink-soft" dir="ltr">
               {count}
@@ -76,9 +122,12 @@ export function CaseSection({
             aria-hidden
           />
         </button>
-      </h2>
+      </Heading>
       {open ? (
-        <div id={contentId} className="border-t border-line px-4 py-5 md:px-6">
+        <div
+          id={contentId}
+          className={cn("border-t border-line px-4 py-5 md:px-6", variant === "row" && "border-line/70 pb-6")}
+        >
           {children}
         </div>
       ) : null}

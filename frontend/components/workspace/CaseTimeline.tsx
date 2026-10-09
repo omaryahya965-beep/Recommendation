@@ -53,7 +53,16 @@ function Returns({ count }: { count: number }) {
  * The ten business stages with the date the case entered each one and how
  * often it was sent back. Phones get a one-line summary with a segmented bar.
  */
-export function CaseTimeline({ rec, className }: { rec: RecommendationDetail; className?: string }) {
+export function CaseTimeline({
+  rec,
+  className,
+  embedded = false,
+}: {
+  rec: RecommendationDetail;
+  className?: string;
+  /** Inside the case header card: no frame of its own, tighter spacing. */
+  embedded?: boolean;
+}) {
   useI18n();
   const stages = stageTimeline(rec);
   const currentIndex = Math.max(
@@ -64,7 +73,10 @@ export function CaseTimeline({ rec, className }: { rec: RecommendationDetail; cl
   const here = closed ? stages[stages.length - 1] : stages[currentIndex];
 
   return (
-    <section aria-label={T.caseView.timelineTitle} className={cn("rounded-2xl border border-line bg-surface", className)}>
+    <section
+      aria-label={T.caseView.timelineTitle}
+      className={cn(!embedded && "rounded-2xl border border-line bg-surface", className)}
+    >
       {/* Phones and narrow tablets */}
       <div className="px-4 py-3.5 md:hidden">
         <div className="flex items-baseline justify-between gap-3">
@@ -100,7 +112,7 @@ export function CaseTimeline({ rec, className }: { rec: RecommendationDetail; cl
       </div>
 
       {/* Tablets and desktop */}
-      <div className="hidden scrollbar-thin overflow-x-auto px-3 pb-4 pt-5 md:block">
+      <div className={cn("hidden scrollbar-thin overflow-x-auto md:block", embedded ? "px-2 pb-3.5 pt-4" : "px-3 pb-4 pt-5")}>
         {/* 600px fits the narrowest tablet column (768px less the rail); labels wrap. */}
         <ol className="flex min-w-[600px] items-start">
           {stages.map((stage, index) => {
@@ -117,12 +129,12 @@ export function CaseTimeline({ rec, className }: { rec: RecommendationDetail; cl
                   <span
                     className={cn(
                       "flex shrink-0 items-center justify-center rounded-full border font-mono font-bold",
-                      current ? "size-8 text-[12px]" : "size-6 text-[10.5px]",
+                      current ? "size-7 text-[11.5px]" : "size-5.5 text-[10px]",
                       DOT[stage.state]
                     )}
                   >
                     {done ? (
-                      <Check className="size-3.5" strokeWidth={3} aria-hidden />
+                      <Check className="size-3" strokeWidth={3} aria-hidden />
                     ) : stage.state === "returned" ? (
                       <RotateCcw className="size-3.5" strokeWidth={3} aria-hidden />
                     ) : stage.state === "skipped" ? (
@@ -135,7 +147,7 @@ export function CaseTimeline({ rec, className }: { rec: RecommendationDetail; cl
                 </div>
                 <p
                   className={cn(
-                    "mt-2 px-1 leading-snug",
+                    "mt-1.5 px-1 leading-snug",
                     current
                       ? "text-[12.5px] font-bold text-navy"
                       : done

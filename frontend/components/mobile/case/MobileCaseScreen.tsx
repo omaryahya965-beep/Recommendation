@@ -276,7 +276,7 @@ export function MobileCaseScreen({
           open={isOpen("details")}
           onToggle={() => toggle("details")}
         >
-          <SideRail rec={rec} role={role} />
+          <SideRail rec={rec} role={role} embedded />
         </CaseSection>
       </div>
 
