@@ -90,12 +90,16 @@ function Fact({
   tone: Tone;
 }) {
   return (
-    <div className="flex min-w-0 items-start gap-2">
-      <Icon className={cn("mt-0.5 size-4 shrink-0", tone === "mine" ? "text-white/55" : "text-muted")} aria-hidden />
-      <div className="min-w-0">
-        <dt className={cn("text-[11.5px] font-semibold", tone === "mine" ? "text-white/65" : "text-muted")}>{label}</dt>
-        <dd className={cn("mt-0.5 text-[13.5px] font-bold", tone === "mine" ? "text-white" : "text-ink")}>{children}</dd>
-      </div>
+    // dt/dd are direct children of the item (valid dl); the icon sits in the dt.
+    <div className="relative min-w-0 ps-6">
+      <dt className={cn("text-[11.5px] font-semibold", tone === "mine" ? "text-white/65" : "text-muted")}>
+        <Icon
+          className={cn("absolute start-0 top-0.5 size-4", tone === "mine" ? "text-white/55" : "text-muted")}
+          aria-hidden
+        />
+        {label}
+      </dt>
+      <dd className={cn("mt-0.5 text-[13.5px] font-bold", tone === "mine" ? "text-white" : "text-ink")}>{children}</dd>
     </div>
   );
 }

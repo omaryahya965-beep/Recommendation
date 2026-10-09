@@ -49,7 +49,7 @@ export function NotificationBell({ role }: { role: Role }) {
   const markAll = useMarkAllNotificationsRead();
 
   const closePanel = useCallback(() => setOpen(false), []);
-  useFocusTrap(open, panelRef, closePanel, closeRef);
+  useFocusTrap(open, panelRef, closePanel, closeRef, buttonRef);
 
   useEffect(() => {
     if (!open || phone) return;

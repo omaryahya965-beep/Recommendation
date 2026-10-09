@@ -14,6 +14,11 @@ export function useFocusTrap(
   containerRef: RefObject<HTMLElement | null>,
   onEscape?: () => void,
   initialFocusRef?: RefObject<HTMLElement | null>,
+  /**
+   * Where focus goes back on close. Safari does not focus a button when it
+   * is clicked or tapped, so "whatever was focused" is often the body.
+   */
+  returnFocusRef?: RefObject<HTMLElement | null>,
 ) {
   // Callers pass inline callbacks; keeping the latest in a ref stops the trap
   // from tearing down (and moving focus) on every render.
@@ -25,7 +30,7 @@ export function useFocusTrap(
   useEffect(() => {
     if (!active) return;
 
-    const previous = document.activeElement as HTMLElement | null;
+    const previous = returnFocusRef?.current ?? (document.activeElement as HTMLElement | null);
     const overflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
@@ -68,5 +73,5 @@ export function useFocusTrap(
       document.body.style.overflow = overflow;
       previous?.focus?.();
     };
-  }, [active, containerRef, initialFocusRef]);
+  }, [active, containerRef, initialFocusRef, returnFocusRef]);
 }

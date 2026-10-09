@@ -3,7 +3,7 @@
 import { Bell, ChevronLeft, ChevronRight, LogOut, Menu, Search, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { MunicipalityLogo } from "@/components/brand/MunicipalityLogo";
 import { Sheet } from "@/components/mobile/Sheet";
@@ -187,6 +187,7 @@ export function MobileBottomNav({
   useI18n();
   const { data: counts } = useNavCounts(Boolean(user));
   const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLButtonElement>(null);
   const tabs = mobileTabsFor(role);
   const params = searchParams ?? EMPTY_PARAMS;
   const tabPaths = new Set(tabs.map((tab) => splitHref(tab.href).path));
@@ -219,6 +220,7 @@ export function MobileBottomNav({
             />
           ))}
           <button
+            ref={moreRef}
             type="button"
             onClick={() => setMoreOpen(true)}
             aria-haspopup="dialog"
@@ -240,7 +242,13 @@ export function MobileBottomNav({
         </div>
       </nav>
 
-      <Sheet open={moreOpen} onClose={() => setMoreOpen(false)} title={T.mobile.moreTitle} testId="more-sheet">
+      <Sheet
+        open={moreOpen}
+        onClose={() => setMoreOpen(false)}
+        title={T.mobile.moreTitle}
+        testId="more-sheet"
+        returnFocusRef={moreRef}
+      >
         <Link
           href={profileHref(role)}
           onClick={() => setMoreOpen(false)}

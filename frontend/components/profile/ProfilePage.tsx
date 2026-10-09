@@ -7,6 +7,7 @@ import { Button, ErrorBanner, Field as FormField, SuccessBanner, TextInput } fro
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Section } from "@/components/ui/Section";
 import { api, errorMessage, loadAuth, saveAuth } from "@/lib/api";
+import { cn } from "@/lib/cn";
 import { ROLE_LABELS, T, useI18n } from "@/lib/i18n";
 import type { Role, User } from "@/lib/types";
 
@@ -163,8 +164,17 @@ export function ProfilePage({ role }: { role: Role }) {
             <dl>
               <ProfileRow label={T.common.fullName} value={displayName(user)} />
               <ProfileRow label={T.common.username} value={user.username} />
-              <div className="border-b border-line py-4">
+              {/* The row's dt/dd stay direct children of the dl item in both modes. */}
+              <div
+                className={cn(
+                  "border-b border-line py-4",
+                  !editingEmail && "flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-6"
+                )}
+              >
                 {editingEmail ? (
+                  <>
+                  <dt className="sr-only">{T.common.email}</dt>
+                  <dd>
                   <form onSubmit={saveEmail} className="space-y-3" noValidate>
                     <FormField label={T.common.email} error={emailError ?? undefined}>
                       <TextInput
@@ -192,8 +202,10 @@ export function ProfilePage({ role }: { role: Role }) {
                       </Button>
                     </div>
                   </form>
+                  </dd>
+                  </>
                 ) : (
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+                  <>
                     <dt className="flex flex-wrap items-center gap-2">
                       <span className="text-[12px] font-semibold tracking-wide text-muted">{T.common.email}</span>
                       <Button
@@ -209,7 +221,7 @@ export function ProfilePage({ role }: { role: Role }) {
                     <dd className="text-[14px] font-medium text-ink sm:text-end">
                       {user.email?.trim() || T.common.none}
                     </dd>
-                  </div>
+                  </>
                 )}
               </div>
               <ProfileRow label={T.common.role} value={ROLE_LABELS[user.role] || ROLE_LABELS[role]} />

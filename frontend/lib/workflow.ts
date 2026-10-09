@@ -188,7 +188,7 @@ export const TONE_CLASSES: Record<
   { fg: string; bg: string; border: string; dot: string; solid: string }
 > = {
   neutral: {
-    fg: "text-neutral",
+    fg: "text-ink-soft",
     bg: "bg-subtle",
     border: "border-line",
     dot: "bg-neutral",

@@ -1,7 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 
 import { useFocusTrap } from "@/components/mobile/useFocusTrap";
@@ -28,6 +28,7 @@ export function Sheet({
   dirty = false,
   size = "auto",
   testId,
+  returnFocusRef,
 }: {
   open: boolean;
   onClose: () => void;
@@ -39,6 +40,8 @@ export function Sheet({
   /** "full" takes (almost) the whole screen height — for long forms. */
   size?: "auto" | "full";
   testId?: string;
+  /** The control that opened the sheet; focus returns there on close. */
+  returnFocusRef?: RefObject<HTMLElement | null>;
 }) {
   useI18n();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -57,7 +60,7 @@ export function Sheet({
     else if (dirty) setConfirming(true);
     else onClose();
   };
-  useFocusTrap(open, panelRef, requestClose);
+  useFocusTrap(open, panelRef, requestClose, undefined, returnFocusRef);
 
   if (!open || typeof document === "undefined") return null;
 
