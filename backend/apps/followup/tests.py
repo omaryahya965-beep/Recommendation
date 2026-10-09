@@ -4,6 +4,7 @@ from rest_framework.test import APIClient
 
 from django.test import TestCase
 
+from apps.core.refs import record_code
 from apps.followup.models import FollowUpReport
 from apps.workflow.tests import make_world
 
@@ -39,7 +40,7 @@ class FollowUpReportApiTests(TestCase):
         self.assertIn("snapshot", preview.data)
         self.assertIn("text", preview.data["executive_summary"])
         self.assertEqual(preview.data["snapshot"]["totals"]["total"], 1)
-        self.assertIn(f"REC-{self.rec.id}", preview.data["executive_summary"]["text"])
+        self.assertIn(record_code(self.rec.id), preview.data["executive_summary"]["text"])
         # A preview is throwaway: nothing lands in the archive.
         self.assertEqual(FollowUpReport.objects.count(), 0)
 

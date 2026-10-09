@@ -3,6 +3,7 @@
 from apps.accounts.models import User
 from apps.core.arabic import recommendations
 from apps.notifications.models import Notification
+from apps.core.refs import record_code
 
 # Notification text is written in Arabic, but the model's choice labels are
 # English ("Insufficient - returned"). Using get_decision_display() leaked that
@@ -47,7 +48,7 @@ def _count_phrase(count):
 
 
 def _rec_ref(recommendation):
-    return f"REC-{recommendation.id}"
+    return record_code(recommendation.id)
 
 
 def _heads_of(recommendation):

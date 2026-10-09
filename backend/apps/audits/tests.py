@@ -212,6 +212,15 @@ class ExportTests(TestCase):
         self.assertEqual(row["target_date"], "")
         self.assertEqual(row["closed_at"], "")
 
+    def test_reference_is_written_as_on_screen(self):
+        self.assertEqual(self.rows()[0]["reference"], f"REC-{self.rec.id:04d}")
+
+    def test_search_matches_the_report_title(self):
+        self.report.title = "تدقيق المخازن والعهد"
+        self.report.save()
+        res = self.client.get("/api/recommendations/", {"search": "المخازن"})
+        self.assertEqual([row["id"] for row in res.data["results"]], [self.rec.id])
+
 
 class ReportOrderingTests(TestCase):
     def test_register_lists_newest_report_first(self):

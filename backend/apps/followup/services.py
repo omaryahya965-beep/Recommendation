@@ -28,6 +28,7 @@ from apps.audits.models import AuditReport, Recommendation
 from apps.core.arabic import date_ar, recommendations
 from apps.core.models import log_action
 from apps.workflow.presentation import stage_index, stage_of, status_label
+from apps.core.refs import record_code
 
 from .as_of import annotate_as_of, case_as_of, period_bounds
 from .models import FollowUpReport
@@ -78,7 +79,7 @@ def build_followup_snapshot(municipality, period_start, period_end):
         status = state["status"]
         items.append({
             "id": rec.id,
-            "reference": f"REC-{rec.id}",
+            "reference": record_code(rec.id),
             "title": case_title(rec.text),
             "excerpt": brief_excerpt(rec.text, 220),
             "department": rec.report.department.name,
@@ -267,7 +268,7 @@ def build_followup_executive_summary(snapshot, period_start, period_end, languag
             if top_dept:
                 text += f" أكبر عدد في دائرة {top_dept}."
             if focus:
-                refs = "، ".join(f"REC-{item['id']}" for item in focus)
+                refs = "، ".join(record_code(item["id"]) for item in focus)
                 text += f" الأولوية للمتابعة: {refs}."
             else:
                 text += " لا توجد توصيات متأخرة أو عالية الخطورة تتطلب تركيزاً إضافياً."
@@ -277,7 +278,7 @@ def build_followup_executive_summary(snapshot, period_start, period_end, languag
                 findings.append(
                     {
                         "text": (
-                            f"REC-{item['id']} — {item.get('department')}: {_item_title(item)} "
+                            f"{record_code(item['id'])} — {item.get('department')}: {_item_title(item)} "
                             f"({state}، خطورة {_RISK_AR.get(item.get('risk_level'), item.get('risk_level'))})"
                         )
                     }
@@ -313,12 +314,12 @@ def build_followup_executive_summary(snapshot, period_start, period_end, languag
             if top_dept:
                 text += f" Highest volume: {top_dept}."
             if focus:
-                refs = ", ".join(f"REC-{item['id']}" for item in focus)
+                refs = ", ".join(record_code(item["id"]) for item in focus)
                 text += f" Priority cases: {refs}."
             findings = [
                 {
                     "text": (
-                        f"REC-{item['id']} — {item.get('department')}: {_item_title(item)} "
+                        f"{record_code(item['id'])} — {item.get('department')}: {_item_title(item)} "
                         f"({('overdue' if item.get('overdue') else item.get('status'))}, {item.get('risk_level')} risk)"
                     )
                 }

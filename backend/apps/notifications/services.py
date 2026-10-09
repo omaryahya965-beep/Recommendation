@@ -37,6 +37,7 @@ from apps.audits.finding import case_title
 from apps.audits.models import DEPARTMENT_DEADLINE_STATUSES, Recommendation
 from apps.core.arabic import date_ar, days
 from apps.organizations.models import Municipality
+from apps.core.refs import record_code
 
 from .models import Notification, ReminderDispatch, ReminderRule, ReminderRun
 
@@ -128,7 +129,7 @@ def _message(rec, offset, anchor, deadline):
     rule's nominal offset: a reminder sent late by catch-up must say how many
     days are really left."""
     title = case_title(rec.text, 80)
-    ref = f"REC-{rec.id}"
+    ref = record_code(rec.id)
     what = {
         "plan": "موعد تنفيذ خطة العمل",
         "verification": "موعد استكمال العمل الذي حددته الرقابة",

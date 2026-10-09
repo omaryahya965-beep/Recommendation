@@ -26,6 +26,7 @@ from apps.core.permissions import (
 )
 from apps.workflow import services
 from apps.workflow.models import ActionStep, Evidence
+from apps.core.refs import record_code
 from apps.workflow.presentation import annotate_workflow
 from apps.workflow.serializers import (
     ActionPlanInputSerializer,
@@ -177,7 +178,8 @@ class RecommendationViewSet(viewsets.ModelViewSet):
     throttle_scope = "export"
     filter_backends = [DjangoFilterBackend, SearchFilter, RecommendationOrderingFilter]
     filterset_class = RecommendationFilterSet
-    search_fields = ["text", "root_cause"]
+    # The report title too: the global search promises "number, report or words".
+    search_fields = ["text", "root_cause", "report__title"]
     # risk_level/risk sort by severity; target_date by the plan's date;
     # deadline by the binding deadline; waiting by queue age.
     ordering_fields = [
@@ -506,7 +508,7 @@ class RecommendationViewSet(viewsets.ModelViewSet):
         queryset = self.filter_queryset(self.get_queryset())
 
         columns = [
-            ("reference", lambda r: f"REC-{r.id}"),
+            ("reference", lambda r: record_code(r.id)),
             ("report", lambda r: r.report.title),
             ("engagement_type", lambda r: r.report.get_engagement_type_display()),
             ("department", lambda r: r.report.department.name),

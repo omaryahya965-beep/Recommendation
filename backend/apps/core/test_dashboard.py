@@ -286,3 +286,12 @@ class NavCountsTests(TestCase):
         self.assertEqual(self.counts("emp")["recommendations"], 1)
         self.assertEqual(self.counts("emp")["recommendations"], self.my_turn("emp"))
         self.assertEqual(self.counts("emp2")["recommendations"], 0)
+
+
+class RecordCodeTests(TestCase):
+    def test_references_match_the_screen(self):
+        from apps.core.refs import record_code
+
+        self.assertEqual(record_code(8), "REC-0008")
+        self.assertEqual(record_code(12345), "REC-12345")
+        self.assertEqual(record_code(5, "RPT"), "RPT-0005")

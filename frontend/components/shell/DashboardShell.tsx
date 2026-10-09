@@ -41,6 +41,7 @@ import {
   settingsFor,
 } from "@/components/shell/navigation";
 import { cn } from "@/lib/cn";
+import { parseSearch, searchListUrl } from "@/lib/searchQuery";
 import { clipTitle } from "@/lib/finding";
 import { inLocale, ROLE_LABELS, T, useI18n } from "@/lib/i18n";
 import type { Paginated, RecommendationListItem, Role, User } from "@/lib/types";
@@ -80,18 +81,13 @@ function GlobalSearch({ role }: { role: Role }) {
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
-  const numericId = useMemo(() => {
-    const raw = debounced.replace(/^REC-?/i, "");
-    return /^\d+$/.test(raw) ? Number(raw) : null;
-  }, [debounced]);
+  const query = useMemo(() => parseSearch(debounced), [debounced]);
+  const numericId = query.kind === "case" ? query.id : null;
 
   const { data } = useQuery({
     queryKey: ["global-search", debounced],
-    queryFn: () =>
-      api<Paginated<RecommendationListItem>>(
-        `/api/recommendations/?search=${encodeURIComponent(debounced)}&page_size=8`
-      ),
-    enabled: debounced.length >= 2 && numericId === null,
+    queryFn: () => api<Paginated<RecommendationListItem>>(searchListUrl(query as Exclude<typeof query, { kind: "case" }>)),
+    enabled: debounced.length >= 2 && query.kind !== "case",
   });
 
   const { data: byId } = useQuery({
