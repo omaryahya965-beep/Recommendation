@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { T } from "../../lib/i18n/ar";
-import { apiGet, findReport, firstRecommendationOf } from "../support/api";
+import { apiGet, apiPost, findReport, firstRecommendationOf } from "../support/api";
 import { signIn } from "../support/auth";
 import { FIXTURES, uniqueSuffix } from "../support/env";
 import { expectNoHorizontalScroll } from "../support/layout";
@@ -154,6 +154,29 @@ test.describe("narrow phones", () => {
     await page.goto(`/audit/reports/${report.id}`);
     await page.waitForLoadState("networkidle");
     await expectNoHorizontalScroll(page);
+  });
+
+  test("a long unbroken title wraps instead of being cut off", async ({ page, request }) => {
+    const seed = await findReport(request, "audit", FIXTURES.financeInProgress);
+    const { body: detail } = await apiGet<{ department: number }>(request, "audit", `/api/reports/${seed.id}/`);
+    const { body: report } = await apiPost<{ id: number }>(request, "audit", "/api/reports/", {
+      title: `[E2E] ${"VeryLongUnbrokenReportIdentifier_".repeat(3)}${uniqueSuffix()}`,
+      department: detail.department,
+      engagement_type: "assurance",
+    });
+    const { body: rec } = await apiPost<{ id: number }>(request, "audit", "/api/recommendations/", {
+      report: report.id,
+      text: `العنوان:
+${"ERP_FIN_GL_ACCESS_REVIEW_POLICY_".repeat(4)}${uniqueSuffix()}
+`,
+      risk_level: "low",
+    });
+    await signIn(page, request, "audit");
+    for (const path of [caseUrl("audit", rec.id), `/audit/reports/${report.id}`, "/audit/recommendations"]) {
+      await page.goto(path);
+      await page.waitForLoadState("networkidle");
+      await expectNoHorizontalScroll(page);
+    }
   });
 
   for (const [who, path] of [

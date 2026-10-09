@@ -203,6 +203,9 @@ body {
   background: var(--color-bg);
   color: var(--color-ink);
   font-family: var(--font-body);
+  /* A long unbroken token (an ERP code, a file name, a URL) wraps instead of
+     being clipped or widening its card; ordinary words are unaffected. */
+  overflow-wrap: break-word;
   font-size: 0.9375rem;
   line-height: 1.7;
   letter-spacing: 0;

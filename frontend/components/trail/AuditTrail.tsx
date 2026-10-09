@@ -8,19 +8,34 @@ import { DirForward } from "@/components/i18n/DirIcon";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { cn } from "@/lib/cn";
 import { formatDate, formatTime } from "@/lib/format";
-import { ROLE_LABELS, STATUS_LABELS, T, TRAIL_ACTION_LABELS, useI18n } from "@/lib/i18n";
+import { DECISION_LABELS, ROLE_LABELS, STATUS_LABELS, T, TRAIL_ACTION_LABELS, VERIFICATION_LABELS, useI18n } from "@/lib/i18n";
 import type { TrailEntry } from "@/lib/types";
 
 const TRANSITION_KEYS = new Set(["from_status", "to_status", "system"]);
 
-function detailText(metadata: Record<string, unknown>): string | null {
+/**
+ * The one-line summary of an event, in the reader's words: notes, decisions,
+ * the file's own name, the step, the plan's date and owner. Internal values
+ * (ids, storage paths, codes) stay in the "details" view only.
+ */
+export function detailText(metadata: Record<string, unknown>): string | null {
   const parts: string[] = [];
-  for (const [key, value] of Object.entries(metadata)) {
-    if (TRANSITION_KEYS.has(key)) continue;
-    if (value === null || value === undefined || value === "") continue;
-    if (typeof value === "object") continue;
-    parts.push(String(value));
-  }
+  const text = (key: string) => {
+    const value = metadata[key];
+    return typeof value === "string" && value.trim() ? value.trim() : null;
+  };
+  const decision = text("decision");
+  if (decision) parts.push(DECISION_LABELS[decision] ?? VERIFICATION_LABELS[decision] ?? decision);
+  const step = text("step_title");
+  if (step) parts.push(step);
+  const file = text("file_name");
+  if (file) parts.push(file.split("/").pop() ?? file);
+  const owner = text("responsible_employee");
+  if (owner) parts.push(owner);
+  const target = text("target_date");
+  if (target) parts.push(formatDate(target));
+  const notes = text("notes");
+  if (notes) parts.push(notes);
   return parts.length ? parts.join(" — ") : null;
 }
 
