@@ -132,6 +132,9 @@ class DashboardV2Tests(TestCase):
         team = {row["employee"]["id"]: row for row in data["team"]}
         self.assertEqual(team[self.users["emp"].id]["open"], 1)
         self.assertEqual(team[self.users["emp2"].id]["open"], 0)
+        # Due soon per person: the same definition as the due-soon block.
+        self.assertEqual(team[self.users["emp"].id]["due_soon"], 1)
+        self.assertEqual(team[self.users["emp2"].id]["due_soon"], 0)
 
         finish_steps_and_evidence(self.users, self.rec)
         self.rec.refresh_from_db()
@@ -175,6 +178,21 @@ class DashboardV2Tests(TestCase):
         other = self.dashboard("emp2")
         self.assertEqual(other["action_center"]["returned_for_more_evidence"]["count"], 0)
         self.assertEqual(other["active_tasks"]["count"], 0)
+
+    def test_employee_home_carries_plan_progress_and_evidence_per_task(self):
+        drive_to_in_progress(self.users, self.report, self.rec)
+        facts = self.dashboard("emp")["task_facts"][str(self.rec.id)]
+        self.assertGreater(facts["steps_total"], 0)
+        self.assertEqual(facts["steps_done"], 0)
+        self.assertEqual(facts["evidence"], 0)
+
+        finish_steps_and_evidence(self.users, self.rec)
+        facts = self.dashboard("emp")["task_facts"][str(self.rec.id)]
+        self.assertEqual(facts["steps_done"], facts["steps_total"])
+        self.assertEqual(facts["progress"], 100)
+        self.assertGreaterEqual(facts["evidence"], 1)
+        # Another employee's home lists none of it.
+        self.assertEqual(self.dashboard("emp2")["task_facts"], {})
 
     def test_employee_waiting_on_reviewers_is_their_submitted_work(self):
         drive_to_in_progress(self.users, self.report, self.rec)

@@ -24,6 +24,7 @@ from apps.audits.models import (
 from apps.audits.serializers import RecommendationListSerializer
 from apps.core.analytics import IN_EXECUTION_STATUSES, portfolio_totals
 from apps.core.models import AuditTrail
+from apps.workflow.models import ActionStep, Evidence
 from apps.workflow.presentation import overdue_q, waiting_on_q
 
 S = Recommendation.Status
@@ -144,10 +145,20 @@ def audit_dashboard(request, issued, today):
 # Department head
 # ---------------------------------------------------------------------------
 def department_head_dashboard(request, issued, today):
+    # Not overdue, binding deadline within DUE_SOON_DAYS (the due-soon block).
+    due_soon_q = Q(
+        status__in=DEPARTMENT_DEADLINE_STATUSES,
+        binding_deadline__gte=today,
+        binding_deadline__lte=today + timedelta(days=DUE_SOON_DAYS),
+    )
     team_rows = (
         issued.filter(status__in=OPEN_STATUSES, action_plan__isnull=False)
         .values("action_plan__responsible_employee")
-        .annotate(open=Count("id"), overdue=Count("id", filter=overdue_q(today)))
+        .annotate(
+            open=Count("id"),
+            overdue=Count("id", filter=overdue_q(today)),
+            due_soon=Count("id", filter=due_soon_q),
+        )
     )
     loads = {row["action_plan__responsible_employee"]: row for row in team_rows}
     employees = User.objects.filter(
@@ -159,16 +170,13 @@ def department_head_dashboard(request, issued, today):
                 "employee": {"id": employee.id, "name": employee.full_name_ar or employee.username},
                 "open": loads.get(employee.id, {}).get("open", 0),
                 "overdue": loads.get(employee.id, {}).get("overdue", 0),
+                "due_soon": loads.get(employee.id, {}).get("due_soon", 0),
             }
             for employee in employees
         ),
         key=lambda row: (-row["overdue"], -row["open"], row["employee"]["name"]),
     )
-    due_soon = issued.filter(
-        status__in=DEPARTMENT_DEADLINE_STATUSES,
-        binding_deadline__gte=today,
-        binding_deadline__lte=today + timedelta(days=DUE_SOON_DAYS),
-    )
+    due_soon = issued.filter(due_soon_q)
 
     return _envelope(
         "department_head",
@@ -195,33 +203,65 @@ def department_head_dashboard(request, issued, today):
 # ---------------------------------------------------------------------------
 # Responsible employee
 # ---------------------------------------------------------------------------
+def _task_facts(blocks):
+    """Plan progress and evidence count for every case listed on the employee home.
+
+    Progress is the mean of the step percentages, a finished step counting as
+    100 — the same figure the case page shows.
+    """
+    ids = {item["id"] for block in blocks for item in block["items"]}
+    if not ids:
+        return {}
+    facts = {pk: {"progress": 0, "steps_done": 0, "steps_total": 0, "evidence": 0} for pk in ids}
+    sums = {pk: 0 for pk in ids}
+    for row in ActionStep.objects.filter(plan__recommendation_id__in=ids).values(
+        "plan__recommendation_id", "is_done", "progress_percent"
+    ):
+        pk = row["plan__recommendation_id"]
+        facts[pk]["steps_total"] += 1
+        facts[pk]["steps_done"] += int(row["is_done"])
+        sums[pk] += 100 if row["is_done"] else max(0, min(100, row["progress_percent"]))
+    for row in (
+        Evidence.objects.filter(recommendation_id__in=ids).values("recommendation_id").annotate(n=Count("id"))
+    ):
+        facts[row["recommendation_id"]]["evidence"] = row["n"]
+    for pk, fact in facts.items():
+        if fact["steps_total"]:
+            fact["progress"] = round(sums[pk] / fact["steps_total"])
+    return {str(pk): fact for pk, fact in facts.items()}
+
+
 def employee_dashboard(request, issued, today):
     mine = issued.filter(action_plan__responsible_employee=request.user)
+    action_center = {
+        # Returned by audit (partial / insufficient) or reopened by the Council.
+        "returned_for_more_evidence": _block(
+            mine.filter(status__in=(S.RETURNED_INSUFFICIENT, S.PARTIAL, S.REOPENED)), request, order=BY_DEADLINE
+        ),
+        "overdue": _block(mine.filter(overdue_q(today)), request, order=BY_DEADLINE),
+        "upcoming_deadlines": _block(
+            mine.filter(
+                status__in=DEPARTMENT_DEADLINE_STATUSES,
+                binding_deadline__gte=today,
+                binding_deadline__lte=today + timedelta(days=UPCOMING_DAYS),
+            ),
+            request,
+            order=BY_DEADLINE,
+        ),
+        "waiting_head_review": _block(mine.filter(status=S.PENDING_HEAD_REVIEW), request),
+    }
+    active_tasks = _block(
+        mine.filter(status__in=IN_EXECUTION_STATUSES + (S.ACTION_PLAN_APPROVED,)), request, order=BY_DEADLINE
+    )
+    waiting_on_others = _block(mine.filter(status__in=UNDER_REVIEW_STATUSES), request)
     return _envelope(
         "employee",
         request,
         issued,
-        action_center={
-            # Returned by audit (partial / insufficient) or reopened by the Council.
-            "returned_for_more_evidence": _block(
-                mine.filter(status__in=(S.RETURNED_INSUFFICIENT, S.PARTIAL, S.REOPENED)), request, order=BY_DEADLINE
-            ),
-            "overdue": _block(mine.filter(overdue_q(today)), request, order=BY_DEADLINE),
-            "upcoming_deadlines": _block(
-                mine.filter(
-                    status__in=DEPARTMENT_DEADLINE_STATUSES,
-                    binding_deadline__gte=today,
-                    binding_deadline__lte=today + timedelta(days=UPCOMING_DAYS),
-                ),
-                request,
-                order=BY_DEADLINE,
-            ),
-            "waiting_head_review": _block(mine.filter(status=S.PENDING_HEAD_REVIEW), request),
-        },
-        active_tasks=_block(
-            mine.filter(status__in=IN_EXECUTION_STATUSES + (S.ACTION_PLAN_APPROVED,)), request, order=BY_DEADLINE
-        ),
-        waiting_on_others=_block(mine.filter(status__in=UNDER_REVIEW_STATUSES), request),
+        action_center=action_center,
+        active_tasks=active_tasks,
+        waiting_on_others=waiting_on_others,
+        task_facts=_task_facts([*action_center.values(), active_tasks, waiting_on_others]),
         next_deadline=(
             mine.filter(status__in=DEPARTMENT_DEADLINE_STATUSES)
             .aggregate(next=Min("binding_deadline"))["next"]
