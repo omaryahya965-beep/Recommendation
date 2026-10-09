@@ -80,9 +80,15 @@ export default function LoginPage() {
   const [activeDemo, setActiveDemo] = useState<string | null>(null);
 
   useEffect(() => {
+    // The form is static HTML, so it can be typed into before the page has
+    // started: keep what is already in the fields rather than losing it.
+    const typedUser = usernameRef.current?.value ?? "";
+    const typedPass = passwordRef.current?.value ?? "";
+    if (typedPass) setPassword(typedPass);
     const saved = localStorage.getItem(REMEMBER_KEY);
-    if (saved) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (typedUser) {
+      setUsername(typedUser);
+    } else if (saved) {
       setUsername(saved);
       setRemember(true);
     }
@@ -126,8 +132,13 @@ export default function LoginPage() {
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    const nextUserError = username.trim() ? null : T.login.errorUsername;
-    const nextPassError = password ? null : T.login.errorPassword;
+    // Validate what the fields show (the DOM), which is what the user sees.
+    const user = usernameRef.current?.value ?? username;
+    const pass = passwordRef.current?.value ?? password;
+    if (user !== username) setUsername(user);
+    if (pass !== password) setPassword(pass);
+    const nextUserError = user.trim() ? null : T.login.errorUsername;
+    const nextPassError = pass ? null : T.login.errorPassword;
     setUsernameError(nextUserError);
     setPasswordError(nextPassError);
     setError(null);
@@ -135,7 +146,7 @@ export default function LoginPage() {
       (nextUserError ? usernameRef : passwordRef).current?.focus();
       return;
     }
-    await signIn(username, password);
+    await signIn(user, pass);
   };
 
   const pickDemo = async (account: (typeof DEMO_ACCOUNTS)[number]) => {
