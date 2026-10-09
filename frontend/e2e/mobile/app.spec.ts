@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { T } from "../../lib/i18n/ar";
-import { apiGet, firstRecommendationOf } from "../support/api";
+import { apiGet, findReport, firstRecommendationOf } from "../support/api";
 import { signIn } from "../support/auth";
 import { FIXTURES, uniqueSuffix } from "../support/env";
 import { expectNoHorizontalScroll } from "../support/layout";
@@ -150,5 +150,23 @@ test.describe("narrow phones", () => {
       await page.waitForLoadState("networkidle");
       await expectNoHorizontalScroll(page);
     }
+    const report = await findReport(request, "audit", FIXTURES.financeDraft);
+    await page.goto(`/audit/reports/${report.id}`);
+    await page.waitForLoadState("networkidle");
+    await expectNoHorizontalScroll(page);
   });
+
+  for (const [who, path] of [
+    ["head", "/department/dashboard"],
+    ["employee", "/employee/my-tasks"],
+    ["council", "/council/pending-approvals"],
+  ] as const) {
+    test(`the ${who} home fits 320px without sideways scrolling`, async ({ page, request }) => {
+      await signIn(page, request, who);
+      await page.goto(path);
+      await expect(page.getByTestId("home-summary")).toBeVisible();
+      await page.waitForLoadState("networkidle");
+      await expectNoHorizontalScroll(page);
+    });
+  }
 });

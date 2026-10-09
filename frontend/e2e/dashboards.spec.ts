@@ -43,14 +43,42 @@ test("the department head sees what is waiting on others, apart from its own del
   ).toBeVisible();
 });
 
+test("the department head's count cards open the exact lists they count", async ({ page, request }) => {
+  const { body } = await apiGet<{ action_center: Record<string, Block> }>(request, "head", "/api/dashboard/");
+  const keys = ["responses_needed", "plans_needed", "implementations_to_review", "overdue"];
+
+  await signIn(page, request, "head");
+  await page.goto("/department/dashboard");
+  const stats = page.getByTestId("home-stats").getByTestId("home-stat");
+  await expect(stats).toHaveCount(keys.length);
+  for (const [index, key] of keys.entries()) {
+    const href = (await stats.nth(index).getAttribute("href")) ?? "";
+    const query = href.split("?")[1] ?? "";
+    expect(await registerCount(request, "head", query), key).toBe(body.action_center[key].count);
+    await expect(stats.nth(index)).toContainText(String(body.action_center[key].count));
+  }
+  // The old sideways-scrolling metrics strip is gone.
+  await expect(page.locator(".snap-scroll-x")).toHaveCount(0);
+});
+
 test("the employee lands on the next task with its binding deadline", async ({ page, request }) => {
-  const { body } = await apiGet<{ active_tasks: Block }>(request, "employee", "/api/dashboard/");
+  const { body } = await apiGet<{ active_tasks: Block & { items: Array<{ id: number }> }; task_facts: Record<string, unknown> }>(
+    request,
+    "employee",
+    "/api/dashboard/"
+  );
   expect(body.active_tasks.count).toBeGreaterThan(0);
+  for (const item of body.active_tasks.items) expect(body.task_facts[String(item.id)]).toBeTruthy();
 
   await signIn(page, request, "employee");
   await page.goto("/employee/my-tasks");
   await expect(page.getByTestId("next-task").or(page.getByTestId("all-clear"))).toBeVisible();
-  await expect(page.getByTestId("active-tasks").getByRole("link")).toHaveCount(Math.min(10, body.active_tasks.count));
+  // Each task appears once, in its most urgent group, and every active task is listed.
+  const rows = page.getByTestId("my-tasks").getByTestId("task-row");
+  await expect(rows.first()).toBeVisible();
+  const ids = await rows.evaluateAll((nodes) => nodes.map((node) => Number(node.getAttribute("data-id"))));
+  expect(new Set(ids).size).toBe(ids.length);
+  for (const item of body.active_tasks.items) expect(ids).toContain(item.id);
 });
 
 test("the council sees its recent decisions", async ({ page, request }) => {
@@ -62,4 +90,7 @@ test("the council sees its recent decisions", async ({ page, request }) => {
   const feed = page.getByTestId("council-decisions");
   await expect(feed).toBeVisible();
   await expect(feed.getByText(T.home.decisionKinds.ratified).first()).toBeVisible();
+  // The decision center leads with the two decision queues.
+  await expect(page.getByTestId("council-ratify")).toBeVisible();
+  await expect(page.getByTestId("council-closures")).toBeVisible();
 });
