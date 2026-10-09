@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
+import { DashboardColumns, DashboardPage } from "@/components/home/DashboardLayout";
 import { HomeHero, type HeroStat } from "@/components/home/HomeHero";
 import { TeamPanel } from "@/components/home/RoleBlocks";
 import {
@@ -105,15 +106,13 @@ export default function DepartmentDashboard() {
     />
   );
 
-  // The hero is static: it renders at once, while only the data sections
-  // wait for /api/dashboard/. Same wrapper in both branches, so the hero is
-  // updated in place (not remounted) when the data arrives.
+  // The hero renders at once; only the data sections wait for /api/dashboard/.
   if (isLoading || isError || !data || !center) {
     return (
-      <div className="animate-fade-in min-w-0 space-y-5">
+      <DashboardPage>
         {hero}
         {isLoading ? <DashboardBodySkeleton /> : <ErrorBanner message={T.common.error} onRetry={() => refetch()} />}
-      </div>
+      </DashboardPage>
     );
   }
 
@@ -127,84 +126,84 @@ export default function DepartmentDashboard() {
   }));
 
   return (
-    <div className="animate-fade-in min-w-0 space-y-5 md:space-y-6">
+    <DashboardPage>
       {hero}
-
-      <div className="grid min-w-0 grid-cols-1 items-start gap-4 md:gap-5 lg:grid-cols-2">
-        <TabbedQueueCard
-          title={T.dashboard.departmentPriorities}
-          hint={T.dashboard.deptActionHint}
-          titleId="department-priorities-title"
-          tabs={tabs}
-          allHref={HREF.priorities}
-          order={byUrgency}
-          orderLabel={T.roleHome.mostUrgentFirst}
-          detailHref={detailHref}
-          timing="deadline"
-          showDepartment={false}
-          limit={5}
-          emptyTitle={T.dashboard.nothingPending}
-          emptyHint={T.dashboard.nothingPendingHint}
-          testId="department-priorities"
-          className="h-auto"
-          moreTestId="department-priorities-more"
-        />
-        <QueueListCard
-          title={T.roleHome.deptOverdue}
-          hint={T.roleHome.deptOverdueHint}
-          block={center.overdue}
-          href={HREF.overdue}
-          reason={reasons.overdue}
-          detailHref={detailHref}
-          tone="danger"
-          timing="deadline"
-          showDepartment={false}
-          emptyLabel={T.roleHome.noDeptOverdue}
-          limit={5}
-          testId="department-overdue"
-          className="h-auto"
-        />
-      </div>
-
-      <div className="grid min-w-0 grid-cols-1 items-start gap-4 md:gap-5 lg:grid-cols-2">
-        <TeamPanel team={data.team ?? []} registerBase={BASE} teamHref="/department/team-progress" className="h-auto" />
-        <QueueListCard
-          title={T.home.dueSoon}
-          hint={T.home.dueSoonHint}
-          block={data.due_soon}
-          href={HREF.due_soon}
-          reason={reasons.due_soon}
-          detailHref={detailHref}
-          tone="warning"
-          timing="deadline"
-          showDepartment={false}
-          emptyLabel={T.home.noDueSoon}
-          limit={4}
-          testId="due-soon"
-          className="h-auto"
-        />
-      </div>
-
-      {/* Not the department's delay: shown for follow-up only, drawn quieter. */}
-      <div className="grid min-w-0 grid-cols-1 items-start gap-4 md:gap-5 lg:grid-cols-2">
-        <QueueListCard
-          title={T.home.waitingOnOthers}
-          hint={T.home.waitingOnOthersHint}
-          block={data.waiting_on_others}
-          href={HREF.waiting}
-          reason={reasons.waiting}
-          detailHref={detailHref}
-          showDepartment={false}
-          emptyLabel={T.home.noWaitingOnOthers}
-          limit={3}
-          testId="waiting-on-others"
-          className="h-auto bg-subtle/40 [&_ul]:bg-surface/60"
-        />
-        {/* Phones reach the same feed from the bell; the home stays short. */}
-        <div className="flex min-w-0 flex-col max-md:hidden">
-          <RecentActivity role="department_head" limit={3} compact />
-        </div>
-      </div>
-    </div>
+      <DashboardColumns
+        main={
+          <>
+            <TabbedQueueCard
+              title={T.dashboard.departmentPriorities}
+              hint={T.dashboard.deptActionHint}
+              titleId="department-priorities-title"
+              tabs={tabs}
+              allHref={HREF.priorities}
+              order={byUrgency}
+              orderLabel={T.roleHome.mostUrgentFirst}
+              detailHref={detailHref}
+              timing="deadline"
+              showDepartment={false}
+              limit={5}
+              emptyTitle={T.dashboard.nothingPending}
+              emptyHint={T.dashboard.nothingPendingHint}
+              testId="department-priorities"
+              moreTestId="department-priorities-more"
+            />
+            <QueueListCard
+              title={T.roleHome.deptOverdue}
+              hint={T.roleHome.deptOverdueHint}
+              block={center.overdue}
+              href={HREF.overdue}
+              reason={reasons.overdue}
+              detailHref={detailHref}
+              tone="danger"
+              timing="deadline"
+              showDepartment={false}
+              emptyLabel={T.roleHome.noDeptOverdue}
+              limit={5}
+              testId="department-overdue"
+            />
+            <TeamPanel team={data.team ?? []} registerBase={BASE} teamHref="/department/team-progress" />
+          </>
+        }
+        aside={
+          <>
+            <QueueListCard
+              title={T.home.dueSoon}
+              hint={T.home.dueSoonHint}
+              block={data.due_soon}
+              href={HREF.due_soon}
+              reason={reasons.due_soon}
+              detailHref={detailHref}
+              tone="warning"
+              timing="deadline"
+              showDepartment={false}
+              emptyLabel={T.home.noDueSoon}
+              limit={4}
+              testId="due-soon"
+              dense
+            />
+            {/* Not the department's delay: shown for follow-up only, drawn quieter. */}
+            <QueueListCard
+              title={T.home.waitingOnOthers}
+              hint={T.home.waitingOnOthersHint}
+              block={data.waiting_on_others}
+              href={HREF.waiting}
+              reason={reasons.waiting}
+              detailHref={detailHref}
+              showDepartment={false}
+              emptyLabel={T.home.noWaitingOnOthers}
+              limit={3}
+              testId="waiting-on-others"
+              dense
+              className="bg-subtle/40 [&_ul]:bg-surface/60"
+            />
+            {/* Phones reach the same feed from the bell; the home stays short. */}
+            <div className="max-md:hidden">
+              <RecentActivity role="department_head" limit={3} compact />
+            </div>
+          </>
+        }
+      />
+    </DashboardPage>
   );
 }

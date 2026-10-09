@@ -3,6 +3,7 @@
 import { AlarmClock, CalendarClock, CheckCircle2, ClipboardList, Hourglass, PlayCircle, RotateCcw } from "lucide-react";
 
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
+import { DashboardColumns, DashboardPage } from "@/components/home/DashboardLayout";
 import { HomeHero, type HeroStat } from "@/components/home/HomeHero";
 import { groupTasks, NextTaskCard, TaskBoard } from "@/components/home/TaskList";
 import { QueueListCard, REASON_TONE } from "@/components/home/WorkQueue";
@@ -61,10 +62,10 @@ export default function MyTasksPage() {
   // updated in place (not remounted) when the data arrives.
   if (isLoading || isError || !data || !center) {
     return (
-      <div className="animate-fade-in min-w-0 space-y-5">
+      <DashboardPage>
         {hero}
         {isLoading ? <DashboardBodySkeleton /> : <ErrorBanner message={T.common.error} onRetry={() => refetch()} />}
-      </div>
+      </DashboardPage>
     );
   }
 
@@ -79,53 +80,57 @@ export default function MyTasksPage() {
   const next = firstGroup?.items[0];
 
   return (
-    <div className="animate-fade-in min-w-0 space-y-5 md:space-y-6">
+    <DashboardPage>
       {hero}
 
-      <div className="grid min-w-0 grid-cols-1 items-start gap-4 md:gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(19rem,30%)]">
-        <div className="min-w-0 space-y-4 md:space-y-5">
-          {next && firstGroup ? (
-            <NextTaskCard item={next} facts={facts[String(next.id)]} href={taskHref(next)} returned={firstGroup.id === "returned"} />
-          ) : (
-            <section
-              className="flex items-center gap-4 rounded-2xl border border-success/25 bg-success-light/40 p-5"
-              data-testid="all-clear"
-            >
-              <CheckCircle2 className="size-8 shrink-0 text-success-dark" aria-hidden />
-              <div className="min-w-0 flex-1">
-                <p className="font-heading text-[16px] font-bold text-success-dark">{T.home.allClear}</p>
-                <p className="text-[13px] text-ink-soft">
-                  {T.home.nextDeadline}:{" "}
-                  <span className="font-mono font-semibold text-ink" dir="ltr">
-                    {data.next_deadline ? formatDate(data.next_deadline) : T.home.noNextDeadline}
-                  </span>
-                </p>
-              </div>
-            </section>
-          )}
-          <TaskBoard groups={groups} facts={facts} hrefFor={taskHref} />
-        </div>
-
-        <div className="min-w-0 space-y-4 md:space-y-5">
-          {/* Submitted work: nothing to do but wait — drawn quieter. */}
-          <QueueListCard
-            title={T.home.waitingOnReviewers}
-            hint={T.home.waitingOnReviewersHint}
-            block={data.waiting_on_others}
-            href={LINKS.reviewing}
-            reason={{ id: "in_review", label: T.roleHome.statInReview, icon: Hourglass, tone: REASON_TONE.neutral }}
-            detailHref={taskHref}
-            showDepartment={false}
-            emptyLabel={T.home.noWaitingOnReviewers}
-            limit={4}
-            testId="in-review"
-            className="h-auto bg-subtle/40"
-          />
-          <div className="max-md:hidden">
-            <RecentActivity role="employee" limit={3} compact />
-          </div>
-        </div>
-      </div>
-    </div>
+      <DashboardColumns
+        main={
+          <>
+            {next && firstGroup ? (
+              <NextTaskCard item={next} facts={facts[String(next.id)]} href={taskHref(next)} returned={firstGroup.id === "returned"} />
+            ) : (
+              <section
+                className="flex items-center gap-4 rounded-2xl border border-success/25 bg-success-light/40 p-5"
+                data-testid="all-clear"
+              >
+                <CheckCircle2 className="size-8 shrink-0 text-success-dark" aria-hidden />
+                <div className="min-w-0 flex-1">
+                  <p className="font-heading text-[16px] font-bold text-success-dark">{T.home.allClear}</p>
+                  <p className="text-[13px] text-ink-soft">
+                    {T.home.nextDeadline}:{" "}
+                    <span className="font-mono font-semibold text-ink" dir="ltr">
+                      {data.next_deadline ? formatDate(data.next_deadline) : T.home.noNextDeadline}
+                    </span>
+                  </p>
+                </div>
+              </section>
+            )}
+            <TaskBoard groups={groups} facts={facts} hrefFor={taskHref} />
+          </>
+        }
+        aside={
+          <>
+            {/* Submitted work: nothing to do but wait — drawn quieter. */}
+            <QueueListCard
+              title={T.home.waitingOnReviewers}
+              hint={T.home.waitingOnReviewersHint}
+              block={data.waiting_on_others}
+              href={LINKS.reviewing}
+              reason={{ id: "in_review", label: T.roleHome.statInReview, icon: Hourglass, tone: REASON_TONE.neutral }}
+              detailHref={taskHref}
+              showDepartment={false}
+              emptyLabel={T.home.noWaitingOnReviewers}
+              limit={4}
+              testId="in-review"
+              dense
+              className="bg-subtle/40"
+            />
+            <div className="max-md:hidden">
+              <RecentActivity role="employee" limit={3} compact />
+            </div>
+          </>
+        }
+      />
+    </DashboardPage>
   );
 }

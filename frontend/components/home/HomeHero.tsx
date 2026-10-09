@@ -34,6 +34,8 @@ export interface HeroStat {
   icon: LucideIcon;
   /** The tone while the count is above zero; an empty queue reads as success. */
   tone: "primary" | "danger" | "warning";
+  /** Shown from tablets up only (the phone home keeps its shortest summary). */
+  desktopOnly?: boolean;
 }
 
 const STAT_CARD: Record<HeroStat["tone"] | "success", string> = {
@@ -156,6 +158,7 @@ export function HomeHero({
   // is the real viewport on first render: each layout requests only its own
   // photo size.
   const phone = useIsPhone();
+  const phoneStats = stats?.filter((stat) => !stat.desktopOnly);
 
   useEffect(() => {
     const auth = loadAuth();
@@ -216,8 +219,8 @@ export function HomeHero({
           </div>
         </section>
 
-        {stats?.length ? (
-          <StatCards stats={stats} testId="home-summary" />
+        {phoneStats?.length ? (
+          <StatCards stats={phoneStats} testId="home-summary" />
         ) : summary?.length ? (
           <ul className="grid gap-2" data-testid="home-summary">
             {summary.map((item) => (
@@ -377,11 +380,13 @@ export function HomeHero({
       </div>
     </section>
   );
-  if (!compact || !stats?.length) return banner;
+  if (!compact) return banner;
+  // One wrapper whether or not the counts have arrived, so the banner is
+  // updated in place rather than remounted when they do.
   return (
     <div className="space-y-4">
       {banner}
-      <StatCards stats={stats} />
+      {stats?.length ? <StatCards stats={stats} /> : null}
     </div>
   );
 }

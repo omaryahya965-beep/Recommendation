@@ -116,6 +116,7 @@ export function QueueCaseRow({
   showReason = true,
   timing = "arrival",
   showDepartment = true,
+  dense = false,
 }: {
   item: RecommendationListItem;
   href: string;
@@ -124,14 +125,17 @@ export function QueueCaseRow({
   /** `arrival`: time in the queue; `deadline`: the binding deadline chip. */
   timing?: "arrival" | "deadline";
   showDepartment?: boolean;
+  /** The stacked phone row on every screen (a dashboard's side rail). */
+  dense?: boolean;
 }) {
   useI18n();
   const phone = useIsPhone();
+  const stacked = phone || dense;
   const Icon = reason.icon;
   const byDeadline = timing === "deadline";
 
-  if (phone) {
-    // Phones: title and reference first, then who and where, then one line
+  if (stacked) {
+    // Phones and rails: title and reference first, then who and where, then one line
     // of chips (why it is here, high risk, how long). The whole row is the link.
     return (
       <li>
@@ -140,11 +144,11 @@ export function QueueCaseRow({
           data-testid="queue-item"
           data-id={item.id}
           data-queue={reason.id}
-          className="flex min-w-0 items-center gap-2.5 px-4 py-3.5 active:bg-subtle/70"
+          className="group flex min-w-0 items-center gap-2.5 px-4 py-3.5 transition-colors hover:bg-subtle/50 active:bg-subtle/70 md:px-5"
         >
           <span className="min-w-0 flex-1">
             <span className="flex min-w-0 items-start justify-between gap-2">
-              <span className="line-clamp-2 min-w-0 text-[15px] font-bold leading-snug text-navy">
+              <span className="line-clamp-2 min-w-0 text-[15px] font-bold leading-snug text-navy group-hover:text-primary-dark md:text-[14.5px]">
                 <bdi>{clipTitle(item.title, 120)}</bdi>
               </span>
               <span className="mt-0.5 shrink-0">
@@ -571,6 +575,7 @@ export function QueueListCard({
   limit = 3,
   testId,
   className,
+  dense = false,
 }: {
   title: string;
   hint?: ReactNode;
@@ -586,6 +591,8 @@ export function QueueListCard({
   limit?: number;
   testId?: string;
   className?: string;
+  /** Stacked rows, for a dashboard's side rail. */
+  dense?: boolean;
 }) {
   useI18n();
   const count = block?.count ?? 0;
@@ -614,6 +621,7 @@ export function QueueListCard({
                 showReason={showReason}
                 timing={timing}
                 showDepartment={showDepartment}
+                dense={dense}
               />
             ))}
           </ul>
@@ -675,6 +683,7 @@ export function ReportQueueCard({
   emptyLabel,
   limit = 3,
   testId,
+  dense = false,
 }: {
   title: string;
   hint?: ReactNode;
@@ -684,6 +693,8 @@ export function ReportQueueCard({
   emptyLabel: string;
   limit?: number;
   testId?: string;
+  /** Two-line titles and no date column, for a dashboard's side rail. */
+  dense?: boolean;
 }) {
   useI18n();
   const count = block?.count ?? 0;
@@ -709,7 +720,12 @@ export function ReportQueueCard({
                     <FileText className="size-4.5" />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[14px] font-bold text-navy group-hover:text-primary-dark">
+                    <span
+                      className={cn(
+                        "block text-[14px] font-bold text-navy group-hover:text-primary-dark",
+                        dense ? "line-clamp-2 leading-snug" : "truncate"
+                      )}
+                    >
                       <bdi>{report.title}</bdi>
                     </span>
                     <span className="mt-0.5 block truncate text-[12px] text-ink-soft">
@@ -717,7 +733,7 @@ export function ReportQueueCard({
                       {plural(report.recommendations_count, T.home.recommendationsCount)}
                     </span>
                   </span>
-                  <span className="hidden shrink-0 font-mono text-[11.5px] text-muted sm:inline" dir="ltr">
+                  <span className={cn("hidden shrink-0 font-mono text-[11.5px] text-muted", !dense && "sm:inline")} dir="ltr">
                     {formatDate(report.updated_at)}
                   </span>
                   <DirForward className="size-4 shrink-0 text-muted group-hover:text-primary-dark" />
