@@ -558,6 +558,7 @@ function RegisterInner({
     <label className="flex min-h-11 items-center gap-2.5 text-[14px] font-bold text-navy cursor-pointer select-none">
       <input
         type="checkbox"
+        name="overdue"
         checked={overdueOnly}
         onChange={(event) => setParams({ overdue: event.target.checked ? "1" : null })}
         className="size-4.5 rounded border-line text-primary focus:ring-primary accent-primary"
@@ -567,6 +568,7 @@ function RegisterInner({
     <label className="flex min-h-11 items-center gap-2.5 text-[14px] font-bold text-navy cursor-pointer select-none">
       <input
         type="checkbox"
+        name="is_recurring"
         checked={recurringOnly}
         onChange={(event) => setParams({ is_recurring: event.target.checked ? "true" : null })}
         className="size-4.5 rounded border-line text-primary focus:ring-primary accent-primary"
@@ -576,6 +578,7 @@ function RegisterInner({
     <label className="flex min-h-11 items-center gap-2.5 text-[14px] font-bold text-navy cursor-pointer select-none">
       <input
         type="checkbox"
+        name="my_turn"
         checked={searchParams.get("my_turn") === "true"}
         onChange={(event) => setParams({ my_turn: event.target.checked ? "true" : null })}
         className="size-4.5 rounded border-line text-primary focus:ring-primary accent-primary"

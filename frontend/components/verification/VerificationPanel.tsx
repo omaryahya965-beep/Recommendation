@@ -337,6 +337,7 @@ export function VerificationPanel({
                 <label className="flex min-h-11 cursor-pointer items-start gap-3">
                   <input
                     type="checkbox"
+                    name="send_to_council"
                     checked={sendToCouncil}
                     onChange={(event) => setSendToCouncil(event.target.checked)}
                     className="mt-1 size-5 shrink-0 accent-primary"

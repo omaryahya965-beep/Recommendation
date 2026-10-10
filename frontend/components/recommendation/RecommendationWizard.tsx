@@ -384,6 +384,7 @@ export function RecommendationWizard({
             <div className="flex items-center gap-4">
               <input
                 type="range"
+                name="priority_score"
                 min={0}
                 max={100}
                 step={5}

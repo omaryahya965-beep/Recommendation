@@ -44,6 +44,7 @@ export function ProgressSlider({
     <span className={cn("inline-flex items-center gap-2", className)}>
       <input
         type="range"
+        name="progress"
         min={0}
         max={100}
         step={10}

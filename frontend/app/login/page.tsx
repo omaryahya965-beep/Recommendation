@@ -371,6 +371,7 @@ export default function LoginPage() {
                       <span>{T.login.rememberMe}</span>
                       <input
                         type="checkbox"
+                        name="remember"
                         checked={remember}
                         onChange={(e) => setRemember(e.target.checked)}
                         className="size-3.5 rounded border-[var(--login-border)] bg-[var(--login-field)] text-[var(--login-accent)] focus:ring-[var(--login-accent)]"

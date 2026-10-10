@@ -105,6 +105,7 @@ function GlobalSearch({ role }: { role: Role }) {
       <Search className="pointer-events-none absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-muted" />
       <input
         ref={inputRef}
+        name="q"
         value={q}
         onChange={(e) => {
           setQ(e.target.value);
@@ -391,7 +392,7 @@ function ShellFrame({
                 height={397}
                 sizes="96px"
                 draggable={false}
-                className="h-9 w-auto select-none"
+                className="aspect-[760/397] h-9 w-auto select-none"
               />
               <p className="truncate text-[12px] font-medium text-sidebar-muted">
                 {ROLE_LABELS[role]}

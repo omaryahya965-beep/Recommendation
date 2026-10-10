@@ -110,19 +110,25 @@ const FIELD_CLASS =
   "w-full min-h-11 rounded-md border border-line bg-surface px-3.5 py-2.5 text-base md:text-[14px] " +
   "text-ink outline-none transition-all duration-200 hover:border-muted/40 focus:border-primary focus:bg-surface focus:ring-4 focus:ring-primary/10";
 
+// Every control gets an id (the caller's, else a stable generated one): the
+// browser expects form fields to be identifiable (id or name), and autofill
+// and focus restoration rely on it. Labels stay associated by nesting (Field).
 export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   useI18n();
-  return <input {...props} className={cn(FIELD_CLASS, props.className)} />;
+  const fallbackId = useId();
+  return <input {...props} id={props.id ?? fallbackId} className={cn(FIELD_CLASS, props.className)} />;
 }
 
 export function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   useI18n();
-  return <textarea rows={3} {...props} className={cn(FIELD_CLASS, "resize-y", props.className)} />;
+  const fallbackId = useId();
+  return <textarea rows={3} {...props} id={props.id ?? fallbackId} className={cn(FIELD_CLASS, "resize-y", props.className)} />;
 }
 
 export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
   useI18n();
-  return <select {...props} className={cn(FIELD_CLASS, props.className)} />;
+  const fallbackId = useId();
+  return <select {...props} id={props.id ?? fallbackId} className={cn(FIELD_CLASS, props.className)} />;
 }
 
 export function ErrorBanner({

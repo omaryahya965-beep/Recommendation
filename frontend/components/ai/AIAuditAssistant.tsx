@@ -302,6 +302,7 @@ export function AIAuditAssistant() {
         <div className="relative">
           <textarea
             ref={textareaRef}
+            name="question"
             value={text}
             rows={2}
             placeholder={T.ai.askPlaceholder}

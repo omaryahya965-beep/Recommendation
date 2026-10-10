@@ -112,6 +112,7 @@ export function EvidenceUploadForm({
               <input
                 ref={cameraRef}
                 type="file"
+                name="camera"
                 accept="image/*"
                 capture="environment"
                 className="sr-only"
