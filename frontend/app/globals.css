@@ -20,7 +20,7 @@
   --color-line: #d3ddd9;
   --color-ink: #14201e;
   --color-ink-soft: #4f5f5b;
-  --color-muted: #6e7c78;
+  --color-muted: #636f6c; /* AA (4.5:1) on surface, bg, subtle and primary-light */
   --color-success: #21845a;
   --color-success-dark: #186848;
   --color-success-light: #e6f4ee;
@@ -44,6 +44,13 @@
   --color-inverse: #183b4e;
   --color-on-inverse: #f7fbfa;
   --color-overlay: rgb(20 32 30 / 0.45);
+
+  /* Chart series (validated: lightness band, chroma, CVD and contrast against
+     the light surface). Series 1 teal, series 2 amber; text never wears them. */
+  --color-chart-1: #00897b;
+  --color-chart-1-track: #d9efec;
+  --color-chart-2: #b26b00;
+  --color-chart-grid: #e4ebe8;
 
   --color-olive: #176b63;
   --color-olive-dark: #0f4f49;
@@ -127,6 +134,11 @@
   --color-inverse: #243542;
   --color-on-inverse: #eef4f6;
   --color-overlay: rgb(6 10 12 / 0.62);
+  /* Chart series re-validated against the dark surface (#1a2329). */
+  --color-chart-1: #169a8b;
+  --color-chart-1-track: #1f3b3a;
+  --color-chart-2: #c27a1c;
+  --color-chart-grid: #2c3a42;
   --color-olive: #3ea396;
   --color-olive-dark: #8ed4cb;
   --color-olive-tint: #1c3533;
@@ -154,6 +166,34 @@
   --shadow-card-hover: 0 6px 16px rgb(0 0 0 / 0.25), 0 12px 32px rgb(0 0 0 / 0.15);
 }
 
+/* The dark theme lightens every semantic fill so it reads against dark
+   surfaces, which leaves white text on it unreadable (an "Accept" button was
+   2.9:1, "Return" 1.8:1). Text on a solid fill takes the dark surface colour
+   instead; the light theme keeps white. */
+[data-theme="dark"]
+  :is(
+    .bg-primary,
+    .bg-primary-dark,
+    .bg-success,
+    .bg-success-dark,
+    .bg-info,
+    .bg-info-dark,
+    .bg-warning,
+    .bg-warning\/90,
+    .bg-warning-dark,
+    .bg-danger,
+    .bg-danger-dark,
+    .bg-ai,
+    .bg-ai-dark,
+    .bg-navy,
+    .bg-olive,
+    .bg-seal,
+    .bg-slate,
+    .bg-brass
+  ).text-white {
+  color: var(--color-surface);
+}
+
 html {
   font-size: 16px;
   overflow-x: clip;
@@ -163,6 +203,9 @@ body {
   background: var(--color-bg);
   color: var(--color-ink);
   font-family: var(--font-body);
+  /* A long unbroken token (an ERP code, a file name, a URL) wraps instead of
+     being clipped or widening its card; ordinary words are unaffected. */
+  overflow-wrap: break-word;
   font-size: 0.9375rem;
   line-height: 1.7;
   letter-spacing: 0;
@@ -232,6 +275,14 @@ select {
   outline-offset: 2px;
 }
 
+/* Horizontal chip rows on phones scroll by touch; no bar needed. */
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 .scrollbar-thin {
   scrollbar-width: thin;
   scrollbar-color: var(--color-line) transparent;
@@ -297,46 +348,20 @@ select {
   }
 }
 
+/* Entrance animations fill BACKWARDS only: a transform kept after the
+   animation (fill "forwards") turns the element into the containing block of
+   every position:fixed descendant, which pinned the phone's sticky action
+   bars to the end of the page instead of the screen. */
 .animate-fade-in {
-  animation: fade-in 280ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: fade-in 280ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
 .animate-slide-up {
-  animation: slide-up 250ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: slide-up 250ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
 .animate-scale-in {
-  animation: scale-in 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-@keyframes drawer-in {
-  from {
-    opacity: 0.4;
-    transform: translateX(-1.25rem);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-[dir="rtl"] .animate-drawer-in {
-  animation: drawer-in-rtl 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-@keyframes drawer-in-rtl {
-  from {
-    opacity: 0.4;
-    transform: translateX(1.25rem);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-.animate-drawer-in {
-  animation: drawer-in 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: scale-in 200ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
 .touch-target {
@@ -369,59 +394,26 @@ select {
 
 /* Dashboard visual redesign utilities */
 
-@keyframes pulse-accent {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+/* Upload in progress (the browser does not report progress for fetch). */
+@keyframes indeterminate {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(320%); }
+}
+[dir="rtl"] .animate-\[indeterminate_1\.2s_ease-in-out_infinite\] {
+  animation-direction: reverse;
+}
+
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.animate-sheet-up {
+  animation: sheet-up 260ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
 @keyframes subtle-lift {
   from { transform: translateY(0); }
   to { transform: translateY(-2px); }
-}
-
-.kpi-lift {
-  transition: transform 250ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 250ms ease;
-}
-.kpi-lift:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-card-hover);
-}
-
-.kpi-accent-danger {
-  border-inline-start: 4px solid var(--color-danger);
-}
-.kpi-accent-danger.kpi-active {
-  animation: pulse-accent 2s ease-in-out infinite;
-}
-.kpi-accent-warning {
-  border-inline-start: 4px solid var(--color-warning);
-}
-.kpi-accent-primary {
-  border-inline-start: 4px solid var(--color-primary);
-}
-.kpi-accent-muted {
-  border-inline-start: 4px solid var(--color-line);
-}
-
-.list-accent-bar {
-  position: relative;
-  overflow: hidden;
-}
-.list-accent-bar::before {
-  content: "";
-  position: absolute;
-  inset-inline-start: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: var(--color-primary);
-  transform: scaleY(0);
-  opacity: 0;
-  transition: transform 250ms cubic-bezier(0.16, 1, 0.3, 1), opacity 200ms ease;
-}
-.list-accent-bar:hover::before {
-  transform: scaleY(1);
-  opacity: 1;
 }
 
 .section-elevated {
@@ -433,13 +425,47 @@ select {
   box-shadow: var(--shadow-card-hover);
 }
 
-.divider-soft > * + * {
-  border-top: 1px solid color-mix(in srgb, var(--color-line) 60%, transparent);
-}
-
-.snap-scroll-x {
-  scroll-snap-type: x mandatory;
-}
-.snap-scroll-x > * {
-  scroll-snap-align: start;
+/* ---------------------------------------------------------------------- */
+/* Print: the page content only, on white, with status colours kept.      */
+/* ---------------------------------------------------------------------- */
+@media print {
+  @page {
+    margin: 14mm 12mm;
+  }
+  html,
+  body {
+    background: #fff !important;
+    color: #111 !important;
+  }
+  * {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+  section,
+  li,
+  tr,
+  .section-elevated {
+    break-inside: avoid;
+  }
+  h1,
+  h2,
+  h3 {
+    break-after: avoid;
+  }
+  a {
+    text-decoration: none !important;
+  }
+  /* Interactive controls carry no information on paper. */
+  [data-print="hide"],
+  button[aria-expanded] svg {
+    display: none !important;
+  }
 }

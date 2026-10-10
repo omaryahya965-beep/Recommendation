@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { AlertTriangle, Check, ExternalLink, Sparkles } from "lucide-react";
+import { AlertTriangle, Check, Sparkles } from "lucide-react";
 
 import { Button, ErrorBanner } from "@/components/ui/Base";
 import { uiLanguage } from "@/lib/ai";
@@ -13,7 +13,7 @@ import type { AIAnalysisEnvelope, AIJob } from "@/lib/types";
 
 import { AIConfidenceBadge, AIJobStatus, ScoreRow } from "./AIPrimitives";
 
-export function AIEvidenceAnalysis({ evidenceId, fileUrl }: { evidenceId: number; fileUrl?: string | null }) {
+export function AIEvidenceAnalysis({ evidenceId }: { evidenceId: number }) {
   useI18n();
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
@@ -109,18 +109,6 @@ export function AIEvidenceAnalysis({ evidenceId, fileUrl }: { evidenceId: number
             </div>
           ) : null}
 
-          {/* File link */}
-          {fileUrl ? (
-            <a
-              href={fileUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 text-[12px] font-bold text-primary-dark hover:underline"
-            >
-              {T.common.details}
-              <ExternalLink className="size-3" aria-hidden />
-            </a>
-          ) : null}
         </div>
       ) : null}
     </div>

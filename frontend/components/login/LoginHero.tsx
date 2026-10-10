@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 
-import { LoginToolbar } from "@/components/login/LoginToolbar";
 import { MunicipalityMark } from "@/components/login/MunicipalityMark";
 import { T, useI18n } from "@/lib/i18n";
 import { RaqeebWordmark } from "@/components/brand/RaqeebWordmark";

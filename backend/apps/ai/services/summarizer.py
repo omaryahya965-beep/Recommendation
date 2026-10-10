@@ -31,11 +31,15 @@ OPEN = [s for s, _ in S.choices if s not in (S.CLOSED, S.DRAFT)]
 
 
 def _scoped_recs(user):
-    return scope_recommendations(
-        Recommendation.objects.select_related(
-            "report__department", "action_plan__responsible_employee"
-        ).exclude(status=S.DRAFT),
-        user,
+    from apps.workflow.presentation import annotate_workflow
+
+    return annotate_workflow(
+        scope_recommendations(
+            Recommendation.objects.select_related(
+                "report__department", "action_plan__responsible_employee"
+            ).exclude(status=S.DRAFT),
+            user,
+        )
     )
 
 
@@ -43,7 +47,11 @@ def _stats_from_qs(qs):
     total = qs.count()
     closed = qs.filter(status=S.CLOSED).count()
     open_count = qs.filter(status__in=OPEN).count()
-    overdue = sum(1 for rec in qs.select_related("action_plan") if is_overdue(rec))
+    from apps.workflow.presentation import annotate_workflow, overdue_q
+
+    qs = annotate_workflow(qs)
+    # Counted in SQL: this used to load and test every recommendation in Python.
+    overdue = qs.filter(overdue_q()).count()
     by_dept = {}
     overdue_by_dept = {}
     recurring = 0
@@ -83,6 +91,47 @@ def _stats_from_qs(qs):
         "theme_hints": themes,
         "top_theme": top_theme,
         "items": items[:80],
+    }
+
+
+def _followup_period_stats(user, recs, start, end):
+    """Summary statistics for a follow-up period, as of its end (see
+    apps.followup), restricted to the recommendations in `recs`."""
+    from datetime import date
+
+    from apps.followup.services import build_followup_snapshot
+
+    period_start = start if isinstance(start, date) else date.fromisoformat(str(start))
+    period_end = end if isinstance(end, date) else date.fromisoformat(str(end))
+    visible = set(recs.values_list("id", flat=True))
+    snap = build_followup_snapshot(user.municipality, period_start, period_end)
+    items = [item for item in snap.get("items") or [] if item["id"] in visible]
+    by_dept, overdue_by_dept = {}, {}
+    for item in items:
+        by_dept[item["department"]] = by_dept.get(item["department"], 0) + 1
+        if item.get("overdue"):
+            overdue_by_dept[item["department"]] = overdue_by_dept.get(item["department"], 0) + 1
+    closed = sum(1 for item in items if item.get("status") == S.CLOSED)
+    return {
+        "total": len(items),
+        "closed": closed,
+        "open": len(items) - closed,
+        "overdue": sum(1 for item in items if item.get("overdue")),
+        "recurring": sum(1 for item in items if item.get("is_recurring")),
+        "by_department": by_dept,
+        "overdue_by_department": overdue_by_dept,
+        "top_overdue_department": max(overdue_by_dept, key=overdue_by_dept.get) if overdue_by_dept else None,
+        "theme_hints": {},
+        "top_theme": None,
+        "items": [
+            {"id": item["id"], "reference": item["reference"], "status": item["status"],
+             "department": item["department"], "risk_level": item["risk_level"],
+             "overdue": item["overdue"], "is_recurring": item["is_recurring"]}
+            for item in items[:80]
+        ],
+        "period_start": str(period_start),
+        "period_end": str(period_end),
+        "as_of": snap.get("as_of_date"),
     }
 
 
@@ -249,6 +298,11 @@ def generate_summary(user, payload: dict, language: str = "ar") -> AIAnalysis:
             stats["overdue_by_department"] = overdue_depts
             stats["top_overdue_department"] = max(overdue_depts, key=overdue_depts.get) if overdue_depts else None
             target_id = fup.id
+        elif start and end:
+            # The same as-of picture a follow-up report would freeze, limited
+            # to what this user may see.
+            stats = _followup_period_stats(user, recs, start, end)
+            target_id = 0
         else:
             stats = _stats_from_qs(qs)
             target_id = 0

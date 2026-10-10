@@ -25,7 +25,7 @@ import {
 import { cn } from "@/lib/cn";
 import { latestVerification, outstandingRequirements, planProgress } from "@/lib/case";
 import { parseFinding } from "@/lib/finding";
-import { formatDate, formatDateTime } from "@/lib/format";
+import { formatDate, formatDateTime, localISODate } from "@/lib/format";
 import type { WorkflowAction } from "@/lib/hooks";
 import { T, VERIFICATION_LABELS, useI18n } from "@/lib/i18n";
 import type { RecommendationDetail, VerificationDecision } from "@/lib/types";
@@ -44,7 +44,7 @@ const DECISION_STYLE = {
   insufficient: "border-danger/25 bg-danger/8 text-danger-dark",
 } as const;
 
-function DecisionRecord({ decision }: { decision: VerificationDecision }) {
+export function DecisionRecord({ decision }: { decision: VerificationDecision }) {
   useI18n();
   const Icon = DECISION_ICON[decision.decision];
   return (
@@ -72,7 +72,7 @@ function DecisionRecord({ decision }: { decision: VerificationDecision }) {
 
       {/* Structured rejection fields */}
       {decision.decision !== "sufficient" ? (
-        <dl className="mt-3 grid gap-3 border-t border-line pt-3 sm:grid-cols-3">
+        <dl className="mt-3 grid grid-cols-1 gap-3 border-t border-line pt-3 sm:grid-cols-3">
           {decision.rejection_reason?.trim() ? (
             <DataField label={T.verify.returnReason}>{decision.rejection_reason}</DataField>
           ) : null}
@@ -108,7 +108,7 @@ function DeskContext({ rec }: { rec: RecommendationDetail }) {
   return (
     <div className="space-y-5">
       {/* Summary stats */}
-      <dl className="grid gap-3 sm:grid-cols-3">
+      <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="rounded-xl border border-line bg-surface p-4 text-center shadow-sm">
           <dt className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1">{T.verify.recommendationLabel}</dt>
           <dd className="text-[13px] font-semibold text-navy line-clamp-2 text-start">{statement}</dd>
@@ -130,7 +130,7 @@ function DeskContext({ rec }: { rec: RecommendationDetail }) {
       </dl>
 
       {/* Context grids */}
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <ProseBlock label={T.verify.whatRequired}>
           {statement}
           {expected ? (
@@ -173,10 +173,13 @@ export function VerificationPanel({
   rec,
   action,
   canVerify,
+  showHistory = true,
 }: {
   rec: RecommendationDetail;
   action?: WorkflowAction;
   canVerify: boolean;
+  /** The workspace shows the history in its own section. */
+  showHistory?: boolean;
 }) {
   useI18n();
   const [decision, setDecision] = useState<Decision>("sufficient");
@@ -188,10 +191,14 @@ export function VerificationPanel({
   const [checklist, setChecklist] = useState<ChecklistState>(emptyChecklist);
   const [localError, setLocalError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
+  // W4: on by default when the server allows the combined action.
+  const combinedAvailable = Boolean(rec.workflow?.combined_closure_available);
+  const [sendToCouncil, setSendToCouncil] = useState(true);
+  const [closureNotes, setClosureNotes] = useState("");
 
-  const decisions = rec.verifications ?? [];
   const outstanding = latestVerification(rec);
   const structuredRequired = decision !== "sufficient";
+  const combined = combinedAvailable && decision === "sufficient" && sendToCouncil;
   const composedNotes = composeChecklistNotes(checklist, notes);
 
   const ask = (event: React.FormEvent) => {
@@ -213,14 +220,16 @@ export function VerificationPanel({
     setConfirming(false);
     action.mutation.mutate({
       path: "verify/",
-      body: {
-        decision,
-        notes: composedNotes,
-        rejected_items: rejectedItems,
-        rejection_reason: rejectionReason,
-        required_action: requiredAction,
-        action_deadline: actionDeadline || null,
-      },
+      body: combined
+        ? { decision, notes: composedNotes, send_to_council: true, closure_notes: closureNotes }
+        : {
+            decision,
+            notes: composedNotes,
+            rejected_items: rejectedItems,
+            rejection_reason: rejectionReason,
+            required_action: requiredAction,
+            action_deadline: actionDeadline || null,
+          },
     });
   };
 
@@ -235,7 +244,7 @@ export function VerificationPanel({
       {/* Outstanding rejection callout */}
       {outstanding && outstanding.decision !== "sufficient" ? (
         <Callout tone="danger" title={T.verify.outstanding} icon={<ShieldAlert className="size-4" />}>
-          <dl className="mt-3 grid gap-3 sm:grid-cols-3">
+          <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
             {outstanding.rejection_reason?.trim() ? (
               <DataField label={T.verify.returnReason}>{outstanding.rejection_reason}</DataField>
             ) : null}
@@ -283,7 +292,7 @@ export function VerificationPanel({
             {structuredRequired ? (
               <div className="mt-5 space-y-4 border-t border-white/15 pt-5 text-ink">
                 <p className="text-[12px] font-bold text-warning-light">{T.verify.structuredRequired}</p>
-                <div className="grid gap-4 rounded-xl bg-surface p-5 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 rounded-xl bg-surface p-5 sm:grid-cols-2">
                   <Field label={`${T.verify.rejectedItems} *`}>
                     <TextArea
                       rows={2}
@@ -312,12 +321,37 @@ export function VerificationPanel({
                     <TextInput
                       type="date"
                       dir="ltr"
+                      min={localISODate()}
                       value={actionDeadline}
                       onChange={(event) => setActionDeadline(event.target.value)}
                       required
                     />
+                    <p className="mt-1.5 text-xs text-muted">{T.verify.deadlineBinding}</p>
                   </Field>
                 </div>
+              </div>
+            ) : null}
+
+            {combinedAvailable && decision === "sufficient" ? (
+              <div className="mt-5 space-y-3 rounded-xl bg-white/10 p-4">
+                <label className="flex min-h-11 cursor-pointer items-start gap-3">
+                  <input
+                    type="checkbox"
+                    name="send_to_council"
+                    checked={sendToCouncil}
+                    onChange={(event) => setSendToCouncil(event.target.checked)}
+                    className="mt-1 size-5 shrink-0 accent-primary"
+                  />
+                  <span>
+                    <span className="block text-[14px] font-bold text-on-inverse">{T.verify.sendToCouncil}</span>
+                    <span className="mt-0.5 block text-[12.5px] text-on-inverse/75">{T.verify.sendToCouncilHint}</span>
+                  </span>
+                </label>
+                {sendToCouncil ? (
+                  <Field label={T.verify.closureNotes} className="text-ink">
+                    <TextArea rows={2} value={closureNotes} onChange={(event) => setClosureNotes(event.target.value)} />
+                  </Field>
+                ) : null}
               </div>
             ) : null}
 
@@ -337,7 +371,7 @@ export function VerificationPanel({
               disabled={action.mutation.isPending}
             >
               <ShieldCheck className="size-4" />
-              {T.verify.submit}
+              {combined ? T.verify.submitAndSend : T.verify.submit}
             </Button>
           </section>
 
@@ -349,10 +383,11 @@ export function VerificationPanel({
                 <p>
                   {T.verify.decision}: <strong>{VERIFICATION_LABELS[decision]}</strong>
                 </p>
+                {combined ? <p className="mt-2">{T.verify.confirmBoth}</p> : null}
                 <p className="mt-2">{T.confirm.irreversible}</p>
               </>
             }
-            confirmLabel={T.verify.submit}
+            confirmLabel={combined ? T.verify.submitAndSend : T.verify.submit}
             tone={decision === "sufficient" ? "primary" : "danger"}
             busy={action.mutation.isPending}
             onConfirm={submit}
@@ -363,29 +398,37 @@ export function VerificationPanel({
 
       <Callout tone="ai">{T.verify.aiCannotVerify}</Callout>
 
-      {/* Decision history */}
-      <section className="border-t border-line pt-6">
-        <h3 className="mb-4 flex items-center gap-2 font-heading text-[15px] font-bold text-navy">
-          {T.verify.history}
-          <span className="rounded-full bg-primary/10 px-2.5 py-0.5 font-mono text-[11px] font-bold text-primary-dark" dir="ltr">
-            {decisions.length}
-          </span>
-        </h3>
-        {decisions.length ? (
-          <ul className="space-y-3">
-            {[...decisions].reverse().map((item) => (
-              <DecisionRecord key={item.id} decision={item} />
-            ))}
-          </ul>
-        ) : (
-          <EmptyState
-            icon={<ShieldCheck className="size-6" />}
-            title={T.case.noVerificationYet}
-            description={T.verification.dutyNote}
-            className="border-dashed shadow-none"
-          />
-        )}
-      </section>
+      {showHistory ? <VerificationHistory rec={rec} className="border-t border-line pt-6" /> : null}
     </div>
+  );
+}
+
+/** Every verification decision on the case, newest first. */
+export function VerificationHistory({ rec, className }: { rec: RecommendationDetail; className?: string }) {
+  useI18n();
+  const decisions = rec.verifications ?? [];
+  return (
+    <section className={className}>
+      <h3 className="mb-4 flex items-center gap-2 font-heading text-[15px] font-bold text-navy">
+        {T.verify.history}
+        <span className="rounded-full bg-primary/10 px-2.5 py-0.5 font-mono text-[11px] font-bold text-primary-dark" dir="ltr">
+          {decisions.length}
+        </span>
+      </h3>
+      {decisions.length ? (
+        <ul className="space-y-3">
+          {[...decisions].reverse().map((item) => (
+            <DecisionRecord key={item.id} decision={item} />
+          ))}
+        </ul>
+      ) : (
+        <EmptyState
+          icon={<ShieldCheck className="size-6" />}
+          title={T.case.noVerificationYet}
+          description={T.verification.dutyNote}
+          className="border-dashed shadow-none"
+        />
+      )}
+    </section>
   );
 }

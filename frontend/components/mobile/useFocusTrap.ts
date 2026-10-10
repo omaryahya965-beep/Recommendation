@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type RefObject } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 
 const FOCUSABLE =
   "button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])";
@@ -14,11 +14,23 @@ export function useFocusTrap(
   containerRef: RefObject<HTMLElement | null>,
   onEscape?: () => void,
   initialFocusRef?: RefObject<HTMLElement | null>,
+  /**
+   * Where focus goes back on close. Safari does not focus a button when it
+   * is clicked or tapped, so "whatever was focused" is often the body.
+   */
+  returnFocusRef?: RefObject<HTMLElement | null>,
 ) {
+  // Callers pass inline callbacks; keeping the latest in a ref stops the trap
+  // from tearing down (and moving focus) on every render.
+  const escapeRef = useRef(onEscape);
+  useEffect(() => {
+    escapeRef.current = onEscape;
+  }, [onEscape]);
+
   useEffect(() => {
     if (!active) return;
 
-    const previous = document.activeElement as HTMLElement | null;
+    const previous = returnFocusRef?.current ?? (document.activeElement as HTMLElement | null);
     const overflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
@@ -37,7 +49,7 @@ export function useFocusTrap(
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        onEscape?.();
+        escapeRef.current?.();
         return;
       }
       if (event.key !== "Tab") return;
@@ -61,5 +73,5 @@ export function useFocusTrap(
       document.body.style.overflow = overflow;
       previous?.focus?.();
     };
-  }, [active, containerRef, initialFocusRef, onEscape]);
+  }, [active, containerRef, initialFocusRef, returnFocusRef]);
 }

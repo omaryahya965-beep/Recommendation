@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Save, Sparkles } from "lucide-react";
 import { useState } from "react";
 
-import { FollowUpSessionCard } from "@/components/FollowUpList";
+import { FollowUpList, FollowUpSessionCard } from "@/components/followup/FollowUpArchive";
 import { Button, Callout, Card, ErrorBanner, Field, TextInput } from "@/components/ui/Base";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { api, errorMessage } from "@/lib/api";
@@ -55,37 +55,45 @@ export default function AuditFollowUpsPage() {
     <div className="animate-fade-in space-y-4">
       <PageHeader title={T.followup.title} description={T.followup.subtitle} />
 
-      <Card title={T.followup.generate}>
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            generate.mutate();
-          }}
-          className="flex flex-wrap items-end gap-3"
-        >
-          <Field label={T.followup.from}>
-            <TextInput type="date" value={start} onChange={(event) => setStart(event.target.value)} required />
-          </Field>
-          <Field label={T.followup.to}>
-            <TextInput type="date" value={end} onChange={(event) => setEnd(event.target.value)} required />
-          </Field>
-          <Button type="submit" disabled={generate.isPending}>
-            <Sparkles className="size-4" />
-            {T.followup.generateAction}
-          </Button>
-          <Button type="button" variant="secondary" onClick={() => save.mutate()} disabled={save.isPending || !preview || saved}>
-            <Save className="size-4" />
-            {T.followup.saveAction}
-          </Button>
-        </form>
-        <ErrorBanner message={error} />
-      </Card>
+      {/* The form and the notice are for the screen; paper carries the report. */}
+      <div data-print="hide" className="space-y-4">
+        <Card title={T.followup.generate}>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              generate.mutate();
+            }}
+            className="flex flex-wrap items-end gap-3"
+          >
+            <Field label={T.followup.from}>
+              <TextInput type="date" dir="ltr" value={start} onChange={(event) => setStart(event.target.value)} required />
+            </Field>
+            <Field label={T.followup.to}>
+              <TextInput type="date" dir="ltr" value={end} onChange={(event) => setEnd(event.target.value)} required />
+            </Field>
+            <Button type="submit" disabled={generate.isPending}>
+              <Sparkles className="size-4" />
+              {T.followup.generateAction}
+            </Button>
+            <Button type="button" variant="secondary" onClick={() => save.mutate()} disabled={save.isPending || !preview || saved}>
+              <Save className="size-4" />
+              {T.followup.saveAction}
+            </Button>
+          </form>
+          <ErrorBanner message={error} />
+        </Card>
 
-      <Callout tone="neutral" className="shadow-sm">
-        {saved ? T.followup.savedNotice : T.followup.previewNotice}
-      </Callout>
+        <Callout tone="neutral" className="shadow-sm">
+          {saved ? T.followup.savedNotice : T.followup.previewNotice}
+        </Callout>
+      </div>
 
       {preview ? <FollowUpSessionCard preview={preview} /> : null}
+
+      <section className="space-y-3 pt-2" data-print={preview ? "hide" : undefined}>
+        <h2 className="font-heading text-[16px] font-bold text-navy">{T.followup.archive}</h2>
+        <FollowUpList />
+      </section>
     </div>
   );
 }

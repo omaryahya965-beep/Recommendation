@@ -1,9 +1,9 @@
 "use client";
 
-import { AnalyticsWorkspace } from "@/components/dashboard/AnalyticsWorkspace";
+import { AnalyticsDashboard } from "@/components/analytics/AnalyticsDashboard";
 import { useI18n } from "@/lib/i18n";
 
 export default function AuditAnalyticsPage() {
   useI18n();
-  return <AnalyticsWorkspace role="audit" />;
+  return <AnalyticsDashboard role="audit" />;
 }

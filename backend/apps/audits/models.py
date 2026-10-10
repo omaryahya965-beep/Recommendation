@@ -140,20 +140,40 @@ class Recommendation(models.Model):
         return self.report.department_id
 
 
-# Statuses where an action-plan target date is still binding, so the case can
-# be overdue. Single source of truth: the `overdue` API filter, the serializer's
-# computed flag, and the dashboard counters all read this, so a filtered list
-# can never disagree with the badge or the KPI above it.
-OVERDUE_ACTIVE_STATUSES = (
+# Statuses in which the DEPARTMENT owns the next action on implementation, so
+# a passed deadline is the department's delay. Time spent waiting on internal
+# audit or the council is never counted as department overdue (W2): those
+# queues are measured separately as queue age.
+#
+# Single source of truth: the `overdue` API filter, the serializer's computed
+# flag, the dashboard counters, analytics and reminders all read this, so a
+# filtered list can never disagree with the badge or the KPI above it.
+DEPARTMENT_DEADLINE_STATUSES = (
     Recommendation.Status.IN_PROGRESS,
     Recommendation.Status.RETURNED_INSUFFICIENT,
     Recommendation.Status.PARTIAL,
     Recommendation.Status.REOPENED,
     Recommendation.Status.PENDING_HEAD_REVIEW,
+)
+
+# Kept under its historical name for existing imports.
+OVERDUE_ACTIVE_STATUSES = DEPARTMENT_DEADLINE_STATUSES
+
+# Statuses waiting on internal audit / on the council.
+AUDIT_QUEUE_STATUSES = (
+    Recommendation.Status.AUDIT_REVIEW,
+    Recommendation.Status.ACTION_PLAN_REVIEW,
     Recommendation.Status.SUBMITTED_FOR_VERIFICATION,
     Recommendation.Status.CLOSURE_REVIEW,
+)
+COUNCIL_QUEUE_STATUSES = (
+    Recommendation.Status.PENDING_COUNCIL,
     Recommendation.Status.PENDING_CLOSURE_COUNCIL,
 )
+
+# After a partial/insufficient verification the audit-set action deadline is
+# the binding deadline for the returned work (W1).
+RETURNED_WORK_DECISIONS = ("partial", "insufficient")
 
 # Everything that is not finished and not an unissued draft.
 OPEN_STATUSES = tuple(

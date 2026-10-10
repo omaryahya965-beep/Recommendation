@@ -1,6 +1,6 @@
 "use client";
 
-import { FollowUpList } from "@/components/FollowUpList";
+import { FollowUpList } from "@/components/followup/FollowUpArchive";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { T, useI18n } from "@/lib/i18n";
 

@@ -1,21 +1,21 @@
 "use client";
 
-import { Download, FileCheck2, FolderOpen, Info, Trash2, Upload } from "lucide-react";
+import { FileCheck2, FolderOpen, Info, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { EvidenceCard } from "@/components/evidence/EvidenceCard";
+import { EvidenceFileActions, evidenceFileName } from "@/components/evidence/EvidenceFileActions";
+import { EvidenceUploadForm } from "@/components/evidence/EvidenceUploadForm";
 import { AIEvidenceAnalysis } from "@/components/ai/AIEvidenceAnalysis";
-import { Button, Callout, ErrorBanner, Field, Select, TextArea } from "@/components/ui/Base";
+import { Button, Callout } from "@/components/ui/Base";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { cn } from "@/lib/cn";
 import { evidenceReviewState, sortSteps, type EvidenceReviewState } from "@/lib/case";
-import { errorMessage, loadAuth } from "@/lib/api";
-import { fileExt, fileNameFromUrl, formatDateTime } from "@/lib/format";
+import { fileExt, fileNameFromUrl, formatDate, formatDateTime } from "@/lib/format";
 import type { WorkflowAction } from "@/lib/hooks";
 import { T, useI18n } from "@/lib/i18n";
-import type { Evidence, RecommendationDetail, Role } from "@/lib/types";
-import { FILE_INPUT_ACCEPT, prepareFileSubmission } from "@/lib/upload";
+import type { Evidence, RecommendationDetail } from "@/lib/types";
 
 function reviewStateMeta(state: EvidenceReviewState) {
   const map: Record<EvidenceReviewState, { label: string; className: string }> = {
@@ -37,13 +37,6 @@ function reviewStateMeta(state: EvidenceReviewState) {
     },
   };
   return map[state];
-}
-
-function canRemoveFile(evidence: Evidence, canUpload: boolean, role: Role, userId?: number) {
-  if (!canUpload) return false;
-  if (role === "department_head") return true;
-  if (role === "employee") return evidence.uploaded_by_detail?.id === userId;
-  return false;
 }
 
 function EvidenceItem({
@@ -68,39 +61,43 @@ function EvidenceItem({
   useI18n();
   const review = reviewStateMeta(reviewState);
   const [open, setOpen] = useState(false);
-  const url = evidence.file_url ?? evidence.file;
-  const name = fileNameFromUrl(url);
+  const name = evidenceFileName(evidence);
 
   return (
     <>
       <tr
+        data-testid="evidence-item"
         className="cursor-pointer align-top hover:bg-subtle/50"
         onClick={() => setOpen((value) => !value)}
       >
-        <td className="px-4 py-3">
-          <p className="truncate font-medium text-ink" title={name}>
+        <td className="px-3 py-3">
+          <p className="truncate font-medium text-ink" title={name} dir="auto">
             {name}
           </p>
+          <p className="mt-0.5 truncate text-[11.5px] text-muted">
+            <span className="font-mono" dir="ltr">
+              {fileExt(name)}
+            </span>
+            {" · "}
+            {evidence.uploaded_by_detail?.full_name_ar || evidence.uploaded_by_detail?.username}
+          </p>
         </td>
-        <td className="px-3 py-3 text-ink-soft">{stepTitle ?? T.evidenceRegister.noStep}</td>
-        <td className="px-3 py-3 text-ink-soft">
-          {evidence.uploaded_by_detail?.full_name_ar || evidence.uploaded_by_detail?.username}
+        <td className="break-words px-3 py-3 text-ink-soft">{stepTitle ?? T.evidenceRegister.noStep}</td>
+        <td className="px-3 py-3 font-mono text-[12px] text-muted" title={formatDateTime(evidence.uploaded_at)}>
+          {formatDate(evidence.uploaded_at)}
         </td>
-        <td className="px-3 py-3 font-mono text-[12px] text-muted" dir="ltr">
-          {formatDateTime(evidence.uploaded_at)}
-        </td>
-        <td className="px-3 py-3 font-mono text-[11px] text-ink-soft">{fileExt(name)}</td>
-        <td className="max-w-xs px-3 py-3">
-          <p className={cn("line-clamp-2 text-[13px]", evidence.notes?.trim() ? "text-ink" : "text-muted")}>
+        <td className="px-3 py-3">
+          <p className={cn("line-clamp-2 break-words text-[13px]", evidence.notes?.trim() ? "text-ink" : "text-muted")}>
             {evidence.notes?.trim() || T.evidenceRegister.noDescription}
           </p>
         </td>
-        <td className="px-4 py-3">
+        <td className="px-3 py-3">
           <span className={cn("text-[12px] font-medium", review.className)}>{review.label}</span>
         </td>
-        {onDelete ? (
-          <td className="px-3 py-3">
-            {canDelete ? (
+        <td className="px-3 py-3">
+          <div className="flex flex-wrap items-start gap-2">
+            <EvidenceFileActions evidence={evidence} size="sm" />
+            {onDelete && canDelete ? (
               <button
                 type="button"
                 aria-label={T.evidenceRegister.deleteFile}
@@ -114,13 +111,13 @@ function EvidenceItem({
                 <Trash2 className="size-4" />
               </button>
             ) : null}
-          </td>
-        ) : null}
+          </div>
+        </td>
       </tr>
       {open ? (
         <tr>
           <td colSpan={actionColSpan} className="bg-subtle/40 px-4 py-4">
-            <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div>
                 <dt className="text-[11px] text-muted">{T.evidenceRegister.file}</dt>
                 <dd className="mt-0.5 text-sm text-ink">{name}</dd>
@@ -149,16 +146,6 @@ function EvidenceItem({
               </span>
             </p>
             <div className="mt-3 flex flex-wrap items-center gap-3">
-              <a
-                href={url}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1 text-sm font-medium text-primary-dark hover:underline"
-                onClick={(event) => event.stopPropagation()}
-              >
-                <Download className="size-3.5" />
-                {T.evidence.download}
-              </a>
               {canDelete && onDelete ? (
                 <Button
                   type="button"
@@ -184,7 +171,7 @@ function EvidenceItem({
             {canAnalyze ? (
               <div className="mt-4 border-t border-line pt-3">
                 <p className="mb-2 text-[11px] font-medium text-ai-dark">{T.evidenceRegister.aiDisclaimer}</p>
-                <AIEvidenceAnalysis evidenceId={evidence.id} fileUrl={url} />
+                <AIEvidenceAnalysis evidenceId={evidence.id} />
               </div>
             ) : null}
           </td>
@@ -195,76 +182,33 @@ function EvidenceItem({
 }
 
 /**
- * Evidence register as a ledger. Upload is never verification.
+ * Evidence register as a ledger. Upload is never verification. Whether a
+ * file may be deleted is the server's answer (`can_delete`), which applies
+ * the same rule as the delete endpoint.
  */
 export function EvidenceRegister({
   rec,
-  role,
   canUpload,
+  showUploadForm = canUpload,
   canAnalyze,
   action,
 }: {
   rec: RecommendationDetail;
-  role: Role;
+  /** The user may attach evidence now (here or elsewhere on the page). */
   canUpload: boolean;
+  /** Show the upload form above the list (off when a desk above holds it). */
+  showUploadForm?: boolean;
   canAnalyze: boolean;
   action?: WorkflowAction;
 }) {
   useI18n();
-  const [file, setFile] = useState<File | null>(null);
-  const [step, setStep] = useState("");
-  const [notes, setNotes] = useState("");
-  const [localError, setLocalError] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Evidence | null>(null);
 
   const steps = sortSteps(rec.action_plan?.steps ?? []);
   const stepTitles = new Map(steps.map((item) => [item.id, item.title]));
   const files = rec.evidence_files ?? [];
-  const userId = loadAuth()?.user.id;
-  const showDeleteColumn =
-    Boolean(action) && files.some((item) => canRemoveFile(item, canUpload, role, userId));
-  const actionColSpan = showDeleteColumn ? 8 : 7;
-
-  const removeFile = (evidence: Evidence) => {
-    if (!action || !canRemoveFile(evidence, canUpload, role, userId)) return;
-    setPendingDelete(evidence);
-  };
-
-  const upload = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!file || !action) {
-      setLocalError(T.common.required);
-      return;
-    }
-    setLocalError(null);
-    setUploading(true);
-    try {
-      const payload = await prepareFileSubmission({
-        file,
-        purpose: "evidence",
-        fileFieldName: "file",
-        extraFields: {
-          ...(step ? { step } : {}),
-          ...(notes.trim() ? { notes: notes.trim() } : {}),
-        },
-      });
-      action.mutation.mutate(
-        { path: "evidence/", ...payload },
-        {
-          onSuccess: () => {
-            setFile(null);
-            setNotes("");
-            setStep("");
-          },
-          onSettled: () => setUploading(false),
-        }
-      );
-    } catch (err) {
-      setUploading(false);
-      setLocalError(errorMessage(err));
-    }
-  };
+  const deletable = (item: Evidence) => Boolean(action && item.can_delete);
+  const actionColSpan = 6;
 
   return (
     <div className="space-y-5">
@@ -272,49 +216,11 @@ export function EvidenceRegister({
         {T.evidenceRegister.uploadNotVerify}
       </Callout>
 
-      {canUpload && action ? (
-        <form onSubmit={upload} className="space-y-4 border-b border-line pb-5">
+      {showUploadForm && action ? (
+        <section className="space-y-3 border-b border-line pb-5">
           <h3 className="font-heading text-sm font-semibold text-navy">{T.evidenceRegister.uploadTitle}</h3>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Field label={T.evidenceRegister.file}>
-              <input
-                type="file"
-                accept={FILE_INPUT_ACCEPT}
-                onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-                required
-                className="block min-h-12 w-full border border-line bg-surface px-3 py-3 text-base file:me-3 file:min-h-11 file:border-0 file:bg-subtle file:px-3 file:py-2 file:text-sm file:text-ink"
-              />
-              <p className="mt-1 text-xs text-muted">
-                {T.evidenceRegister.allowedTypes} · {T.evidenceRegister.maxSize}
-              </p>
-            </Field>
-            {steps.length ? (
-              <Field label={T.evidenceRegister.linkStep}>
-                <Select value={step} onChange={(event) => setStep(event.target.value)}>
-                  <option value="">{T.evidenceRegister.noStep}</option>
-                  {steps.map((item, index) => (
-                    <option key={item.id} value={item.id}>
-                      {String(index + 1).padStart(2, "0")} {item.title}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-            ) : null}
-          </div>
-          <Field label={T.evidenceRegister.description}>
-            <TextArea
-              rows={3}
-              value={notes}
-              onChange={(event) => setNotes(event.target.value)}
-              placeholder={T.evidenceRegister.descriptionHint}
-            />
-          </Field>
-          <ErrorBanner message={localError ?? action.error} />
-          <Button type="submit" disabled={action.mutation.isPending || uploading || !file} className="min-h-12 w-full md:w-auto">
-            <Upload className="size-4" />
-            {uploading || action.mutation.isPending ? T.common.uploading : T.evidenceRegister.upload}
-          </Button>
-        </form>
+          <EvidenceUploadForm rec={rec} action={action} />
+        </section>
       ) : null}
 
       <section>
@@ -327,75 +233,85 @@ export function EvidenceRegister({
         <p className="mb-3 text-[12px] text-muted">{T.evidenceRegister.derivedNote}</p>
 
         {files.length ? (
-          <>
-            <ul className="space-y-3 md:hidden">
+          // The register sits in columns of very different widths (phone,
+          // tablet, beside the side rail), so it follows its own width: cards
+          // when the six columns would not fit, the ledger table when they do.
+          <div className="@container">
+            <ul className="space-y-3 @min-[44rem]:hidden">
               {files.map((item) => (
                 <li key={item.id}>
-                  <EvidenceCard evidence={item} />
-                  {canRemoveFile(item, canUpload, role, userId) ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="mt-2 min-h-11 w-full"
-                      onClick={() => removeFile(item)}
-                    >
-                      <Trash2 className="size-4" />
-                      {T.common.delete}
-                    </Button>
-                  ) : null}
+                  <EvidenceCard
+                    evidence={item}
+                    showAnalysis={canAnalyze}
+                    stepTitle={item.step ? (stepTitles.get(item.step) ?? T.evidenceRegister.noStep) : T.evidenceRegister.noStep}
+                    status={reviewStateMeta(evidenceReviewState(item.uploaded_at, rec))}
+                    actions={
+                      deletable(item) ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="min-h-11 font-bold text-danger-dark ring-1 ring-danger/25"
+                          onClick={() => setPendingDelete(item)}
+                        >
+                          <Trash2 className="size-4" aria-hidden />
+                          {T.common.delete}
+                        </Button>
+                      ) : null
+                    }
+                  />
                 </li>
               ))}
             </ul>
-            <div className="hidden scrollbar-thin overflow-x-auto md:block">
-            <table className="w-full min-w-[52rem] border-collapse text-[13px]">
-              <thead>
-                <tr className="border-y border-line bg-subtle/50 text-start text-[11.5px] font-medium text-ink-soft">
-                  <th scope="col" className="px-4 py-2 text-start font-medium">
-                    {T.evidenceRegister.file}
-                  </th>
-                  <th scope="col" className="px-3 py-2 text-start font-medium">
-                    {T.evidenceRegister.linkedTo}
-                  </th>
-                  <th scope="col" className="px-3 py-2 text-start font-medium">
-                    {T.evidenceRegister.uploadedBy}
-                  </th>
-                  <th scope="col" className="px-3 py-2 text-start font-medium">
-                    {T.common.date}
-                  </th>
-                  <th scope="col" className="px-3 py-2 text-start font-medium">
-                    {T.evidenceRegister.fileType}
-                  </th>
-                  <th scope="col" className="px-3 py-2 text-start font-medium">
-                    {T.evidenceRegister.proves}
-                  </th>
-                  <th scope="col" className="px-4 py-2 text-start font-medium">
-                    {T.common.status}
-                  </th>
-                  {showDeleteColumn ? (
+            <div className="hidden @min-[44rem]:block">
+              <table className="w-full table-fixed border-collapse text-[13px]">
+                <colgroup>
+                  <col className="w-[26%]" />
+                  <col className="w-[17%]" />
+                  <col className="w-[13%]" />
+                  <col className="w-[18%]" />
+                  <col className="w-[11%]" />
+                  <col className="w-[15%]" />
+                </colgroup>
+                <thead>
+                  <tr className="border-y border-line bg-subtle/50 text-start text-[11.5px] font-medium text-ink-soft">
+                    <th scope="col" className="px-3 py-2 text-start font-medium">
+                      {T.evidenceRegister.file}
+                    </th>
+                    <th scope="col" className="px-3 py-2 text-start font-medium">
+                      {T.evidenceRegister.linkedTo}
+                    </th>
+                    <th scope="col" className="px-3 py-2 text-start font-medium">
+                      {T.common.date}
+                    </th>
+                    <th scope="col" className="px-3 py-2 text-start font-medium">
+                      {T.evidenceRegister.proves}
+                    </th>
+                    <th scope="col" className="px-3 py-2 text-start font-medium">
+                      {T.common.status}
+                    </th>
                     <th scope="col" className="px-3 py-2 text-start font-medium">
                       {T.common.actions}
                     </th>
-                  ) : null}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line">
-                {files.map((item) => (
-                  <EvidenceItem
-                    key={item.id}
-                    evidence={item}
-                    stepTitle={item.step ? stepTitles.get(item.step) : undefined}
-                    reviewState={evidenceReviewState(item.uploaded_at, rec)}
-                    canAnalyze={canAnalyze}
-                    canDelete={canRemoveFile(item, canUpload, role, userId)}
-                    deleting={Boolean(action?.mutation.isPending)}
-                    onDelete={showDeleteColumn ? () => removeFile(item) : undefined}
-                    actionColSpan={actionColSpan}
-                  />
-                ))}
-              </tbody>
-            </table>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {files.map((item) => (
+                    <EvidenceItem
+                      key={item.id}
+                      evidence={item}
+                      stepTitle={item.step ? stepTitles.get(item.step) : undefined}
+                      reviewState={evidenceReviewState(item.uploaded_at, rec)}
+                      canAnalyze={canAnalyze}
+                      canDelete={deletable(item)}
+                      deleting={Boolean(action?.mutation.isPending)}
+                      onDelete={() => setPendingDelete(item)}
+                      actionColSpan={actionColSpan}
+                    />
+                  ))}
+                </tbody>
+              </table>
             </div>
-          </>
+          </div>
         ) : (
           <EmptyState
             icon={<FolderOpen className="size-6" />}

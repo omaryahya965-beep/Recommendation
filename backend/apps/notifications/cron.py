@@ -36,5 +36,5 @@ class SendRemindersView(APIView):
     def get(self, request):
         if not cron_secret_matches(request):
             return Response({"detail": "Unauthorized"}, status=401)
-        created = run_reminders()
+        created = run_reminders(trigger="cron")
         return Response({"ok": True, "created": created})

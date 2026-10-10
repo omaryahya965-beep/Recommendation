@@ -1,32 +1,46 @@
 import { api } from "@/lib/api";
-import type { RecommendationStatus } from "@/lib/types";
-import { CLOSED_STATUSES, localizedWorkflowStages, stageIndexForStatus } from "@/lib/workflow";
+import type { RecommendationStatus, StageId } from "@/lib/types";
+import { localizedWorkflowStages } from "@/lib/workflow";
 
 /**
- * Portfolio analytics, aggregated by the API.
+ * Portfolio analytics, aggregated by the API (`GET /api/analytics/`) under
+ * the caller's normal scoping. Every definition lives in one place —
+ * backend apps/core/analytics.py — and the role dashboards read the same
+ * totals, so a tile here and a tile on the home page can never disagree.
  *
- * This used to page up to 1,200 recommendations into the browser and count
- * them in JavaScript. That shipped every finding's full text just to draw a
- * chart, got slower as a municipality accumulated history, and silently
- * truncated past the page ceiling — so the charts could disagree with the
- * dashboard without saying so.
- *
- * `GET /api/analytics/` returns grouped aggregates computed in SQL under the
- * caller's normal scoping. The payload is a few KB whatever the data volume,
- * and there is no truncation to disclose because nothing is truncated.
+ *   total        issued recommendations; drafts are counted apart (`drafts`)
+ *   overdue      binding deadline passed while the department owns the action
+ *   overdue_rate overdue / open cases that have a binding deadline
+ *   volume       created per month (created_at) and closed per month
+ *                (closed_at), two separate series
  */
 
 export interface AnalyticsTotals {
   total: number;
+  drafts: number;
+  all_records: number;
   open: number;
   closed: number;
+  closed_implemented: number;
+  closed_disagreement: number;
+  completion_rate: number;
   overdue: number;
+  overdue_base: number;
+  overdue_rate: number;
   high_risk_open: number;
+  in_execution: number;
+  in_progress: number;
+  awaiting_head_review: number;
+  awaiting_verification: number;
+  awaiting_closure_audit: number;
+  awaiting_closure_council: number;
+  awaiting_ratification: number;
+  awaiting_response: number;
+  response_overdue: number;
+  late_in_review: number;
   recurring_confirmed: number;
   recurring_flagged: number;
   with_plan: number;
-  completion_rate: number;
-  overdue_rate: number;
 }
 
 export interface DepartmentRow {
@@ -35,10 +49,14 @@ export interface DepartmentRow {
   total: number;
   open: number;
   closed: number;
+  closed_implemented: number;
   overdue: number;
+  overdue_rate: number;
   in_progress: number;
+  /** Open high-risk recommendations. */
   high_risk: number;
   recurring: number;
+  /** Closed as implemented / cases that reached the plan stage (disagreements excluded). */
   execution_rate: number;
 }
 
@@ -48,19 +66,38 @@ export interface VolumePoint {
   closed: number;
 }
 
+export interface QueueAge {
+  count: number;
+  average_days: number;
+  max_days: number;
+}
+
 export interface AnalyticsPayload {
   generated_at: string;
+  definitions_version: number;
   totals: AnalyticsTotals;
   by_status: Partial<Record<RecommendationStatus, number>>;
+  by_stage: Partial<Record<StageId, number>>;
   by_risk: Record<string, number>;
   by_engagement_type: Record<string, number>;
   by_department: DepartmentRow[];
   volume: VolumePoint[];
   implementation: {
     average_step_progress: number;
+    cases_in_execution: number;
     steps_total: number;
     steps_done: number;
     steps_completion_rate: number;
+  };
+  queues: Record<"department" | "audit" | "council", QueueAge>;
+  overdue_aging: Record<string, number>;
+  decisions: {
+    closure_decisions: number;
+    closed: number;
+    reopened: number;
+    reopen_rate: number;
+    ratified: number;
+    per_month: Array<{ month: string; closed: number; reopened: number; ratified: number }>;
   };
   recurrence: { confirmed: number; awaiting_confirmation: number };
 }
@@ -69,98 +106,41 @@ export async function fetchAnalytics(months = 12): Promise<AnalyticsPayload> {
   return api<AnalyticsPayload>(`/api/analytics/?months=${months}`);
 }
 
-/* ------------------------------------------------------------------ */
-/* Presentation shapes derived from the aggregate payload.            */
-/* ------------------------------------------------------------------ */
-
-export interface DepartmentPressure {
-  department: number;
-  name: string;
-  total: number;
-  open: number;
-  closed: number;
-  overdue: number;
-  /** Actively being executed, as opposed to sitting in a review queue. */
-  inProgress: number;
-  highRisk: number;
-  recurring: number;
-  /** Share of this department's recommendations that reached closure. */
-  executionRate: number;
-}
-
-export function departmentPressure(payload: AnalyticsPayload): DepartmentPressure[] {
-  return payload.by_department
-    .map((row) => ({
-      department: row.department,
-      name: row.name,
-      total: row.total,
-      open: row.open,
-      closed: row.closed,
-      overdue: row.overdue,
-      inProgress: row.in_progress,
-      highRisk: row.high_risk,
-      recurring: row.recurring,
-      executionRate: Math.round(row.execution_rate),
-    }))
-    .sort((a, b) => b.overdue - a.overdue || b.highRisk - a.highRisk || b.open - a.open);
-}
-
 export interface StagePressure {
-  index: number;
+  id: StageId;
   label: string;
   actor: string;
   count: number;
 }
 
-/**
- * Open recommendations per workflow stage — "where is the pipeline stuck",
- * which a raw status histogram does not answer.
- *
- * Folding the status histogram into stages is cheap and stays on the client,
- * because the stage definitions are a UI concern: the server would otherwise
- * have to know about the presentation grouping.
- */
-export function stagePressure(payload: AnalyticsPayload): StagePressure[] {
-  const stages = localizedWorkflowStages();
-  const counts = new Array(stages.length).fill(0) as number[];
+/** Open recommendations per business stage: where the pipeline is waiting. */
+export function stagePressure(payload: Pick<AnalyticsPayload, "by_stage">): StagePressure[] {
+  return localizedWorkflowStages()
+    .filter((stage) => stage.id !== "closed")
+    .map((stage) => ({
+      id: stage.id,
+      label: stage.label,
+      actor: stage.actor,
+      count: payload.by_stage[stage.id] ?? 0,
+    }));
+}
 
-  for (const [status, count] of Object.entries(payload.by_status)) {
-    const key = status as RecommendationStatus;
-    if (CLOSED_STATUSES.has(key)) continue;
-    counts[stageIndexForStatus(key)] += count ?? 0;
-  }
+/** Departments, most pressing first: overdue, then open high risk, then open. */
+export function departmentPressure(payload: Pick<AnalyticsPayload, "by_department">): DepartmentRow[] {
+  return [...payload.by_department].sort(
+    (a, b) => b.overdue - a.overdue || b.high_risk - a.high_risk || b.open - a.open
+  );
+}
 
-  return stages.map((stage, index) => ({
-    index,
-    label: stage.label,
-    actor: stage.actor,
-    count: counts[index],
+/** Council decisions per month, aligned to the same months as `volume`. */
+export function decisionSeries(payload: Pick<AnalyticsPayload, "volume" | "decisions">) {
+  const byMonth = new Map(payload.decisions.per_month.map((row) => [row.month, row]));
+  return payload.volume.map((point) => ({
+    month: point.month,
+    closed: byMonth.get(point.month)?.closed ?? 0,
+    reopened: byMonth.get(point.month)?.reopened ?? 0,
   }));
 }
 
-export interface PortfolioRates {
-  open: number;
-  closed: number;
-  total: number;
-  /** Closed as a share of all recommendations. */
-  completionRate: number;
-  /** Overdue as a share of the still-open population. */
-  overdueRate: number;
-  overdue: number;
-  highRisk: number;
-  recurring: number;
-}
-
-export function portfolioRates(payload: AnalyticsPayload): PortfolioRates {
-  const totals = payload.totals;
-  return {
-    open: totals.open,
-    closed: totals.closed,
-    total: totals.total,
-    completionRate: Math.round(totals.completion_rate),
-    overdueRate: Math.round(totals.overdue_rate),
-    overdue: totals.overdue,
-    highRisk: totals.high_risk_open,
-    recurring: totals.recurring_confirmed,
-  };
-}
+/** Overdue aging buckets in display order. */
+export const AGING_ORDER = ["1-30", "31-90", "91+"] as const;

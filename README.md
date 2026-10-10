@@ -52,15 +52,23 @@ It does **not** alter workflow semantics.
 
 `audit` creates reports/recommendations → `department_head` submits the
 formal response (disagreement requires justification + attachment) → audit
-reviews (AUDIT_APPROVAL) → `council` ratifies (COUNCIL_RATIFICATION — the
-only event that sets the reminder anchor date) → department submits the
-action plan (after ratification by default; with the response only when the
-municipal policy requires it) → audit reviews the plan (revision loop) →
-`employee` executes steps and uploads evidence → audit verifies
-(sufficient/partial/insufficient with structured feedback). Closure happens
-**only** through audit verification. Every action lands in an append-only
-audit trail. "Overdue" is always computed from the plan target date, never
-stored.
+reviews (AUDIT_APPROVAL) → `council` ratifies the report
+(COUNCIL_RATIFICATION) → the department submits the action plan (after
+ratification by default; with the response only when the municipal policy
+requires it) → audit reviews the plan (revision loop) → `employee` executes
+steps and uploads evidence → the department head reviews the implementation
+→ audit verifies (sufficient / partial / insufficient, with structured
+feedback) and refers sufficient cases to the council → **the council closes
+or reopens**. Every action lands in an append-only audit trail.
+
+The nineteen statuses are grouped into ten business stages; who acts next,
+the binding deadline and "overdue" are computed by one module
+(`backend/apps/workflow/presentation.py`) and exported to the frontend as a
+contract. Overdue is never stored: it is the **binding deadline** (the plan
+date, or the deadline audit sets after a partial/insufficient verification)
+passing while the **department** owns the next action — time waiting on audit
+or the council is never counted against the department. See
+[docs/workflow.md](docs/workflow.md).
 
 ## Local development (Windows)
 
@@ -106,11 +114,34 @@ configurable per municipality from the audit UI (Settings → إعدادات ا�
 
 ### Tests
 
+Tests run against an isolated local PostgreSQL on **port 5434** (never Neon),
+with network access blocked except loopback and the local AI provider only —
+see [docs/runbook.md](docs/runbook.md#tests).
+
 ```powershell
+powershell backend/scripts/start_test_db.ps1      # once per boot
 cd backend
-venv\Scripts\python manage.py test apps          # unit + API tests
-venv\Scripts\python scripts\e2e_scenario.py      # live HTTP end-to-end (server must run)
+venv\Scripts\python manage.py test               # backend: unit + API
+cd ..\frontend
+npm run lint; npx tsc --noEmit; npm test          # frontend: lint, types, unit
+npx playwright test                               # browser: desktop + phone (Pixel 7)
 ```
+
+The browser suite starts its own stack (`config.settings.e2e`, database
+`raqeeb_e2e`, `manage.py e2e_reset` seeds it, frontend production build on
+port 3100).
+
+## Documentation
+
+| Document | What it covers |
+|---|---|
+| [docs/architecture.md](docs/architecture.md) | Apps, layers, the workflow contract, frontend structure (desktop and phone) |
+| [docs/workflow.md](docs/workflow.md) | Statuses, the ten stages, who acts, deadlines (W1/W2), combined closure (W4), error codes |
+| [docs/metrics.md](docs/metrics.md) | Every dashboard / analytics / follow-up number and its definition |
+| [docs/reminders.md](docs/reminders.md) | The reminder engine: rules, catch-up, deduplication, monitoring |
+| [docs/runbook.md](docs/runbook.md) | Local setup, tests, browser suite, operations and troubleshooting |
+| [docs/v3-structured-finding.md](docs/v3-structured-finding.md) | Proposal: structured finding fields (Raqeeb V3) |
+| [docs/security-deferred.md](docs/security-deferred.md) | Known security work, deferred pending a separate decision |
 
 ## Deployment
 

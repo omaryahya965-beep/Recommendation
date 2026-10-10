@@ -26,6 +26,7 @@ export function DecisionPanel({
   notesLabel,
   notesHint,
   requireNotesOnReject = true,
+  plain = false,
   children,
 }: {
   title: string;
@@ -37,6 +38,8 @@ export function DecisionPanel({
   notesLabel?: string;
   notesHint?: string;
   requireNotesOnReject?: boolean;
+  /** Render without its own card (inside the workspace action card). */
+  plain?: boolean;
   children?: React.ReactNode;
 }) {
   useI18n();
@@ -59,12 +62,12 @@ export function DecisionPanel({
     setPending(null);
   };
 
-  return (
-    <Card title={title} className="overflow-hidden border-t-4 border-t-primary">
+  const body = (
+    <>
       {intro ? <p className="mb-4 text-[13.5px] leading-relaxed text-ink-soft">{intro}</p> : null}
       {children}
 
-      <div className="mt-5 space-y-4 border-t border-line pt-5">
+      <div className={cn("space-y-4", children ? "mt-5 border-t border-line pt-5" : "mt-1")}>
         <p className="font-heading text-sm font-bold text-navy uppercase tracking-wider">{T.case.officialDecision}</p>
         <Field label={notesLabel ?? T.common.notes}>
           <TextArea rows={4} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder={notesHint} />
@@ -97,6 +100,14 @@ export function DecisionPanel({
         onConfirm={submit}
         onCancel={() => setPending(null)}
       />
+    </>
+  );
+
+  // Plain: inside a container that already names it (the action card or sheet).
+  if (plain) return <div>{body}</div>;
+  return (
+    <Card title={title} className="overflow-hidden border-t-4 border-t-primary">
+      {body}
     </Card>
   );
 }
@@ -115,7 +126,7 @@ export function ResponseComparison({ rec }: { rec: RecommendationDetail }) {
     rec.action_plan?.responsible_employee_detail?.full_name_ar || rec.responsible_employee || rec.department_name;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
       <section className="border-s-4 border-line/60 bg-subtle/25 rounded-e-xl p-4 shadow-sm">
         <p className="text-xs font-bold uppercase tracking-wider text-muted">{T.auditReview.compareFinding}</p>
         <p className="mt-3 whitespace-pre-wrap text-[13.5px] leading-[1.8] text-ink font-medium">{statement}</p>
@@ -147,7 +158,7 @@ export function ResponseComparison({ rec }: { rec: RecommendationDetail }) {
                 {T.evidenceRegister.supporting}
               </a>
             ) : null}
-            <dl className="grid gap-3 text-xs sm:grid-cols-2 bg-surface/50 border border-line rounded-lg p-2.5">
+            <dl className="grid grid-cols-1 gap-3 text-xs sm:grid-cols-2 bg-surface/50 border border-line rounded-lg p-2.5">
               {proposed ? (
                 <div>
                   <dt className="text-muted font-bold uppercase tracking-wider text-[9px] mb-0.5">{T.response.proposedDate}</dt>
@@ -173,7 +184,15 @@ export function ResponseComparison({ rec }: { rec: RecommendationDetail }) {
 }
 
 /** Audit accepts the response (sending the report to council) or returns it. */
-export function AuditReviewPanel({ rec, action }: { rec: RecommendationDetail; action: WorkflowAction }) {
+export function AuditReviewPanel({
+  rec,
+  action,
+  plain = false,
+}: {
+  rec: RecommendationDetail;
+  action: WorkflowAction;
+  plain?: boolean;
+}) {
   useI18n();
   return (
     <DecisionPanel
@@ -181,6 +200,7 @@ export function AuditReviewPanel({ rec, action }: { rec: RecommendationDetail; a
       intro={T.auditReview.intro}
       path="review/"
       action={action}
+      plain={plain}
       acceptLabel={T.auditReview.accept}
       rejectLabel={T.auditReview.reject}
       notesLabel={T.auditReview.notes}

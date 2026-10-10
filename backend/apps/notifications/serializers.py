@@ -1,7 +1,9 @@
 from django.core.exceptions import ObjectDoesNotExist
+from django.utils import timezone
 from rest_framework import serializers
 
 from apps.audits.serializers import is_overdue
+from apps.workflow.presentation import binding_deadline
 
 from .models import Notification, ReminderRule
 
@@ -32,12 +34,18 @@ class NotificationSerializer(serializers.ModelSerializer):
     target_date = serializers.SerializerMethodField()
     responsible_employee = serializers.SerializerMethodField()
     overdue = serializers.SerializerMethodField()
+    # The binding deadline (plan date, or the audit-set date after a partial or
+    # insufficient verification — W1) and how late the department is (W2),
+    # so the inbox never recounts lateness from the plan date.
+    deadline = serializers.SerializerMethodField()
+    days_overdue = serializers.SerializerMethodField()
 
     class Meta:
         model = Notification
         fields = [
             "id",
             "recommendation",
+            "report",
             "recommendation_text",
             "department_name",
             "report_title",
@@ -46,6 +54,8 @@ class NotificationSerializer(serializers.ModelSerializer):
             "target_date",
             "responsible_employee",
             "overdue",
+            "deadline",
+            "days_overdue",
             "type",
             "message",
             "is_read",
@@ -54,20 +64,23 @@ class NotificationSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_recommendation_text(self, obj):
+        # The title, not the full stored text: the inbox shows one line.
+        from apps.audits.finding import case_title
+
         rec = _rec(obj)
-        return rec.text if rec else None
+        return case_title(rec.text) if rec else None
 
     def get_department_name(self, obj):
         rec = _rec(obj)
-        if rec is None:
-            return None
-        return rec.report.department.name
+        if rec is not None:
+            return rec.report.department.name
+        return obj.report.department.name if obj.report_id else None
 
     def get_report_title(self, obj):
         rec = _rec(obj)
-        if rec is None:
-            return None
-        return rec.report.title
+        if rec is not None:
+            return rec.report.title
+        return obj.report.title if obj.report_id else None
 
     def get_status(self, obj):
         rec = _rec(obj)
@@ -90,6 +103,17 @@ class NotificationSerializer(serializers.ModelSerializer):
     def get_overdue(self, obj):
         rec = _rec(obj)
         return is_overdue(rec) if rec else False
+
+    def get_deadline(self, obj):
+        rec = _rec(obj)
+        return binding_deadline(rec)[0] if rec else None
+
+    def get_days_overdue(self, obj):
+        rec = _rec(obj)
+        if rec is None or not is_overdue(rec):
+            return 0
+        deadline = binding_deadline(rec)[0]
+        return (timezone.localdate() - deadline).days if deadline else 0
 
 
 class ReminderRuleSerializer(serializers.ModelSerializer):

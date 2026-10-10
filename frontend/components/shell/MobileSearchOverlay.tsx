@@ -8,8 +8,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useFocusTrap } from "@/components/mobile/useFocusTrap";
 import { StatusBadge } from "@/components/ui/StampBadge";
 import { api } from "@/lib/api";
-import { caseTitle } from "@/lib/finding";
+import { clipTitle } from "@/lib/finding";
+import { recordCode } from "@/lib/format";
 import { T, useI18n } from "@/lib/i18n";
+import { parseSearch, searchListUrl } from "@/lib/searchQuery";
 import type { Paginated, RecommendationListItem, Role } from "@/lib/types";
 
 function searchBase(role: Role) {
@@ -47,18 +49,13 @@ export function MobileSearchOverlay({
     return () => clearTimeout(t);
   }, [q]);
 
-  const numericId = useMemo(() => {
-    const raw = debounced.replace(/^REC-?/i, "");
-    return /^\d+$/.test(raw) ? Number(raw) : null;
-  }, [debounced]);
+  const query = useMemo(() => parseSearch(debounced), [debounced]);
+  const numericId = query.kind === "case" ? query.id : null;
 
   const { data } = useQuery({
     queryKey: ["global-search", debounced],
-    queryFn: () =>
-      api<Paginated<RecommendationListItem>>(
-        `/api/recommendations/?search=${encodeURIComponent(debounced)}&page_size=8`
-      ),
-    enabled: open && debounced.length >= 2 && numericId === null,
+    queryFn: () => api<Paginated<RecommendationListItem>>(searchListUrl(query as Exclude<typeof query, { kind: "case" }>)),
+    enabled: open && debounced.length >= 2 && query.kind !== "case",
   });
 
   const { data: byId } = useQuery({
@@ -87,6 +84,7 @@ export function MobileSearchOverlay({
             <Search className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted" />
             <input
               ref={inputRef}
+              name="q"
               value={q}
               onChange={(event) => setQ(event.target.value)}
               placeholder={T.nav.searchPlaceholder}
@@ -117,12 +115,12 @@ export function MobileSearchOverlay({
                     >
                       <span className="flex flex-wrap items-center gap-2">
                         <span className="font-mono text-[12px] font-medium text-primary-dark" dir="ltr">
-                          REC-{String(item.id).padStart(4, "0")}
+                          {recordCode(item.id)}
                         </span>
                         <StatusBadge status={item.status} />
                       </span>
                       <span className="mt-2 block text-[15px] font-medium leading-snug text-ink">
-                        {caseTitle(item.text, 80)}
+                        <bdi>{clipTitle(item.title, 80)}</bdi>
                       </span>
                       <span className="mt-1 block truncate text-[13px] text-muted">
                         {role === "department_head"

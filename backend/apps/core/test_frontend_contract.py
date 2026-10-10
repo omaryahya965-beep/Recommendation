@@ -168,6 +168,10 @@ class EngagementTypeTests(TestCase):
         self.assertEqual(res.data["results"][0]["engagement_type"], "advisory")
 
     def test_analytics_breaks_down_by_engagement_type(self):
+        from apps.workflow import services
+
+        # Only issued recommendations count (drafts are reported separately).
+        services.submit_report_to_department(self.report, self.users["audit"])
         res = self.client.get("/api/analytics/")
         self.assertEqual(res.data["by_engagement_type"].get("assurance"), 1)
 

@@ -1,9 +1,9 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { api, errorMessage } from "./api";
+import { api, ApiError, errorMessage } from "./api";
 import { T } from "./i18n";
 import { CASE, LIVE, REFERENCE, invalidateRecommendationViews } from "./queryPolicy";
 import type {
@@ -65,6 +65,18 @@ export function useDashboard() {
   });
 }
 
+/** Navigation badge counts (whose turn it is, council queues). */
+export type NavCounts = Partial<Record<"recommendations" | "reports" | "pending_approvals" | "closure_reviews", number>>;
+
+export function useNavCounts(enabled = true) {
+  return useQuery({
+    queryKey: ["nav-counts"],
+    queryFn: () => api<NavCounts>("/api/nav-counts/"),
+    enabled,
+    ...LIVE,
+  });
+}
+
 export interface WorkflowActionInput {
   path: string;
   body?: unknown;
@@ -94,6 +106,13 @@ export function useWorkflowAction(id: number) {
     onError: (err) => {
       setSuccess(null);
       setError(errorMessage(err));
+      // 409: the server refused by its workflow rules — often because the
+      // case moved on since this screen loaded. Reload it, so the page shows
+      // what is actually possible now (the message stays visible).
+      if (err instanceof ApiError && err.status === 409) {
+        const reportId = queryClient.getQueryData<RecommendationDetail>(["recommendation", id])?.report;
+        invalidateRecommendationViews(queryClient, { id, reportId });
+      }
     },
   });
 
@@ -168,11 +187,35 @@ export function useUnreadCount() {
   });
 }
 
+/**
+ * Marks notifications read in every cached list and lowers the badge at
+ * once, so opening one from the bell shows it read before the page changes.
+ * The server's answer then refreshes the lists either way.
+ */
+function markReadInCache(queryClient: ReturnType<typeof useQueryClient>, id: number | "all") {
+  let changed = 0;
+  queryClient.setQueriesData<Paginated<AppNotification>>({ queryKey: ["notifications"] }, (page) => {
+    if (!page || !Array.isArray(page.results)) return page;
+    return {
+      ...page,
+      results: page.results.map((item) => {
+        if (item.is_read || (id !== "all" && item.id !== id)) return item;
+        changed += 1;
+        return { ...item, is_read: true };
+      }),
+    };
+  });
+  queryClient.setQueryData<{ unread: number }>(["notifications", "unread"], (count) =>
+    count ? { unread: id === "all" ? 0 : Math.max(0, count.unread - (changed ? 1 : 0)) } : count
+  );
+}
+
 export function useMarkNotificationRead() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => api(`/api/notifications/${id}/mark-read/`, { method: "POST" }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+    onMutate: (id) => markReadInCache(queryClient, id),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
   });
 }
 
@@ -180,7 +223,8 @@ export function useMarkAllNotificationsRead() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () => api("/api/notifications/mark-all-read/", { method: "POST" }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+    onMutate: () => markReadInCache(queryClient, "all"),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
   });
 }
 
@@ -190,4 +234,29 @@ export function useDeleteNotification() {
     mutationFn: (id: number) => api(`/api/notifications/${id}/`, { method: "DELETE" }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
   });
+}
+
+/**
+ * A server-paginated list that loads further pages on request. Lists used to
+ * ask for page_size=100 and silently drop everything after it; this keeps
+ * the total from the API (`count`) and shows how many are loaded.
+ */
+export function usePagedList<T>(
+  queryKey: readonly unknown[],
+  path: string,
+  options: { pageSize?: number; enabled?: boolean; live?: boolean } = {}
+) {
+  const { pageSize = 25, enabled = true, live = true } = options;
+  const query = useInfiniteQuery({
+    queryKey: [...queryKey, pageSize],
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) =>
+      api<Paginated<T>>(`${path}${path.includes("?") ? "&" : "?"}page=${pageParam}&page_size=${pageSize}`),
+    getNextPageParam: (last, pages) => (last.next ? pages.length + 1 : undefined),
+    enabled,
+    ...(live ? LIVE : {}),
+  });
+  const items = query.data?.pages.flatMap((page) => page.results) ?? [];
+  const total = query.data?.pages[0]?.count ?? 0;
+  return { ...query, items, total };
 }

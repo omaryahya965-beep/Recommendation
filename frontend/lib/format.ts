@@ -53,6 +53,36 @@ export function formatDate(value: string | null | undefined): string {
   );
 }
 
+/** "5 Oct" (this year) or "5 Oct 2025" — for dense timelines. */
+export function formatShortDate(value: string | null | undefined): string {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const sameYear = date.getFullYear() === new Date().getFullYear();
+  return isolate(
+    date.toLocaleDateString(localeDateTag(getLocale()), {
+      day: "numeric",
+      month: getLocale() === "ar" ? "long" : "short",
+      ...(sameYear ? {} : { year: "numeric" as const }),
+      numberingSystem: "latn",
+    })
+  );
+}
+
+/** "سبتمبر 2026" / "Sep 2026" for a YYYY-MM-DD month key. */
+export function formatMonth(value: string, style: "short" | "long" = "short"): string {
+  const [year, month] = value.split("-").map(Number);
+  if (!year || !month) return value;
+  const date = new Date(year, month - 1, 1);
+  return isolate(
+    date.toLocaleDateString(localeDateTag(getLocale()), {
+      month: getLocale() === "ar" ? "long" : style,
+      year: style === "long" ? "numeric" : "2-digit",
+      numberingSystem: "latn",
+    })
+  );
+}
+
 export function formatDateTime(value: string | null | undefined): string {
   if (!value) return "—";
   const date = new Date(value);
@@ -82,6 +112,49 @@ export function formatTime(value: string | null | undefined): string {
 
 export function formatNumber(value: number): string {
   return value.toLocaleString(localeDateTag(getLocale()), { numberingSystem: "latn" });
+}
+
+/** The grammatical case the count takes in its Arabic sentence. */
+export type CountCase = "nominative" | "accusative" | "genitive";
+
+/**
+ * A number of days, worded to agree with the count. Arabic changes the noun
+ * with the number (يوم واحد · يومان · 3 أيام · 11 يوماً · 100 يوم) and, for
+ * one and two, with its case in the sentence: "متبقٍّ يومان" (nominative),
+ * "متأخرة يومين" (accusative), "منذ يومين" (genitive). English: day / days.
+ */
+export function dayCount(days: number, grammaticalCase: CountCase = "nominative"): string {
+  const n = Math.abs(Math.round(days));
+  if (getLocale() === "en") return n === 1 ? "1 day" : `${formatNumber(n)} days`;
+  if (n === 1) return grammaticalCase === "accusative" ? "يوماً واحداً" : "يوم واحد";
+  if (n === 2) return grammaticalCase === "nominative" ? "يومان" : "يومين";
+  const lastTwo = n % 100;
+  if (lastTwo >= 3 && lastTwo <= 10) return `${n} أيام`;
+  if (lastTwo >= 11) return `${n} يوماً`;
+  return `${n} يوم`;
+}
+
+/** A counted phrase per plural category; `{n}` is the number. */
+export type PluralForms = Record<"one" | "two" | "few" | "many" | "other", string>;
+
+/**
+ * Picks the form that agrees with `n` (Arabic: one · two · few 3–10 ·
+ * many 11–99 · other; English: one · other), via Intl.PluralRules.
+ */
+export function plural(n: number, forms: PluralForms): string {
+  const category = new Intl.PluralRules(getLocale() === "en" ? "en" : "ar").select(n);
+  const form = category in forms ? forms[category as keyof PluralForms] : forms.other;
+  return form.replace("{n}", formatNumber(n));
+}
+
+/** How many times: مرة واحدة · مرتين · 3 مرات · 11 مرة; once · twice · 3 times. */
+export function timesCount(times: number): string {
+  const n = Math.abs(Math.round(times));
+  if (getLocale() === "en") return n === 1 ? "once" : n === 2 ? "twice" : `${formatNumber(n)} times`;
+  if (n === 1) return "مرة واحدة";
+  if (n === 2) return "مرتين";
+  const lastTwo = n % 100;
+  return lastTwo >= 3 && lastTwo <= 10 ? `${n} مرات` : `${n} مرة`;
 }
 
 /** Human-friendly elapsed time from a real timestamp. Exact clock stays on hover. */
@@ -126,25 +199,15 @@ export function daysUntil(dateStr: string | null | undefined): number | null {
   return Math.round((target.getTime() - today.getTime()) / 86_400_000);
 }
 
-export type AgeingBucket = "1-7" | "8-14" | "15-30" | "30+";
-
-export function ageingBucket(daysOverdue: number): AgeingBucket {
-  if (daysOverdue <= 7) return "1-7";
-  if (daysOverdue <= 14) return "8-14";
-  if (daysOverdue <= 30) return "15-30";
-  return "30+";
-}
-
-export function ageingBucketLabel(daysOverdue: number): string {
-  const T = currentT();
-  const bucket = ageingBucket(daysOverdue);
-  const labels: Record<AgeingBucket, string> = {
-    "1-7": T.common.ageing17,
-    "8-14": T.common.ageing814,
-    "15-30": T.common.ageing1530,
-    "30+": T.common.ageing30,
-  };
-  return labels[bucket];
+/**
+ * YYYY-MM-DD for a date in the user's own timezone. `toISOString()` gives the
+ * UTC date, which is the previous day for hours after local midnight.
+ */
+export function localISODate(value: Date = new Date()): string {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 export function fileNameFromUrl(url: string): string {

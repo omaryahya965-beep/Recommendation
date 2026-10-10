@@ -1,6 +1,5 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import { Gavel } from "lucide-react";
 import Link from "next/link";
 
@@ -8,29 +7,24 @@ import { DirForward } from "@/components/i18n/DirIcon";
 
 import { Callout, ErrorBanner } from "@/components/ui/Base";
 import { EmptyState, TableSkeleton } from "@/components/ui/EmptyState";
+import { LoadMore } from "@/components/ui/LoadMore";
 import { RecordId } from "@/components/ui/Ledger";
-import { OverdueBadge } from "@/components/ui/OverdueBadge";
+import { CaseDue } from "@/components/home/Queues";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { RiskBadge } from "@/components/ui/RiskBadge";
-import { api } from "@/lib/api";
-import { caseTitle } from "@/lib/finding";
+import { clipTitle } from "@/lib/finding";
 import { formatDate } from "@/lib/format";
 import { T, useI18n } from "@/lib/i18n";
-import { LIVE } from "@/lib/queryPolicy";
-import type { Paginated, RecommendationListItem } from "@/lib/types";
+import { usePagedList } from "@/lib/hooks";
+import type { RecommendationListItem } from "@/lib/types";
 
 export default function CouncilClosureReviewsPage() {
   useI18n();
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["recommendations", "pending-closure-council"],
-    ...LIVE,
-    queryFn: () =>
-      api<Paginated<RecommendationListItem>>(
-        "/api/recommendations/?status=pending_closure_council&page_size=100"
-      ),
-  });
-
-  const items = data?.results ?? [];
+  const list = usePagedList<RecommendationListItem>(
+    ["recommendations", "pending-closure-council"],
+    "/api/recommendations/?status=pending_closure_council&ordering=-priority_score"
+  );
+  const { items, isLoading, isError, refetch } = list;
 
   return (
     <div className="animate-fade-in space-y-4">
@@ -59,10 +53,10 @@ export default function CouncilClosureReviewsPage() {
                 <div className="min-w-0 flex-1">
                   <RecordId id={item.id} />
                   <p className="mt-1.5 font-medium leading-relaxed text-ink group-hover:text-primary-dark">
-                    {caseTitle(item.text, 120)}
+                    <bdi>{clipTitle(item.title, 120)}</bdi>
                   </p>
                   <p className="mt-1 text-xs text-muted">
-                    {item.department_name} · {item.report_title}
+                    {item.department_name} · <bdi>{item.report_title}</bdi>
                   </p>
                 </div>
 
@@ -72,12 +66,21 @@ export default function CouncilClosureReviewsPage() {
                     <span className="text-muted">{T.common.targetDate}: </span>
                     <span dir="ltr">{formatDate(item.target_date)}</span>
                   </span>
-                  <OverdueBadge targetDate={item.target_date} overdue={item.overdue} />
+                  <CaseDue item={item} />
                   <DirForward className="size-4 text-muted" />
                 </div>
               </Link>
             </li>
           ))}
+          <li className="list-none">
+            <LoadMore
+              loaded={items.length}
+              total={list.total}
+              hasMore={Boolean(list.hasNextPage)}
+              loading={list.isFetchingNextPage}
+              onMore={() => list.fetchNextPage()}
+            />
+          </li>
         </ul>
       ) : (
         <EmptyState

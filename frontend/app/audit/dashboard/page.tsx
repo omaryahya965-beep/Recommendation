@@ -1,86 +1,113 @@
 "use client";
 
-import { ClipboardList, FilePlus2, FileText } from "lucide-react";
+import { AlarmClock, ClipboardList, FilePen, FilePlus2, FileText } from "lucide-react";
 
-import { queueLabel, type ActionSource } from "@/components/dashboard/AttentionBoard";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
-import { ActionNow } from "@/components/home/ActionNow";
-import { HomeHero } from "@/components/home/HomeHero";
-import { PriorityMetrics } from "@/components/home/PriorityMetrics";
+import { DashboardColumns, DashboardPage } from "@/components/home/DashboardLayout";
+import { HomeHero, type HeroStat } from "@/components/home/HomeHero";
+import { AuditPriorities, CaseQueueCard, ReportQueueCard } from "@/components/home/WorkQueue";
 import { ErrorBanner } from "@/components/ui/Base";
 import { DashboardBodySkeleton } from "@/components/ui/EmptyState";
 import { useDashboard } from "@/lib/hooks";
 import { T, useI18n } from "@/lib/i18n";
+import { AUDIT_REVIEW_QUEUES, queueHref } from "@/lib/registerQueues";
 
 const BASE = "/audit/recommendations";
+const REPORTS = "/audit/reports";
 
-const QUEUES: Array<{ key: string; href: string }> = [
-  { key: "overdue", href: `${BASE}?overdue=1` },
-  { key: "responses_to_review", href: `${BASE}?status=audit_review` },
-  { key: "plans_to_review", href: `${BASE}?status=action_plan_review` },
-  { key: "verifications_pending", href: `${BASE}?status=submitted_for_verification` },
-  { key: "closure_reviews", href: `${BASE}?status=closure_review` },
-];
-
+/**
+ * Internal audit's home: what is waiting on audit's decision (newest first)
+ * and what is late at the departments, with drafts and the latest activity
+ * beside them. Every count opens the exact list it counted.
+ */
 export default function AuditDashboard() {
   useI18n();
   const { data, isLoading, isError, refetch } = useDashboard();
+  const awaiting = data ? AUDIT_REVIEW_QUEUES.reduce((sum, queue) => sum + (data.action_center[queue]?.count ?? 0), 0) : 0;
+  const stats: HeroStat[] = data
+    ? [
+        { label: T.queues.statAwaiting, count: awaiting, href: queueHref(BASE, "audit_priorities"), icon: ClipboardList, tone: "primary" },
+        {
+          label: T.queues.statOverdue,
+          count: data.action_center.overdue?.count ?? 0,
+          href: queueHref(BASE, "department_overdue"),
+          icon: AlarmClock,
+          tone: "danger",
+        },
+        {
+          label: T.queues.drafts,
+          count: data.draft_reports?.count ?? 0,
+          href: `${REPORTS}?status=draft`,
+          icon: FilePen,
+          tone: "primary",
+          desktopOnly: true,
+        },
+      ]
+    : [];
 
   const hero = (
     <HomeHero
       role="audit"
       title={T.dashboard.auditTitle}
       subtitle={T.dashboard.auditHint}
+      stats={stats}
+      compact
       actions={[
         { href: "/audit/reports/new", label: T.reports.addReport, icon: FilePlus2, primary: true },
-        { href: "/audit/reports", label: T.nav.reports, icon: FileText },
-        { href: BASE, label: T.register.title, icon: ClipboardList },
+        { href: REPORTS, label: T.nav.reports, icon: FileText },
+        { href: BASE, label: T.roleHome.registerShort, shortLabel: T.roleHome.registerTile, icon: ClipboardList },
       ]}
     />
   );
 
-  // The hero is static: it renders at once, while only the data sections
-  // wait for /api/dashboard/. Same wrapper in both branches, so the hero is
-  // updated in place (not remounted) when the data arrives.
+  // The hero renders at once; only the data sections wait for /api/dashboard/.
   if (isLoading || isError || !data) {
     return (
-      <div className="animate-fade-in min-w-0 space-y-5">
+      <DashboardPage>
         {hero}
         {isLoading ? <DashboardBodySkeleton /> : <ErrorBanner message={T.common.error} onRetry={() => refetch()} />}
-      </div>
+      </DashboardPage>
     );
   }
 
-  const sources: ActionSource[] = QUEUES.filter((queue) => data.action_center[queue.key]).map((queue) => ({
-    key: queue.key,
-    block: data.action_center[queue.key],
-    href: queue.href,
-  }));
   return (
-    <div className="animate-fade-in min-w-0 space-y-5">
+    <DashboardPage>
       {hero}
-
-      <PriorityMetrics
-        items={sources.slice(0, 5).map((source) => ({
-          label: queueLabel(source.key),
-          value: source.block.count,
-          href: source.href,
-          tone: source.key === "overdue" ? "danger" : source.key.includes("review") ? "warning" : "primary",
-        }))}
+      <DashboardColumns
+        main={
+          <>
+            <AuditPriorities blocks={data.action_center} detailBase={BASE} registerBase={BASE} />
+            <CaseQueueCard
+              queue="department_overdue"
+              block={data.action_center.overdue}
+              detailBase={BASE}
+              registerBase={BASE}
+              emptyLabel={T.home.noOverdue}
+              limit={5}
+              testId="department-overdue"
+            />
+          </>
+        }
+        aside={
+          <>
+            <ReportQueueCard
+              title={T.queues.drafts}
+              hint={T.queues.draftsHint}
+              block={data.draft_reports}
+              hrefFor={(report) => `${REPORTS}/${report.id}`}
+              moreHref={`${REPORTS}?status=draft`}
+              emptyLabel={T.home.noDraftReports}
+              limit={4}
+              testId="draft-reports"
+              dense
+            />
+            {/* Phones reach the same feed from the bell; the home stays short. */}
+            <div className="max-md:hidden">
+              <RecentActivity role="audit" limit={3} compact />
+            </div>
+          </>
+        }
       />
-
-      <div className="grid min-w-0 grid-cols-1 items-stretch gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(16rem,0.6fr)]">
-        <ActionNow
-          className="h-full"
-          sources={sources}
-          detailBase={BASE}
-          viewAllHref={BASE}
-          limit={3}
-          title={T.dashboard.hottest}
-          hint={T.dashboard.auditReviewHint}
-        />
-        <RecentActivity detailBase={BASE} moreHref="/audit/notifications" />
-      </div>
-    </div>
+    </DashboardPage>
   );
 }

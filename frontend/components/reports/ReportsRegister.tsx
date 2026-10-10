@@ -3,19 +3,20 @@
 import { useQuery } from "@tanstack/react-query";
 import { CalendarClock, FileText, LayoutList, Plus, Rows3, Search, X, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useMemo, useState } from "react";
 
 import { ReportPipeline, REPORT_STATUS_FAMILY, type ReportStatus } from "@/components/reports/ReportPipeline";
 import { Button, ErrorBanner, Select, TextInput } from "@/components/ui/Base";
 import { EmptyState, TableSkeleton } from "@/components/ui/EmptyState";
 import { LedgerCell, LedgerTable, RecordId } from "@/components/ui/Ledger";
 import { StatusBadge } from "@/components/ui/StampBadge";
-import { api } from "@/lib/api";
+import { fetchAllPages } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { daysUntil, formatDate, recordCode } from "@/lib/format";
 import { REPORT_STATUS_LABELS, REPORT_TYPE_LABELS, T, useI18n } from "@/lib/i18n";
 import { MODERATE } from "@/lib/queryPolicy";
-import type { AuditReport, Paginated } from "@/lib/types";
+import type { AuditReport } from "@/lib/types";
 
 const STATUS_FILTERS: Array<ReportStatus | "all"> = [
   "all",
@@ -89,7 +90,7 @@ function ReportCard({ report }: { report: AuditReport }) {
             ) : null}
           </div>
           <h3 className="mt-3 font-heading text-[16px] font-semibold leading-relaxed text-navy group-hover:text-primary transition-colors">
-            {report.title}
+            <bdi>{report.title}</bdi>
           </h3>
           <p className="mt-1 text-[13px] font-bold text-primary-dark uppercase tracking-wide">{nextAction(report)}</p>
         </div>
@@ -108,7 +109,7 @@ function ReportCard({ report }: { report: AuditReport }) {
         </div>
       </div>
 
-      <dl className="mt-4 grid gap-x-4 gap-y-2 border-t border-line pt-4 text-[13px] bg-subtle/30 rounded-lg p-3 sm:grid-cols-3">
+      <dl className="mt-4 grid grid-cols-1 gap-x-4 gap-y-2 border-t border-line pt-4 text-[13px] bg-subtle/30 rounded-lg p-3 sm:grid-cols-3">
         <div>
           <dt className="text-muted font-semibold text-[11px] uppercase tracking-wider mb-0.5">{T.common.department}</dt>
           <dd className="font-medium text-ink">{report.department_name}</dd>
@@ -135,22 +136,52 @@ function ReportCard({ report }: { report: AuditReport }) {
   );
 }
 
+/**
+ * Status tab and the "ready for council" view live in the URL
+ * (`?status=draft`, `?view=ready_for_council`) so the home queues can open
+ * exactly the reports they counted.
+ */
 export function ReportsRegister() {
+  return (
+    <Suspense fallback={<TableSkeleton />}>
+      <ReportsRegisterInner />
+    </Suspense>
+  );
+}
+
+function ReportsRegisterInner() {
   useI18n();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const requested = searchParams.get("status");
+  const status: ReportStatus | "all" = STATUS_FILTERS.includes(requested as ReportStatus) ? (requested as ReportStatus) : "all";
+  const readyOnly = searchParams.get("view") === "ready_for_council";
+  const setUrl = (patch: Record<string, string | null>) => {
+    const next = new URLSearchParams(searchParams.toString());
+    for (const [key, value] of Object.entries(patch)) {
+      if (value) next.set(key, value);
+      else next.delete(key);
+    }
+    const query = next.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  };
+  const setStatus = (value: ReportStatus | "all") => setUrl({ status: value === "all" ? null : value });
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<ReportStatus | "all">("all");
   const [department, setDepartment] = useState("");
   const [engagement, setEngagement] = useState("");
   const [sort, setSort] = useState<SortId>("newest");
   const [view, setView] = useState<"list" | "compact">("compact");
 
+  // Every report, page by page: the stage counts and filters below are
+  // computed over the complete list (it used to stop at the first 100).
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["reports"],
-    queryFn: () => api<Paginated<AuditReport>>("/api/reports/?page_size=100"),
+    queryKey: ["reports", "all"],
+    queryFn: () => fetchAllPages<AuditReport>("/api/reports/"),
     ...MODERATE,
   });
 
-  const all = data?.results ?? [];
+  const all = useMemo(() => data ?? [], [data]);
   const departments = useMemo(() => {
     const names = [...new Set(all.map((item) => item.department_name))].sort((a, b) => a.localeCompare(b, "ar"));
     return names;
@@ -165,6 +196,7 @@ export function ReportsRegister() {
   const visible = useMemo(() => {
     const rows = all.filter((report) => {
       if (status !== "all" && report.status !== status) return false;
+      if (readyOnly && !report.ready_for_council) return false;
       if (department && report.department_name !== department) return false;
       if (engagement && report.engagement_type !== engagement) return false;
       return matchesSearch(report, search);
@@ -179,9 +211,10 @@ export function ReportsRegister() {
       return b.created_at.localeCompare(a.created_at);
     });
     return rows;
-  }, [all, status, department, engagement, search, sort]);
+  }, [all, status, readyOnly, department, engagement, search, sort]);
 
   const chips = [
+    readyOnly ? { key: "view", label: T.queues.readyForCouncilView } : null,
     status !== "all" ? { key: "status", label: REPORT_STATUS_LABELS[status] } : null,
     department ? { key: "department", label: department } : null,
     engagement ? { key: "engagement", label: REPORT_TYPE_LABELS[engagement] } : null,
@@ -190,7 +223,7 @@ export function ReportsRegister() {
 
   const clearFilters = () => {
     setSearch("");
-    setStatus("all");
+    setUrl({ status: null, view: null });
     setDepartment("");
     setEngagement("");
   };
@@ -283,7 +316,7 @@ export function ReportsRegister() {
             )}
           >
             {item === "all" ? T.reports.filterAll : REPORT_STATUS_LABELS[item]}
-            <span className={cn("ms-2 font-mono text-[11px] font-bold px-1.5 py-0.5 rounded-full", status === item ? "bg-white/20 text-white" : "bg-subtle text-ink-soft")} dir="ltr">
+            <span className={cn("ms-2 font-mono text-[11px] font-bold px-1.5 py-0.5 rounded-full", status === item ? "ring-1 ring-current/30" : "bg-subtle text-ink-soft")}>
               {counts[item] ?? 0}
             </span>
           </button>
@@ -303,6 +336,7 @@ export function ReportsRegister() {
             type="button"
             onClick={() => {
               if (chip.key === "status") setStatus("all");
+              if (chip.key === "view") setUrl({ view: null });
               if (chip.key === "department") setDepartment("");
               if (chip.key === "engagement") setEngagement("");
               if (chip.key === "search") setSearch("");
@@ -317,7 +351,7 @@ export function ReportsRegister() {
           <button
             type="button"
             onClick={clearFilters}
-            className="text-xs font-bold text-primary-dark hover:text-primary hover:underline ml-2"
+            className="ms-2 text-xs font-bold text-primary-dark hover:text-primary hover:underline"
           >
             {T.register.clearFilters}
           </button>
@@ -366,9 +400,9 @@ export function ReportsRegister() {
                       </LedgerCell>
                       <LedgerCell>
                         <Link href={`/audit/reports/${report.id}`} className="font-semibold text-ink group-hover:text-primary transition-colors">
-                          {report.title}
+                          <bdi>{report.title}</bdi>
                         </Link>
-                        <p className="mt-0.5 text-[11px] font-semibold text-muted/80">{REPORT_TYPE_LABELS[report.engagement_type]}</p>
+                        <p className="mt-0.5 text-[11px] font-semibold text-muted">{REPORT_TYPE_LABELS[report.engagement_type]}</p>
                       </LedgerCell>
                       <LedgerCell>{report.department_name}</LedgerCell>
                       <LedgerCell>

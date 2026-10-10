@@ -178,6 +178,32 @@ or 07:00 `Asia/Gaza`). Hobby plans allow one run per day.
 The endpoint returns 401 unless `Authorization: Bearer <CRON_SECRET>` matches.
 It is never public. The job is idempotent.
 
+Since Raqeeb V2 the engine **catches up**: if a day is missed, the next run
+sends the latest reminder that is due for each case and recipient and records
+earlier ones as superseded (never a burst, never a stale "days left"). Every
+milestone is recorded in `ReminderDispatch`, so a reminder is never repeated —
+even if the user deleted its notification. Each run is logged in
+`ReminderRun`; the audit reminder settings page shows the last run and warns
+when no run has succeeded for 36 hours.
+
+### Default reminder rules for an existing municipality
+
+New municipalities get the default schedule automatically, including the
+department-head reminders added in V2 (−3, 0, +3, +7 days). Existing
+municipalities are **not** changed by the deployment. To add only the missing
+default rules (never editing or removing rules an administrator configured):
+
+```bash
+# 1. Preview — changes nothing
+python manage.py ensure_reminder_defaults
+# 2. Apply when satisfied (optionally one municipality)
+python manage.py ensure_reminder_defaults --apply
+python manage.py ensure_reminder_defaults --municipality "بلدية البيرة" --apply
+```
+
+Run it with production settings and `DATABASE_URL` only after the V2
+migrations are applied, and only when you decide to.
+
 ---
 
 ## Static files
@@ -200,3 +226,33 @@ WhiteNoise is installed for `vercel dev` and any WSGI host.
    redeploy backend.
 7. Confirm Cron in the Vercel dashboard (production only) and that
    `CRON_SECRET` is set.
+
+---
+
+## Releasing Raqeeb V2 (checklist)
+
+V2 adds no environment variables and only additive migrations.
+
+1. **Review and CI** — merge `feature/raqeeb-v2` only with CI green
+   (backend check, migrations check, contract check, tests; frontend lint,
+   types, unit tests, build; Playwright desktop + mobile).
+2. **Backup** — create a Neon branch (or snapshot) of production first.
+3. **Migrate** — with the **direct** URL: `python manage.py migrate`
+   (applies `notifications.0002` and `notifications.0003`; both additive).
+4. **Deploy the backend first**, then the frontend: the V2 frontend reads
+   the new `workflow` block, `/api/dashboard/` v2 and `/api/nav-counts/`.
+5. **Verify** as each role: sign-in lands on the role home; a case opens
+   with its action card (desktop) and on a phone (status card, tabs, sheet);
+   the register filters by "waiting on"; Settings → Reminders shows the
+   engine status. Next morning: the cron run appears there.
+6. **Optional** — add the default department-head reminder rules to the
+   existing municipality: `ensure_reminder_defaults` (preview), then
+   `--apply`, only when decided.
+7. **Confirm** `NEXT_PUBLIC_ENABLE_DEMO_LOGIN` and `NEXT_PUBLIC_DEMO_PASSWORD`
+   are **not** set on the production frontend (see
+   [docs/security-deferred.md](docs/security-deferred.md), S3).
+
+Rollback: redeploy the previous backend and frontend builds. The two
+migrations can stay (they add tables, a column and an index that V1 does not
+use) or be reversed with `migrate notifications 0001`.
+

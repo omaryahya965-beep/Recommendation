@@ -41,10 +41,11 @@ export function RaqeebWordmark({
           alt="رقيب"
           width={760}
           height={397}
-          priority
+          // Not preloaded: this panel is hidden below 1024px, where a preload
+          // would fetch an image that is never shown (the photo is the LCP).
           sizes="260px"
           draggable={false}
-          className="h-[clamp(5rem,12vh,7.85rem)] w-auto select-none"
+          className="aspect-[760/397] h-[clamp(5rem,12vh,7.85rem)] w-auto select-none"
         />
       ) : (
         <>
@@ -55,7 +56,7 @@ export function RaqeebWordmark({
             height={397}
             sizes="140px"
             draggable={false}
-            className="h-[4rem] w-auto select-none [[data-theme=dark]_&]:hidden"
+            className="aspect-[760/397] h-[4rem] w-auto select-none [[data-theme=dark]_&]:hidden"
           />
           <Image
             src="/images/brand/raqeeb-logo-light.webp"
@@ -65,7 +66,7 @@ export function RaqeebWordmark({
             height={397}
             sizes="140px"
             draggable={false}
-            className="hidden h-[4rem] w-auto select-none [[data-theme=dark]_&]:block"
+            className="hidden aspect-[760/397] h-[4rem] w-auto select-none [[data-theme=dark]_&]:block"
           />
         </>
       )}

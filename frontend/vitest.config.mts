@@ -18,6 +18,7 @@ export default defineConfig({
     setupFiles: ["./vitest.setup.ts"],
     passWithNoTests: true,
     include: ["**/*.{test,spec}.{ts,tsx}"],
-    exclude: ["node_modules", ".next"],
+    // e2e/ holds the Playwright browser suite, run by `npm run test:e2e`.
+    exclude: ["node_modules", ".next", ".next-e2e", "e2e"],
   },
 });

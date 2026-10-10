@@ -1,0 +1,450 @@
+{
+  "actions": {
+    "confirm_recurrence": {
+      "roles": [
+        "audit"
+      ],
+      "statuses": [
+        "draft",
+        "pending_response",
+        "audit_review",
+        "returned_for_revision",
+        "pending_council",
+        "approved_for_implementation",
+        "action_plan_required",
+        "action_plan_review",
+        "revision_required",
+        "action_plan_approved",
+        "in_progress",
+        "pending_head_review",
+        "submitted_for_verification",
+        "returned_insufficient",
+        "partial",
+        "reopened",
+        "closure_review",
+        "pending_closure_council",
+        "closed"
+      ]
+    },
+    "council_closure": {
+      "roles": [
+        "council"
+      ],
+      "statuses": [
+        "pending_closure_council"
+      ]
+    },
+    "delete_evidence": {
+      "roles": [
+        "employee",
+        "department_head"
+      ],
+      "statuses": [
+        "in_progress",
+        "returned_insufficient",
+        "partial",
+        "reopened",
+        "pending_head_review",
+        "submitted_for_verification"
+      ]
+    },
+    "edit_draft": {
+      "roles": [
+        "audit"
+      ],
+      "statuses": [
+        "draft"
+      ]
+    },
+    "mark_implemented": {
+      "roles": [
+        "employee",
+        "department_head"
+      ],
+      "statuses": [
+        "in_progress",
+        "returned_insufficient",
+        "partial",
+        "reopened"
+      ]
+    },
+    "respond": {
+      "roles": [
+        "department_head"
+      ],
+      "statuses": [
+        "pending_response",
+        "returned_for_revision"
+      ]
+    },
+    "review_implementation": {
+      "roles": [
+        "department_head"
+      ],
+      "statuses": [
+        "pending_head_review"
+      ]
+    },
+    "review_plan": {
+      "roles": [
+        "audit"
+      ],
+      "statuses": [
+        "action_plan_review"
+      ]
+    },
+    "review_response": {
+      "roles": [
+        "audit"
+      ],
+      "statuses": [
+        "audit_review"
+      ]
+    },
+    "submit_for_closure": {
+      "roles": [
+        "audit"
+      ],
+      "statuses": [
+        "closure_review"
+      ]
+    },
+    "submit_plan": {
+      "roles": [
+        "department_head"
+      ],
+      "statuses": [
+        "action_plan_required",
+        "revision_required"
+      ]
+    },
+    "update_progress": {
+      "roles": [
+        "employee",
+        "department_head"
+      ],
+      "statuses": [
+        "in_progress",
+        "returned_insufficient",
+        "partial",
+        "reopened"
+      ]
+    },
+    "upload_evidence": {
+      "roles": [
+        "employee",
+        "department_head"
+      ],
+      "statuses": [
+        "in_progress",
+        "returned_insufficient",
+        "partial",
+        "reopened",
+        "pending_head_review",
+        "submitted_for_verification"
+      ]
+    },
+    "verify": {
+      "roles": [
+        "audit"
+      ],
+      "statuses": [
+        "submitted_for_verification"
+      ]
+    }
+  },
+  "audit_queue_statuses": [
+    "audit_review",
+    "action_plan_review",
+    "submitted_for_verification",
+    "closure_review"
+  ],
+  "closed_labels": {
+    "disagreement_accepted": {
+      "ar": "مغلقة — قُبل عدم الاتفاق",
+      "en": "Closed — disagreement accepted"
+    },
+    "implemented": {
+      "ar": "مغلقة — نُفّذت",
+      "en": "Closed — implemented"
+    }
+  },
+  "council_queue_statuses": [
+    "pending_council",
+    "pending_closure_council"
+  ],
+  "department_deadline_statuses": [
+    "in_progress",
+    "returned_insufficient",
+    "partial",
+    "reopened",
+    "pending_head_review"
+  ],
+  "error_codes": [
+    "ai_error",
+    "ai_invalid_output",
+    "ai_unavailable",
+    "attachment_required",
+    "authentication_failed",
+    "deadline_in_past",
+    "direct_upload_unavailable",
+    "disagreement_requires_justification",
+    "draft_only",
+    "employee_not_found",
+    "employee_wrong_department",
+    "employee_wrong_role",
+    "evidence_delete_not_allowed",
+    "evidence_not_allowed",
+    "evidence_not_owner",
+    "evidence_required",
+    "evidence_wrong_case",
+    "evidence_wrong_step",
+    "executor_only",
+    "file_required",
+    "forbidden_action",
+    "forbidden_transition",
+    "invalid_transition",
+    "invalid_upload",
+    "method_not_allowed",
+    "no_approved_plan",
+    "no_plan",
+    "no_response",
+    "not_authenticated",
+    "not_awaiting_head_review",
+    "not_awaiting_plan",
+    "not_awaiting_response",
+    "not_eligible",
+    "not_flagged_recurring",
+    "not_found",
+    "not_in_closure_review",
+    "not_in_execution",
+    "not_markable",
+    "not_own_department",
+    "not_pending_closure_council",
+    "not_responsible_employee",
+    "not_submitted_for_verification",
+    "parse_error",
+    "permission_denied",
+    "plan_not_under_review",
+    "plan_required_with_response",
+    "progress_out_of_range",
+    "reopen_notes_required",
+    "report_empty",
+    "report_has_unapproved",
+    "report_not_draft",
+    "report_not_pending_council",
+    "report_not_under_review",
+    "required_steps_incomplete",
+    "response_not_under_review",
+    "review_notes_required",
+    "send_to_council_requires_sufficient",
+    "step_dependency_incomplete",
+    "step_wrong_plan",
+    "storage_unavailable",
+    "throttled",
+    "token_not_valid",
+    "unsupported_media_type",
+    "upload_not_found",
+    "upload_too_large",
+    "upload_type_not_allowed",
+    "validation_error",
+    "verification_fields_required",
+    "workflow_error"
+  ],
+  "field_error_codes": [
+    "blank",
+    "does_not_exist",
+    "invalid",
+    "invalid_choice",
+    "max_length",
+    "max_value",
+    "min_length",
+    "min_value",
+    "null",
+    "required",
+    "unique"
+  ],
+  "next_role": {
+    "action_plan_approved": "employee",
+    "action_plan_required": "department_head",
+    "action_plan_review": "audit",
+    "approved_for_implementation": "department_head",
+    "audit_review": "audit",
+    "closed": null,
+    "closure_review": "audit",
+    "draft": "audit",
+    "in_progress": "employee",
+    "partial": "employee",
+    "pending_closure_council": "council",
+    "pending_council": "council",
+    "pending_head_review": "department_head",
+    "pending_response": "department_head",
+    "reopened": "employee",
+    "returned_for_revision": "department_head",
+    "returned_insufficient": "employee",
+    "revision_required": "department_head",
+    "submitted_for_verification": "audit"
+  },
+  "returned_statuses": [
+    "returned_for_revision",
+    "revision_required",
+    "returned_insufficient",
+    "partial",
+    "reopened"
+  ],
+  "stages": [
+    {
+      "ar": "إعداد التدقيق",
+      "en": "Audit preparation",
+      "id": "preparation"
+    },
+    {
+      "ar": "رد الدائرة",
+      "en": "Department response",
+      "id": "response"
+    },
+    {
+      "ar": "مراجعة الرقابة",
+      "en": "Audit review",
+      "id": "audit_review"
+    },
+    {
+      "ar": "اعتماد المجلس",
+      "en": "Council ratification",
+      "id": "council"
+    },
+    {
+      "ar": "خطة العمل",
+      "en": "Action plan",
+      "id": "plan"
+    },
+    {
+      "ar": "التنفيذ",
+      "en": "Implementation",
+      "id": "execution"
+    },
+    {
+      "ar": "مراجعة رئيس الدائرة",
+      "en": "Head review",
+      "id": "head_review"
+    },
+    {
+      "ar": "تحقق الرقابة",
+      "en": "Audit verification",
+      "id": "verification"
+    },
+    {
+      "ar": "الإغلاق",
+      "en": "Closure",
+      "id": "closure"
+    },
+    {
+      "ar": "مغلق",
+      "en": "Closed",
+      "id": "closed"
+    }
+  ],
+  "status_labels": {
+    "action_plan_approved": {
+      "ar": "اعتُمدت الخطة",
+      "en": "Plan approved"
+    },
+    "action_plan_required": {
+      "ar": "بانتظار خطة العمل من الدائرة",
+      "en": "Awaiting the department's action plan"
+    },
+    "action_plan_review": {
+      "ar": "بانتظار مراجعة الرقابة للخطة",
+      "en": "Plan awaiting audit review"
+    },
+    "approved_for_implementation": {
+      "ar": "صودق عليها",
+      "en": "Ratified"
+    },
+    "audit_review": {
+      "ar": "بانتظار مراجعة الرقابة للرد",
+      "en": "Response awaiting audit review"
+    },
+    "closed": {
+      "ar": "مغلقة",
+      "en": "Closed"
+    },
+    "closure_review": {
+      "ar": "تحقّق مكتمل — بانتظار الإحالة للمجلس",
+      "en": "Verified — awaiting referral to the council"
+    },
+    "draft": {
+      "ar": "مسودة لدى الرقابة",
+      "en": "Audit draft"
+    },
+    "in_progress": {
+      "ar": "قيد التنفيذ",
+      "en": "In progress"
+    },
+    "partial": {
+      "ar": "مطلوب استكمال — تنفيذ جزئي",
+      "en": "More work needed — partially implemented"
+    },
+    "pending_closure_council": {
+      "ar": "بانتظار قرار المجلس بالإغلاق",
+      "en": "Awaiting the council's closure decision"
+    },
+    "pending_council": {
+      "ar": "بانتظار مصادقة المجلس",
+      "en": "Awaiting council ratification"
+    },
+    "pending_head_review": {
+      "ar": "بانتظار مراجعة رئيس الدائرة",
+      "en": "Awaiting head review"
+    },
+    "pending_response": {
+      "ar": "بانتظار رد الدائرة",
+      "en": "Awaiting department response"
+    },
+    "reopened": {
+      "ar": "أعاد المجلس فتحها",
+      "en": "Reopened by the council"
+    },
+    "returned_for_revision": {
+      "ar": "أُعيد الرد للتعديل",
+      "en": "Response returned for revision"
+    },
+    "returned_insufficient": {
+      "ar": "مطلوب استكمال — أدلة غير كافية",
+      "en": "More work needed — insufficient evidence"
+    },
+    "revision_required": {
+      "ar": "أُعيدت الخطة للتعديل",
+      "en": "Plan returned for revision"
+    },
+    "submitted_for_verification": {
+      "ar": "بانتظار تحقق الرقابة من الأدلة",
+      "en": "Awaiting audit verification"
+    }
+  },
+  "status_stage": {
+    "action_plan_approved": "plan",
+    "action_plan_required": "plan",
+    "action_plan_review": "plan",
+    "approved_for_implementation": "council",
+    "audit_review": "audit_review",
+    "closed": "closed",
+    "closure_review": "verification",
+    "draft": "preparation",
+    "in_progress": "execution",
+    "partial": "execution",
+    "pending_closure_council": "closure",
+    "pending_council": "council",
+    "pending_head_review": "head_review",
+    "pending_response": "response",
+    "reopened": "execution",
+    "returned_for_revision": "response",
+    "returned_insufficient": "execution",
+    "revision_required": "plan",
+    "submitted_for_verification": "verification"
+  },
+  "transient_statuses": [
+    "approved_for_implementation",
+    "action_plan_approved"
+  ]
+}

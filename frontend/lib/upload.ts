@@ -16,7 +16,7 @@ export const ALLOWED_UPLOAD_EXTENSIONS = [
 ];
 
 export const FILE_INPUT_ACCEPT = ALLOWED_UPLOAD_EXTENSIONS.join(",");
-const DEFAULT_MAX_BYTES = 20 * 1024 * 1024;
+export const DEFAULT_MAX_BYTES = 20 * 1024 * 1024;
 
 export type UploadPurpose = "evidence" | "response";
 

@@ -20,7 +20,7 @@ Branding, layout, and visual language are original.
 | line | #DDE4E1 | borders |
 | ink | #17211F | text |
 | ink-soft | #64716D | secondary text |
-| muted | #8A9691 | captions |
+| muted | #636F6C | captions, dates (AA 4.5:1 on every light surface) |
 | success | #21845A | closed / complete |
 | warning | #C98A1A | pending verification / due soon |
 | danger | #C94B4B | overdue / returned |

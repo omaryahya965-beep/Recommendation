@@ -40,20 +40,20 @@ class ReminderEngineTest(TestCase):
         self.assertEqual(third, 0)
         self.assertEqual(Notification.objects.filter(dedupe_key__isnull=False).count(), 1)
 
-    def test_overdue_escalates_to_audit(self):
-        self._set_target(-7)  # matches +7 rules: employee AND audit escalation
+    def test_overdue_escalates_to_head_and_audit(self):
+        self._set_target(-7)  # +7 rules: employee, department head and audit escalation
         created = run_reminders()
         recipients = set(
             Notification.objects.filter(dedupe_key__isnull=False).values_list(
                 "user__role", flat=True
             )
         )
-        self.assertEqual(created, 2)
-        self.assertEqual(recipients, {User.Role.EMPLOYEE, User.Role.AUDIT})
+        self.assertEqual(created, 3)
+        self.assertEqual(recipients, {User.Role.EMPLOYEE, User.Role.DEPARTMENT_HEAD, User.Role.AUDIT})
 
-    def test_disabled_rule_does_not_fire(self):
+    def test_disabled_rules_do_not_fire(self):
         self._set_target(7)
-        ReminderRule.objects.filter(offset_days=-7).update(enabled=False)
+        ReminderRule.objects.filter(offset_days__in=(-14, -7)).update(enabled=False)
         self.assertEqual(run_reminders(), 0)
 
     def test_no_reminders_for_closed_recommendations(self):
@@ -87,6 +87,58 @@ class NotificationApiTest(TestCase):
         self.assertEqual(item["status"], self.rec.status)
         self.assertIn("overdue", item)
         self.assertFalse(item["is_read"])
+
+    def _notify_head(self):
+        Notification.objects.create(
+            user=self.users["head"],
+            recommendation=self.rec,
+            type=Notification.Type.OVERDUE,
+            message="late",
+        )
+        self.client.force_authenticate(self.users["head"])
+        return self.client.get("/api/notifications/").json()["results"][0]
+
+    def test_lateness_follows_the_audit_set_deadline_not_the_plan_date(self):
+        # W1: after a partial verification the deadline audit set binds, so
+        # the inbox counts lateness from it even while the plan date is ahead.
+        from apps.workflow.models import VerificationDecision
+        from apps.workflow.tests import finish_steps_and_evidence, submit_to_audit
+
+        today = timezone.localdate()
+        drive_to_in_progress(self.users, self.report, self.rec)
+        self.rec.action_plan.target_date = today + datetime.timedelta(days=30)
+        self.rec.action_plan.save()
+        finish_steps_and_evidence(self.users, self.rec)
+        submit_to_audit(self.users, self.rec)
+        services.verify(
+            self.rec, self.users["audit"], decision="partial", notes="n",
+            rejected_items="x", rejection_reason="y", required_action="z",
+            action_deadline=today + datetime.timedelta(days=1),
+        )
+        VerificationDecision.objects.filter(recommendation=self.rec).update(
+            action_deadline=today - datetime.timedelta(days=3)
+        )
+
+        item = self._notify_head()
+        self.assertTrue(item["overdue"])
+        self.assertEqual(item["deadline"], (today - datetime.timedelta(days=3)).isoformat())
+        self.assertEqual(item["days_overdue"], 3)
+        self.assertEqual(item["target_date"], (today + datetime.timedelta(days=30)).isoformat())
+
+    def test_a_case_waiting_on_audit_is_not_late_for_the_department(self):
+        # W2: the plan date passed, but audit holds the case.
+        from apps.workflow.tests import finish_steps_and_evidence, submit_to_audit
+
+        drive_to_in_progress(self.users, self.report, self.rec)
+        finish_steps_and_evidence(self.users, self.rec)
+        submit_to_audit(self.users, self.rec)
+        self.rec.action_plan.target_date = timezone.localdate() - datetime.timedelta(days=5)
+        self.rec.action_plan.save()
+
+        item = self._notify_head()
+        self.assertFalse(item["overdue"])
+        self.assertEqual(item["days_overdue"], 0)
+        self.assertIsNone(item["deadline"])
 
     def test_user_only_sees_own_notifications(self):
         Notification.objects.create(

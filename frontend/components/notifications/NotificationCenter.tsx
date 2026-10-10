@@ -1,64 +1,50 @@
 "use client";
 
-import { Bell, Check, Filter, Search, SlidersHorizontal } from "lucide-react";
+import { BellOff, CheckCheck, Inbox, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { DirBack } from "@/components/i18n/DirIcon";
-import { NotificationDetail } from "@/components/notifications/NotificationDetail";
-import { NotificationRow } from "@/components/notifications/NotificationRow";
-import { Button, ErrorBanner, TextInput } from "@/components/ui/Base";
+import { NotificationItem } from "@/components/notifications/NotificationItem";
+import { Button, ErrorBanner, Select, TextInput } from "@/components/ui/Base";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { EmptyState, Skeleton } from "@/components/ui/EmptyState";
+import { Skeleton } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/cn";
-import {
-  useDeleteNotification,
-  useMarkAllNotificationsRead,
-  useMarkNotificationRead,
-  useNotifications,
-} from "@/lib/hooks";
+import { plural } from "@/lib/format";
+import { useDeleteNotification, useMarkAllNotificationsRead, useNotifications } from "@/lib/hooks";
 import { T, useI18n } from "@/lib/i18n";
 import {
   filterNotifications,
-  groupForAction,
+  groupByTime,
   nextPathFromUrl,
-  sortNotifications,
-  userMustAct,
-  type NotifyFilter,
+  notifyMeta,
+  type ReadFilter,
 } from "@/lib/notifications";
-import type { AppNotification, Paginated, Role } from "@/lib/types";
+import type { AppNotification, NotificationType, Paginated, Role } from "@/lib/types";
 
-function notifyFilters(): Array<{ id: NotifyFilter; label: string }> {
-  return [
-    { id: "all", label: T.notify.all },
-    { id: "unread", label: T.notify.unread },
-    { id: "action", label: T.notify.actionRequired },
-    { id: "overdue", label: T.notify.overdue },
-    { id: "deadline", label: T.notify.approaching },
-    { id: "returned", label: T.notify.returnedFilter },
-    { id: "status", label: T.notify.statusChange },
-    { id: "linked", label: T.notify.linked },
-    { id: "older", label: T.notify.older },
-  ];
-}
+const TYPES: NotificationType[] = [
+  "overdue",
+  "returned",
+  "due_today",
+  "deadline_approaching",
+  "response_needed",
+  "action_required",
+  "status_change",
+];
 
-function NotificationSkeleton() {
-  useI18n();
+function InboxSkeleton() {
   return (
-    <div className="space-y-4">
-      <Skeleton className="h-8 w-48 rounded-xl" />
-      <div className="flex gap-3 rounded-2xl border border-line p-4">
-        <Skeleton className="h-14 flex-1 rounded-xl" />
-        <Skeleton className="h-14 flex-1 rounded-xl" />
-        <Skeleton className="h-14 flex-1 rounded-xl" />
-      </div>
+    <div className="space-y-3" aria-hidden>
+      <Skeleton className="h-11 w-full max-w-md rounded-full" />
       <div className="overflow-hidden rounded-2xl border border-line">
         {Array.from({ length: 6 }).map((_, index) => (
-          <div key={index} className="space-y-2 border-b border-line px-4 py-4 last:border-0">
-            <Skeleton className="h-3 w-24 rounded-full" />
-            <Skeleton className="h-4 w-4/5 rounded-lg" />
-            <Skeleton className="h-3 w-2/5 rounded-lg" />
+          <div key={index} className="flex gap-3 border-b border-line px-4 py-4 last:border-0">
+            <Skeleton className="size-9 shrink-0 rounded-full" />
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-3 w-24 rounded-full" />
+              <Skeleton className="h-4 w-4/5 rounded-lg" />
+              <Skeleton className="h-3 w-2/5 rounded-lg" />
+            </div>
           </div>
         ))}
       </div>
@@ -66,65 +52,47 @@ function NotificationSkeleton() {
   );
 }
 
-export function NotificationCenter({ role, embedded = false }: { role: Role; embedded?: boolean }) {
+/**
+ * The notifications inbox: every notification, newest first and grouped by
+ * day, filtered by read state and type. Each one opens its exact target and
+ * is marked read on the way.
+ */
+export function NotificationCenter({ role }: { role: Role }) {
   useI18n();
   const { data, isLoading, isError, refetch } = useNotifications();
-  const markRead = useMarkNotificationRead();
   const markAll = useMarkAllNotificationsRead();
   const removeNote = useDeleteNotification();
-  const [filter, setFilter] = useState<NotifyFilter>("all");
+  const [read, setRead] = useState<ReadFilter>("all");
+  const [type, setType] = useState<NotificationType | "all">("all");
   const [query, setQuery] = useState("");
-  const [sortMode, setSortMode] = useState<"priority" | "newest">("priority");
-  const [selectedId, setSelectedId] = useState<number | null>(null);
   const [pendingRemove, setPendingRemove] = useState<AppNotification | null>(null);
   const [extra, setExtra] = useState<AppNotification[]>([]);
   const [nextPage, setNextPage] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  const merged = useMemo(() => {
+  const items = useMemo(() => {
     const pageItems = data?.results ?? [];
-    const seen = new Set(pageItems.map((item) => item.id));
-    return [...pageItems, ...extra.filter((item) => !seen.has(item.id))];
+    const fresh = new Map(pageItems.map((item) => [item.id, item]));
+    // Older pages keep their rows; the first page is the live copy.
+    return [...pageItems, ...extra.filter((item) => !fresh.has(item.id))];
   }, [data?.results, extra]);
 
-  const items = useMemo(
-    () => (sortMode === "newest" ? [...merged].sort((a, b) => new Date(b.sent_at).getTime() - new Date(a.sent_at).getTime()) : sortNotifications(merged)),
-    [merged, sortMode]
-  );
-  const visible = useMemo(() => filterNotifications(items, filter, query), [items, filter, query]);
-  const grouped = groupForAction(visible);
-  const selected = visible.find((item) => item.id === selectedId) ?? null;
-
   const unread = items.filter((item) => !item.is_read).length;
-  const actionable = items.filter((item) => userMustAct(item, role)).length;
-  const overdue = items.filter((item) => item.type === "overdue" || item.overdue).length;
-  const hasStatusChange = items.some((item) => item.type === "status_change");
-  const hasReturned = items.some((item) => item.type === "returned");
-  const hasDeadline = items.some((item) => item.type === "deadline_approaching" || item.type === "due_today");
-  const filters = notifyFilters().filter((item) => {
-    if (item.id === "status") return hasStatusChange;
-    if (item.id === "returned") return hasReturned;
-    if (item.id === "deadline") return hasDeadline;
-    return true;
-  });
+  const counts: Record<ReadFilter, number> = { all: items.length, unread, read: items.length - unread };
+  const present = TYPES.filter((id) => items.some((item) => item.type === id));
+  const visible = useMemo(() => filterNotifications(items, read, type, query), [items, read, type, query]);
+  const groups = useMemo(() => groupByTime(visible), [visible]);
   const moreHref = extra.length === 0 ? nextPathFromUrl(data?.next ?? null) : nextPage;
 
-  const emptyTitle =
-    filter === "unread"
-      ? T.notify.emptyUnread
-      : filter === "action"
-        ? T.notify.emptyAction
-        : query || filter !== "all"
-          ? T.notify.emptyFilter
-          : T.notify.empty;
-  const emptyHint =
-    filter === "unread"
-      ? T.notify.emptyUnreadHint
-      : filter === "action"
-        ? T.notify.emptyActionHint
-        : filter !== "all" || query
-          ? undefined
-          : T.notify.emptyHint;
+  const filtered = type !== "all" || query.trim() !== "";
+  const empty =
+    read === "unread"
+      ? { title: T.notify.emptyUnread, hint: T.notify.emptyUnreadHint }
+      : read === "read"
+        ? { title: T.notify.emptyRead, hint: T.notify.emptyReadHint }
+        : filtered
+          ? { title: T.notify.emptyFilter, hint: undefined }
+          : { title: T.notify.empty, hint: T.notify.emptyHint };
 
   async function loadMore() {
     if (!moreHref || loadingMore) return;
@@ -141,164 +109,120 @@ export function NotificationCenter({ role, embedded = false }: { role: Role; emb
     }
   }
 
-  if (isLoading) return <NotificationSkeleton />;
-  if (isError) return <ErrorBanner message={T.common.error} onRetry={() => refetch()} />;
+  const markAllButton =
+    unread > 0 ? (
+      <Button variant="secondary" onClick={() => markAll.mutate()} disabled={markAll.isPending} className="gap-2 font-bold">
+        <CheckCheck className="size-4" aria-hidden />
+        {T.notify.markAllRead}
+      </Button>
+    ) : null;
 
   return (
-    <div className="space-y-5">
-      {embedded ? (
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <p className="max-w-xl text-[13.5px] font-medium text-ink-soft">{T.notify.subtitle}</p>
-          {unread > 0 ? (
-            <Button variant="ghost" onClick={() => markAll.mutate()} disabled={markAll.isPending} className="font-bold">
-              {T.notify.markAllRead}
-            </Button>
-          ) : null}
-        </div>
+    <div className="space-y-4" data-testid="notification-center">
+      <PageHeader title={T.notify.title} description={T.notify.subtitle} actions={markAllButton ? <span className="max-md:hidden">{markAllButton}</span> : undefined} />
+
+      {isLoading ? (
+        <InboxSkeleton />
+      ) : isError ? (
+        <ErrorBanner message={T.common.error} onRetry={() => refetch()} />
       ) : (
-        <PageHeader
-          title={T.notify.title}
-          description={T.notify.subtitle}
-          actions={
-            unread > 0 ? (
-              <Button variant="ghost" onClick={() => markAll.mutate()} disabled={markAll.isPending} className="font-bold">
-                {T.notify.markAllRead}
-              </Button>
-            ) : null
-          }
-        />
-      )}
-
-      {/* Summary stat bar */}
-      <dl className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-1 scrollbar-thin md:mx-0 md:grid md:grid-cols-3 md:overflow-visible md:px-0 md:pb-0">
-        <div className="min-w-[9.5rem] snap-start rounded-2xl border border-line bg-surface p-4 text-center shadow-sm md:min-w-0">
-          <dt className="mb-1 text-[11px] font-bold text-muted">{T.notify.actionRequired}</dt>
-          <dd className="font-heading text-[26px] font-bold text-navy" dir="ltr">{actionable}</dd>
-        </div>
-        <div className="min-w-[9.5rem] snap-start rounded-2xl border border-line bg-surface p-4 text-center shadow-sm md:min-w-0">
-          <dt className="mb-1 text-[11px] font-bold text-muted">{T.notify.overdue}</dt>
-          <dd className={cn("font-heading text-[26px] font-bold", overdue ? "text-danger-dark" : "text-navy")} dir="ltr">{overdue}</dd>
-        </div>
-        <div className="min-w-[9.5rem] snap-start rounded-2xl border border-line bg-surface p-4 text-center shadow-sm md:min-w-0">
-          <dt className="mb-1 text-[11px] font-bold text-muted">{T.notify.unread}</dt>
-          <dd className="font-heading text-[26px] font-bold text-navy" dir="ltr">{unread}</dd>
-        </div>
-      </dl>
-
-      {/* Filter bar */}
-      <div className="space-y-2.5">
-        <div className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1 scrollbar-thin">
-          <Filter className="size-3.5 shrink-0 text-muted" aria-hidden />
-          {filters.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setFilter(item.id)}
-              className={cn(
-                "min-h-11 shrink-0 rounded-full border px-3 text-[13px] font-bold transition-colors",
-                filter === item.id
-                  ? "border-navy bg-navy text-white"
-                  : "border-line bg-surface text-ink-soft hover:border-navy/40 hover:text-navy"
-              )}
-            >
-              {item.label}
-            </button>
-          ))}
-          <label className="ms-auto flex min-h-11 shrink-0 items-center gap-2 text-[12px] font-semibold text-muted">
-            <SlidersHorizontal className="size-3.5" aria-hidden />
-            <select
-              value={sortMode}
-              onChange={(event) => setSortMode(event.target.value as "priority" | "newest")}
-              className="rounded-lg border border-line bg-surface px-2.5 py-1.5 text-[12.5px] font-semibold text-ink"
-            >
-              <option value="priority">{T.notify.sortPriority}</option>
-              <option value="newest">{T.notify.sortNewest}</option>
-            </select>
-          </label>
-        </div>
-        <div className="relative max-w-sm">
-          <Search className="absolute start-3 top-1/2 -translate-y-1/2 size-3.5 text-muted" aria-hidden />
-          <TextInput
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={T.notify.search}
-            aria-label={T.notify.search}
-            className="ps-8"
-          />
-        </div>
-        <p className="text-[11px] font-medium text-muted">{T.notify.searchHint}</p>
-      </div>
-
-      {/* Main list / detail layout */}
-      {visible.length === 0 ? (
-        <EmptyState
-          icon={filter === "all" && !query ? <Check className="size-6" /> : <Bell className="size-6" />}
-          title={emptyTitle}
-          description={emptyHint}
-          className="border-dashed shadow-none"
-        />
-      ) : (
-        <div className="overflow-hidden rounded-2xl border border-line lg:grid lg:grid-cols-[minmax(0,1fr)_23rem] lg:items-start">
-          {/* List panel */}
-          <div className={cn("lg:border-e border-line", selected && "hidden lg:block")}>
-            {grouped.map((group) => (
-              <section key={group.id}>
-                <h2 className="sticky top-0 z-10 flex min-h-11 items-center gap-2 border-b border-line bg-subtle px-4 py-2.5 text-[13px] font-bold text-navy">
-                  {group.label}
-                  <span className="rounded-full bg-surface border border-line px-2 py-0.5 font-mono text-[10px] font-bold text-muted" dir="ltr">
-                    {group.items.length}
-                  </span>
-                </h2>
-                {group.items.map((item) => (
-                  <NotificationRow
-                    key={item.id}
-                    item={item}
-                    role={role}
-                    selected={selected?.id === item.id}
-                    onSelect={(next) => {
-                      setSelectedId(next.id);
-                      if (!next.is_read) markRead.mutate(next.id);
-                    }}
-                    onRemove={setPendingRemove}
-                  />
+        <>
+          <div className="space-y-3 rounded-2xl border border-line bg-surface p-3 shadow-sm md:p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="grid w-full grid-cols-3 gap-1 rounded-full bg-subtle p-1 sm:w-auto" role="group" aria-label={T.notify.title}>
+                {(["all", "unread", "read"] as const).map((id) => (
+                  <button
+                    key={id}
+                    type="button"
+                    aria-pressed={read === id}
+                    onClick={() => setRead(id)}
+                    data-filter={id}
+                    className={cn(
+                      "inline-flex min-h-10 min-w-0 items-center justify-center gap-1 whitespace-nowrap rounded-full px-2 text-[12.5px] font-bold transition-colors sm:gap-1.5 sm:px-3.5 sm:text-[13px]",
+                      read === id ? "bg-surface text-navy shadow-sm" : "text-ink-soft hover:text-ink"
+                    )}
+                  >
+                    {id === "all" ? T.notify.all : id === "unread" ? T.notify.unread : T.notify.read}
+                    <span
+                      className={cn(
+                        "min-w-5 rounded-full px-1.5 text-center font-mono text-[11px]",
+                        id === "unread" && counts.unread ? "bg-danger text-surface" : "bg-line/60 text-ink-soft"
+                      )}
+                      dir="ltr"
+                    >
+                      {counts[id]}
+                    </span>
+                  </button>
                 ))}
-              </section>
-            ))}
-            {moreHref ? (
-              <div className="border-t border-line px-4 py-3">
-                <Button variant="ghost" onClick={() => void loadMore()} disabled={loadingMore} className="font-bold">
-                  {loadingMore ? T.common.loading : T.notify.loadMore}
-                </Button>
               </div>
-            ) : null}
+              <p className="text-[12.5px] font-semibold text-ink-soft" data-testid="notification-center-count">
+                {unread ? plural(unread, T.notify.unreadCount) : T.notify.allRead}
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_14rem]">
+              <div className="relative min-w-0">
+                <Search className="pointer-events-none absolute inset-y-0 start-3 my-auto size-4 text-muted" aria-hidden />
+                <TextInput
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder={T.notify.search}
+                  aria-label={T.notify.search}
+                  className="ps-9"
+                />
+              </div>
+              <Select
+                value={type}
+                onChange={(event) => setType(event.target.value as NotificationType | "all")}
+                aria-label={T.notify.typeFilter}
+              >
+                <option value="all">{T.notify.allTypes}</option>
+                {present.map((id) => (
+                  <option key={id} value={id}>
+                    {notifyMeta(id).label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="md:hidden">{markAllButton}</div>
           </div>
 
-          {/* Detail panel */}
-          <div className={cn("p-5 lg:border-0", !selected && "hidden lg:block")}>
-            {selected ? (
-              <>
-                <button
-                  type="button"
-                  className="mb-4 inline-flex min-h-12 items-center gap-1.5 text-[15px] font-semibold text-ink-soft lg:hidden"
-                  onClick={() => setSelectedId(null)}
-                >
-                  <DirBack className="size-4" />
-                  {T.notify.title}
-                </button>
-                <NotificationDetail
-                  item={selected}
-                  role={role}
-                  onMarkRead={() => {
-                    if (!selected.is_read) markRead.mutate(selected.id);
-                  }}
-                  onRemove={() => setPendingRemove(selected)}
-                />
-              </>
-            ) : (
-              <p className="hidden py-20 text-center text-[13.5px] font-medium text-muted lg:block">{T.notify.selectHint}</p>
-            )}
-          </div>
-        </div>
+          {groups.length ? (
+            <div className="overflow-hidden rounded-2xl border border-line bg-surface shadow-sm">
+              {groups.map((group) => (
+                <section key={group.id} aria-label={group.label} data-group={group.id}>
+                  <h2 className="flex items-center gap-2 border-b border-line/70 bg-subtle/60 px-4 py-2 text-[12.5px] font-bold text-navy md:px-5">
+                    {group.label}
+                    <span className="rounded-full bg-surface px-2 font-mono text-[11px] text-muted ring-1 ring-line" dir="ltr">
+                      {group.items.length}
+                    </span>
+                  </h2>
+                  <ul className="divide-y divide-line/60">
+                    {group.items.map((item) => (
+                      <li key={item.id}>
+                        <NotificationItem item={item} role={role} showActions onRemove={setPendingRemove} />
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ))}
+              {moreHref ? (
+                <div className="border-t border-line px-4 py-3 text-center">
+                  <Button variant="ghost" onClick={() => void loadMore()} disabled={loadingMore} className="font-bold">
+                    {loadingMore ? T.common.loading : T.notify.loadMore}
+                  </Button>
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-line bg-surface px-6 py-14 text-center">
+              <span className="flex size-12 items-center justify-center rounded-full bg-subtle text-muted">
+                {read === "all" && !filtered ? <Inbox className="size-5" aria-hidden /> : <BellOff className="size-5" aria-hidden />}
+              </span>
+              <p className="text-[15px] font-bold text-navy">{empty.title}</p>
+              {empty.hint ? <p className="max-w-sm text-[13px] text-muted">{empty.hint}</p> : null}
+            </div>
+          )}
+        </>
       )}
 
       <ConfirmDialog
@@ -320,7 +244,6 @@ export function NotificationCenter({ role, embedded = false }: { role: Role; emb
           removeNote.mutate(id, {
             onSuccess: () => {
               setExtra((current) => current.filter((item) => item.id !== id));
-              if (selectedId === id) setSelectedId(null);
               setPendingRemove(null);
             },
           });

@@ -1,9 +1,9 @@
 "use client";
 
-import { AnalyticsWorkspace } from "@/components/dashboard/AnalyticsWorkspace";
+import { AnalyticsDashboard } from "@/components/analytics/AnalyticsDashboard";
 import { useI18n } from "@/lib/i18n";
 
 export default function CouncilAnalyticsPage() {
   useI18n();
-  return <AnalyticsWorkspace role="council" />;
+  return <AnalyticsDashboard role="council" />;
 }

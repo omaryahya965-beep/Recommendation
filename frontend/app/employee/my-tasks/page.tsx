@@ -1,35 +1,58 @@
 "use client";
 
-import { ClipboardList } from "lucide-react";
-import Link from "next/link";
+import { AlarmClock, CalendarClock, CheckCircle2, ClipboardList, Hourglass, PlayCircle, RotateCcw } from "lucide-react";
 
-import { rank, splitDue, type ActionSource } from "@/components/dashboard/AttentionBoard";
-import { EmployeeEvidence, EmployeePlans } from "@/components/dashboard/EmployeeDesk";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
-import { ActionNow } from "@/components/home/ActionNow";
-import { HomeHero } from "@/components/home/HomeHero";
+import { DashboardColumns, DashboardPage } from "@/components/home/DashboardLayout";
+import { HomeHero, type HeroStat } from "@/components/home/HomeHero";
+import { groupTasks, NextTaskCard, TaskBoard } from "@/components/home/TaskList";
+import { QueueListCard, REASON_TONE } from "@/components/home/WorkQueue";
 import { ErrorBanner } from "@/components/ui/Base";
 import { DashboardBodySkeleton } from "@/components/ui/EmptyState";
-import { RecordId } from "@/components/ui/Ledger";
-import { OverdueBadge } from "@/components/ui/OverdueBadge";
-import { RiskBadge } from "@/components/ui/RiskBadge";
+import { caseHref, sectionForStatus } from "@/lib/caseLinks";
+import { formatDate } from "@/lib/format";
 import { useDashboard } from "@/lib/hooks";
-import { caseTitle } from "@/lib/finding";
 import { T, useI18n } from "@/lib/i18n";
-import { STATUS_NEXT_ACTION } from "@/lib/workflow";
+import type { RecommendationListItem } from "@/lib/types";
 
 const HOME = "/employee/my-tasks";
 const REGISTER = "/employee/recommendations";
 
+/** Every link opens the register with the filter the server used for the count. */
+const LINKS = {
+  returned: `${REGISTER}?status__in=returned_insufficient,partial,reopened`,
+  overdue: `${REGISTER}?overdue=1`,
+  upcoming: `${REGISTER}?due_within=30`,
+  reviewing: `${REGISTER}?status__in=pending_head_review,submitted_for_verification,closure_review,pending_closure_council`,
+};
+
+const taskHref = (item: RecommendationListItem) => caseHref(HOME, item.id, sectionForStatus(item.status));
+
+/**
+ * The employee's home is a task list: the one task to do next, then every
+ * task once in its most urgent group, and — apart — the work under review.
+ */
 export default function MyTasksPage() {
   useI18n();
   const { data, isLoading, isError, refetch } = useDashboard();
+  const center = data?.action_center;
+
+  const stats: HeroStat[] = center
+    ? [
+        { label: T.roleHome.statReturned, count: center.returned_for_more_evidence?.count ?? 0, href: LINKS.returned, icon: RotateCcw, tone: "danger" },
+        { label: T.roleHome.statOverdue, count: center.overdue?.count ?? 0, href: LINKS.overdue, icon: AlarmClock, tone: "danger" },
+        { label: T.roleHome.statDue, count: center.upcoming_deadlines?.count ?? 0, href: LINKS.upcoming, icon: CalendarClock, tone: "warning" },
+        { label: T.roleHome.statInReview, count: data?.waiting_on_others?.count ?? 0, href: LINKS.reviewing, icon: Hourglass, tone: "primary" },
+      ]
+    : [];
 
   const hero = (
     <HomeHero
       role="employee"
       title={T.dashboard.employeeTitle}
       subtitle={T.dashboard.employeeHint}
+      stats={stats}
+      compact
       actions={[{ href: REGISTER, label: T.dashboard.myRecommendations, icon: ClipboardList, primary: true }]}
     />
   );
@@ -37,70 +60,77 @@ export default function MyTasksPage() {
   // The hero is static: it renders at once, while only the data sections
   // wait for /api/dashboard/. Same wrapper in both branches, so the hero is
   // updated in place (not remounted) when the data arrives.
-  if (isLoading || isError || !data) {
+  if (isLoading || isError || !data || !center) {
     return (
-      <div className="animate-fade-in space-y-5">
+      <DashboardPage>
         {hero}
         {isLoading ? <DashboardBodySkeleton /> : <ErrorBanner message={T.common.error} onRetry={() => refetch()} />}
-      </div>
+      </DashboardPage>
     );
   }
 
-  const sources: ActionSource[] = [];
-  const overdue = data.action_center.overdue;
-  if (overdue) sources.push({ key: "overdue", block: overdue, href: REGISTER });
-  const returned = data.action_center.returned_for_more_evidence;
-  if (returned) sources.push({ key: "returned_for_more_evidence", block: returned, href: REGISTER });
-  sources.push(...splitDue(data.action_center.upcoming_deadlines, REGISTER));
-  const waiting = data.action_center.waiting_head_review;
-  if (waiting) sources.push({ key: "waiting_head_review", block: waiting, href: REGISTER });
-
-  const tasks = data.active_tasks?.items ?? [];
-  const next = rank(sources)[0];
-  const nextAction = next ? STATUS_NEXT_ACTION[next.item.status] : null;
+  const facts = data.task_facts ?? {};
+  const groups = groupTasks([
+    { id: "returned", title: T.home.returnedWork, icon: RotateCcw, tone: "danger", href: LINKS.returned, block: center.returned_for_more_evidence },
+    { id: "overdue", title: T.home.overdueWork, icon: AlarmClock, tone: "danger", href: LINKS.overdue, block: center.overdue },
+    { id: "due", title: T.home.dueWork, icon: CalendarClock, tone: "warning", href: LINKS.upcoming, block: center.upcoming_deadlines },
+    { id: "active", title: T.roleHome.inProgress, icon: PlayCircle, tone: "primary", href: REGISTER, block: data.active_tasks },
+  ]);
+  const firstGroup = groups.find((group) => group.items.length);
+  const next = firstGroup?.items[0];
 
   return (
-    <div className="animate-fade-in space-y-5">
+    <DashboardPage>
       {hero}
 
-      {next ? (
-        <section className="section-elevated border-transparent bg-gradient-to-br from-inverse via-inverse to-[#1a4b66] p-5 md:p-6 text-on-inverse shadow-[0_8px_32px_rgba(24,59,78,0.25)] relative overflow-hidden">
-          <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.03)_50%,transparent_75%)] bg-[length:250%_250%] animate-[shimmer_8s_linear_infinite]" aria-hidden />
-          <div className="relative z-10">
-            <p className="text-[13px] font-bold text-white/70 uppercase tracking-wide">{T.workflow.actNow}</p>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <RecordId id={next.item.id} />
-              <RiskBadge level={next.item.risk_level} />
-              <OverdueBadge targetDate={next.item.target_date} overdue={next.item.overdue} />
+      <DashboardColumns
+        main={
+          <>
+            {next && firstGroup ? (
+              <NextTaskCard item={next} facts={facts[String(next.id)]} href={taskHref(next)} returned={firstGroup.id === "returned"} />
+            ) : (
+              <section
+                className="flex items-center gap-4 rounded-2xl border border-success/25 bg-success-light/40 p-5"
+                data-testid="all-clear"
+              >
+                <CheckCircle2 className="size-8 shrink-0 text-success-dark" aria-hidden />
+                <div className="min-w-0 flex-1">
+                  <p className="font-heading text-[16px] font-bold text-success-dark">{T.home.allClear}</p>
+                  <p className="text-[13px] text-ink-soft">
+                    {T.home.nextDeadline}:{" "}
+                    <span className="font-mono font-semibold text-ink" dir="ltr">
+                      {data.next_deadline ? formatDate(data.next_deadline) : T.home.noNextDeadline}
+                    </span>
+                  </p>
+                </div>
+              </section>
+            )}
+            <TaskBoard groups={groups} facts={facts} hrefFor={taskHref} />
+          </>
+        }
+        aside={
+          <>
+            {/* Submitted work: nothing to do but wait — drawn quieter. */}
+            <QueueListCard
+              title={T.home.waitingOnReviewers}
+              hint={T.home.waitingOnReviewersHint}
+              block={data.waiting_on_others}
+              href={LINKS.reviewing}
+              reason={{ id: "in_review", label: T.roleHome.statInReview, icon: Hourglass, tone: REASON_TONE.neutral }}
+              detailHref={taskHref}
+              showDepartment={false}
+              emptyLabel={T.home.noWaitingOnReviewers}
+              limit={4}
+              testId="in-review"
+              dense
+              className="bg-subtle/40"
+            />
+            <div className="max-md:hidden">
+              <RecentActivity role="employee" limit={3} compact />
             </div>
-            <h2 className="mt-4 font-heading text-[1.375rem] font-bold leading-snug drop-shadow-sm">
-              {nextAction?.action ?? T.dashboard.open}
-            </h2>
-            <p className="mt-2 text-[15px] leading-relaxed text-white/90">{caseTitle(next.item.text, 140)}</p>
-            <Link
-              href={`${HOME}/${next.item.id}`}
-              className="mt-5 flex min-h-12 w-full sm:w-auto sm:px-8 sm:inline-flex items-center justify-center rounded-lg bg-white text-[15px] font-bold text-inverse shadow-md transition-all hover:bg-white/90 hover:shadow-lg active:scale-95"
-            >
-              {T.dashboard.open}
-            </Link>
-          </div>
-        </section>
-      ) : null}
-
-      <ActionNow
-        sources={sources}
-        detailBase={HOME}
-        viewAllHref={REGISTER}
-        title={T.dashboard.myActions}
-        hint={T.dashboard.myActionsHint}
+          </>
+        }
       />
-
-      <RecentActivity detailBase={HOME} compact />
-
-      <div className="grid items-stretch gap-4 xl:grid-cols-2">
-        <EmployeePlans items={tasks} detailBase={HOME} />
-        <EmployeeEvidence items={tasks} detailBase={HOME} />
-      </div>
-    </div>
+    </DashboardPage>
   );
 }

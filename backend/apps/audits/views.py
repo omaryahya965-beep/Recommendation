@@ -2,11 +2,13 @@ import csv
 import logging
 
 from django.contrib.auth import get_user_model
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.http import StreamingHttpResponse
+from django_filters.rest_framework import DjangoFilterBackend
 from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.filters import SearchFilter
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -24,6 +26,8 @@ from apps.core.permissions import (
 )
 from apps.workflow import services
 from apps.workflow.models import ActionStep, Evidence
+from apps.core.refs import record_code
+from apps.workflow.presentation import annotate_workflow
 from apps.workflow.serializers import (
     ActionPlanInputSerializer,
     EvidenceInputSerializer,
@@ -33,7 +37,7 @@ from apps.workflow.serializers import (
     VerifyInputSerializer,
 )
 
-from .filters import RecommendationFilterSet
+from .filters import RecommendationFilterSet, RecommendationOrderingFilter
 from .models import AuditReport, Recommendation
 from .serializers import (
     AuditReportDetailSerializer,
@@ -41,10 +45,25 @@ from .serializers import (
     RecommendationCreateSerializer,
     RecommendationDetailSerializer,
     RecommendationListSerializer,
+    RecommendationUpdateSerializer,
     is_overdue,
 )
 
 User = get_user_model()
+
+
+def _clip_for_log(value, limit=500):
+    if isinstance(value, str) and len(value) > limit:
+        return value[:limit] + "…"
+    return value
+
+
+def _csv_cell(value):
+    """CSV text for one value. Only a missing value becomes an empty cell:
+    `value or ""` used to blank out legitimate zeros (priority score 0)."""
+    if value is None:
+        return ""
+    return value
 
 
 class _EchoBuffer:
@@ -67,6 +86,9 @@ class PendingApprovalsView(APIView):
             )
             .select_related("department", "created_by", "municipality")
             .annotate(recommendations_count=Count("recommendations"))
+            # Meta.ordering is ignored once Count() adds a GROUP BY, so the
+            # queue order must be explicit: longest-waiting report first.
+            .order_by("updated_at", "id")
         )
         return Response(
             AuditReportSerializer(reports, many=True, context={"request": request}).data
@@ -89,7 +111,18 @@ class AuditReportViewSet(viewsets.ModelViewSet):
                 "department", "municipality",
                 "created_by__department", "created_by__municipality",
             )
-            .annotate(recommendations_count=Count("recommendations"))
+            .annotate(
+                recommendations_count=Count("recommendations", distinct=True),
+                # For `ready_for_council` without a query per report.
+                at_council_gate=Count(
+                    "recommendations",
+                    filter=Q(recommendations__status=Recommendation.Status.PENDING_COUNCIL),
+                    distinct=True,
+                ),
+            )
+            # Meta.ordering is ignored once Count() adds a GROUP BY; without
+            # this the register came back in arbitrary order.
+            .order_by("-created_at", "-id")
         )
         return scope_reports(qs, self.request.user)
 
@@ -114,7 +147,7 @@ class AuditReportViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         if serializer.instance.status != AuditReport.Status.DRAFT:
-            raise WorkflowError("Only draft reports can be edited.")
+            raise WorkflowError("Only draft reports can be edited.", code="report_not_draft")
         serializer.save()
 
     @action(detail=True, methods=["post"], url_path="submit-to-department")
@@ -143,27 +176,40 @@ class RecommendationViewSet(viewsets.ModelViewSet):
     parser_classes = [JSONParser, MultiPartParser, FormParser]
     # Consumed by the throttled `export` action below.
     throttle_scope = "export"
+    filter_backends = [DjangoFilterBackend, SearchFilter, RecommendationOrderingFilter]
     filterset_class = RecommendationFilterSet
-    search_fields = ["text", "root_cause"]
-    ordering_fields = ["priority_score", "created_at", "risk_level", "status"]
+    # The report title too: the global search promises "number, report or words".
+    search_fields = ["text", "root_cause", "report__title"]
+    # risk_level/risk sort by severity; target_date by the plan's date;
+    # deadline by the binding deadline; waiting by queue age.
+    ordering_fields = [
+        "priority_score", "created_at", "risk_level", "risk", "status",
+        "target_date", "deadline", "waiting", "id",
+    ]
 
-    def get_queryset(self):
+    def get_queryset(self, detail=None):
         qs = Recommendation.objects.select_related(
             "report__department", "report__municipality",
             "action_plan__responsible_employee", "response", "similar_recommendation",
         ).prefetch_related("action_plan__steps")
-        if self.action == "retrieve":
+        if detail or (detail is None and self.action == "retrieve"):
             qs = qs.prefetch_related(
                 "approvals__approved_by", "evidence_files__uploaded_by",
-                "verifications__reviewed_by", "trail_entries__user",
+                "verifications__reviewed_by", "verifications__assigned_to",
+                "trail_entries__user", "response__submitted_by",
+                "reminder_dispatches__recipient",
             )
-        return scope_recommendations(qs, self.request.user)
+        # Stage, binding deadline, overdue and queue age, computed in SQL so
+        # filters, ordering and every row agree (apps.workflow.presentation).
+        return annotate_workflow(scope_recommendations(qs, self.request.user))
 
     def get_serializer_class(self):
         if self.action == "create":
             return RecommendationCreateSerializer
         if self.action == "retrieve":
             return RecommendationDetailSerializer
+        if self.action in ("update", "partial_update"):
+            return RecommendationUpdateSerializer
         return RecommendationListSerializer
 
     def get_permissions(self):
@@ -202,15 +248,68 @@ class RecommendationViewSet(viewsets.ModelViewSet):
         # completed. They are computed on demand by the /api/ai/ endpoints,
         # which cache their result, so nothing is lost by deferring them.
 
-    def perform_update(self, serializer):
-        if serializer.instance.status != Recommendation.Status.DRAFT:
-            raise WorkflowError("Only draft recommendations can be edited.")
-        serializer.save()
+    def update(self, request, *args, **kwargs):
+        """Edit an unissued draft and answer with the full case, like every
+        other action on this resource."""
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        if (
+            instance.status != Recommendation.Status.DRAFT
+            or instance.report.status != AuditReport.Status.DRAFT
+        ):
+            raise WorkflowError(
+                "Only draft recommendations in a draft report can be edited.",
+                code="draft_only",
+            )
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+
+        tracked = ("text", "root_cause", "risk_level", "priority_score")
+        before = {field: getattr(instance, field) for field in tracked}
+        recommendation = serializer.save()
+        changes = {
+            field: {"from": _clip_for_log(before[field]), "to": _clip_for_log(getattr(recommendation, field))}
+            for field in tracked
+            if before[field] != getattr(recommendation, field)
+        }
+        if changes:
+            log_action(
+                request.user, "recommendation_updated",
+                recommendation=recommendation, report=recommendation.report,
+                changes=changes,
+            )
+        if "text" in changes or "root_cause" in changes:
+            self._refresh_recurrence(recommendation, request.user)
+        return self._detail(request, recommendation)
+
+    def _refresh_recurrence(self, recommendation, user):
+        """The wording changed, so the stored embedding and any automatic
+        recurrence flag describe the old text. A human-confirmed recurrence
+        is the auditor's decision and is left alone."""
+        if recommendation.recurrence_confirmed:
+            return
+        recommendation.embedding = None
+        recommendation.embedding_model = ""
+        recommendation.is_recurring = False
+        recommendation.similar_recommendation = None
+        recommendation.similarity_score = None
+        recommendation.save(update_fields=[
+            "embedding", "embedding_model", "is_recurring",
+            "similar_recommendation", "similarity_score", "updated_at",
+        ])
+        try:
+            from apps.ai_similarity.service import flag_if_recurring
+
+            flag_if_recurring(recommendation, user=user)
+        except Exception:
+            logging.getLogger("apps.ai").warning(
+                "recurrence_flagging_skipped rec=%s", recommendation.pk, exc_info=True
+            )
 
     def _detail(self, request, recommendation):
-        recommendation.refresh_from_db()
+        """The full case after an action, loaded like a normal case read."""
         data = RecommendationDetailSerializer(
-            self.get_queryset().get(pk=recommendation.pk), context={"request": request}
+            self.get_queryset(detail=True).get(pk=recommendation.pk), context={"request": request}
         ).data
         return Response(data)
 
@@ -353,15 +452,23 @@ class RecommendationViewSet(viewsets.ModelViewSet):
         recommendation = self.get_object()
         serializer = VerifyInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        services.verify(
-            recommendation, request.user,
-            decision=serializer.validated_data["decision"],
-            notes=serializer.validated_data.get("notes", ""),
-            rejected_items=serializer.validated_data.get("rejected_items", ""),
-            rejection_reason=serializer.validated_data.get("rejection_reason", ""),
-            required_action=serializer.validated_data.get("required_action", ""),
-            action_deadline=serializer.validated_data.get("action_deadline"),
-        )
+        data = serializer.validated_data
+        if data.get("send_to_council"):
+            services.verify_and_submit_for_closure(
+                recommendation, request.user,
+                notes=data.get("notes", ""),
+                closure_notes=data.get("closure_notes", ""),
+            )
+        else:
+            services.verify(
+                recommendation, request.user,
+                decision=data["decision"],
+                notes=data.get("notes", ""),
+                rejected_items=data.get("rejected_items", ""),
+                rejection_reason=data.get("rejection_reason", ""),
+                required_action=data.get("required_action", ""),
+                action_deadline=data.get("action_deadline"),
+            )
         return self._detail(request, recommendation)
 
     @action(detail=True, methods=["post"], url_path="submit-for-closure")
@@ -401,7 +508,7 @@ class RecommendationViewSet(viewsets.ModelViewSet):
         queryset = self.filter_queryset(self.get_queryset())
 
         columns = [
-            ("reference", lambda r: f"REC-{r.id}"),
+            ("reference", lambda r: record_code(r.id)),
             ("report", lambda r: r.report.title),
             ("engagement_type", lambda r: r.report.get_engagement_type_display()),
             ("department", lambda r: r.report.department.name),
@@ -439,7 +546,7 @@ class RecommendationViewSet(viewsets.ModelViewSet):
             yield "﻿"
             yield writer.writerow([name for name, _ in columns])
             for rec in queryset.iterator(chunk_size=500):
-                yield writer.writerow([accessor(rec) or "" for _, accessor in columns])
+                yield writer.writerow([_csv_cell(accessor(rec)) for _, accessor in columns])
 
         filename = f"recommendations-{timezone.localdate().isoformat()}.csv"
         response = StreamingHttpResponse(rows(), content_type="text/csv; charset=utf-8")
@@ -467,7 +574,7 @@ class RecommendationViewSet(viewsets.ModelViewSet):
         try:
             employee = User.objects.get(pk=plan_input["responsible_employee"])
         except User.DoesNotExist:
-            raise WorkflowError("Responsible employee not found.")
+            raise WorkflowError("Responsible employee not found.", code="employee_not_found")
         return {
             "responsible_employee": employee,
             "target_date": plan_input["target_date"],

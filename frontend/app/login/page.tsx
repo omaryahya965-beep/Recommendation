@@ -21,7 +21,7 @@ import { PanelOrnaments } from "@/components/login/LoginOrnaments";
 import { RaqeebWordmark } from "@/components/brand/RaqeebWordmark";
 import { MunicipalityMark } from "@/components/login/MunicipalityMark";
 import { ErrorBanner } from "@/components/ui/Base";
-import { login, ROLE_HOME } from "@/lib/api";
+import { classifyLoginError, login, ROLE_HOME } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { ROLE_LABELS, T, useI18n } from "@/lib/i18n";
 import type { Role } from "@/lib/types";
@@ -72,15 +72,23 @@ export default function LoginPage() {
   const [remember, setRemember] = useState(false);
   const [showDemo, setShowDemo] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Only a credentials failure marks the fields invalid.
+  const [credentialsFailed, setCredentialsFailed] = useState(false);
   const [usernameError, setUsernameError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [activeDemo, setActiveDemo] = useState<string | null>(null);
 
   useEffect(() => {
+    // The form is static HTML, so it can be typed into before the page has
+    // started: keep what is already in the fields rather than losing it.
+    const typedUser = usernameRef.current?.value ?? "";
+    const typedPass = passwordRef.current?.value ?? "";
+    if (typedPass) setPassword(typedPass);
     const saved = localStorage.getItem(REMEMBER_KEY);
-    if (saved) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (typedUser) {
+      setUsername(typedUser);
+    } else if (saved) {
       setUsername(saved);
       setRemember(true);
     }
@@ -90,6 +98,7 @@ export default function LoginPage() {
     if (busy) return;
     setBusy(true);
     setError(null);
+    setCredentialsFailed(false);
     setUsernameError(null);
     setPasswordError(null);
     try {
@@ -101,8 +110,20 @@ export default function LoginPage() {
       if (remember) localStorage.setItem(REMEMBER_KEY, user);
       else localStorage.removeItem(REMEMBER_KEY);
       router.replace(ROLE_HOME[auth.user.role] ?? "/login");
-    } catch {
-      setError(T.login.error);
+    } catch (err) {
+      const failure = classifyLoginError(err);
+      setCredentialsFailed(failure.kind === "credentials");
+      setError(
+        failure.kind === "credentials"
+          ? T.login.error
+          : failure.kind === "throttled"
+            ? failure.retryAfter
+              ? T.login.errorThrottled.replace("{seconds}", String(failure.retryAfter))
+              : T.login.errorThrottledShort
+            : failure.kind === "server"
+              ? T.login.errorServer
+              : T.login.errorNetwork
+      );
       setBusy(false);
       setActiveDemo(null);
       usernameRef.current?.focus();
@@ -111,8 +132,13 @@ export default function LoginPage() {
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    const nextUserError = username.trim() ? null : T.login.errorUsername;
-    const nextPassError = password ? null : T.login.errorPassword;
+    // Validate what the fields show (the DOM), which is what the user sees.
+    const user = usernameRef.current?.value ?? username;
+    const pass = passwordRef.current?.value ?? password;
+    if (user !== username) setUsername(user);
+    if (pass !== password) setPassword(pass);
+    const nextUserError = user.trim() ? null : T.login.errorUsername;
+    const nextPassError = pass ? null : T.login.errorPassword;
     setUsernameError(nextUserError);
     setPasswordError(nextPassError);
     setError(null);
@@ -120,7 +146,7 @@ export default function LoginPage() {
       (nextUserError ? usernameRef : passwordRef).current?.focus();
       return;
     }
-    await signIn(username, password);
+    await signIn(user, pass);
   };
 
   const pickDemo = async (account: (typeof DEMO_ACCOUNTS)[number]) => {
@@ -130,7 +156,7 @@ export default function LoginPage() {
     await signIn(account.username, DEMO_PASSWORD);
   };
 
-  const credentialsInvalid = Boolean(error);
+  const credentialsInvalid = Boolean(error) && credentialsFailed;
   const passwordToggleLabel = showPassword
     ? T.login.hidePassword
     : T.login.showPassword;
@@ -345,6 +371,7 @@ export default function LoginPage() {
                       <span>{T.login.rememberMe}</span>
                       <input
                         type="checkbox"
+                        name="remember"
                         checked={remember}
                         onChange={(e) => setRemember(e.target.checked)}
                         className="size-3.5 rounded border-[var(--login-border)] bg-[var(--login-field)] text-[var(--login-accent)] focus:ring-[var(--login-accent)]"

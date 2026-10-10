@@ -163,7 +163,7 @@ export function AIAuditAssistant() {
         {visible.length === 0 && !showPendingUser && (
           <div className="flex h-full flex-col items-center justify-center py-10 text-center">
             <Sparkles className="mb-3 size-7 text-ai-dark/40" aria-hidden />
-            <p className="text-[15px] font-semibold text-ai-dark/60">{T.ai.assistantHint}</p>
+            <p className="text-[15px] font-semibold text-ai-dark">{T.ai.assistantHint}</p>
           </div>
         )}
 
@@ -302,6 +302,7 @@ export function AIAuditAssistant() {
         <div className="relative">
           <textarea
             ref={textareaRef}
+            name="question"
             value={text}
             rows={2}
             placeholder={T.ai.askPlaceholder}

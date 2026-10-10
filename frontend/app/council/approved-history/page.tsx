@@ -1,25 +1,23 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import { Archive } from "lucide-react";
 
 import { Card, DataField, ErrorBanner } from "@/components/ui/Base";
 import { EmptyState, TableSkeleton } from "@/components/ui/EmptyState";
+import { LoadMore } from "@/components/ui/LoadMore";
 import { RecordId } from "@/components/ui/Ledger";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { api } from "@/lib/api";
 import { formatDate } from "@/lib/format";
 import { REPORT_TYPE_LABELS, T, useI18n } from "@/lib/i18n";
-import type { AuditReport, Paginated } from "@/lib/types";
+import { usePagedList } from "@/lib/hooks";
+import type { AuditReport } from "@/lib/types";
 
 export default function ApprovedHistoryPage() {
   useI18n();
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["reports", "ratified"],
-    queryFn: () => api<Paginated<AuditReport>>("/api/reports/?status=ratified&page_size=100"),
+  const list = usePagedList<AuditReport>(["reports", "ratified"], "/api/reports/?status=ratified", {
+    live: false,
   });
-
-  const reports = data?.results ?? [];
+  const { items: reports, isLoading, isError, refetch } = list;
 
   return (
     <div className="animate-fade-in space-y-4">
@@ -40,7 +38,7 @@ export default function ApprovedHistoryPage() {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <RecordId id={report.id} prefix="RPT" />
-                  <h2 className="mt-1.5 font-heading text-[15px] font-semibold text-ink">{report.title}</h2>
+                  <h2 className="mt-1.5 font-heading text-[15px] font-semibold text-ink"><bdi>{report.title}</bdi></h2>
                 </div>
                 <span className="inline-flex items-center gap-1.5 rounded-md border border-success/25 bg-success-light px-2.5 py-1 text-[12px] font-medium text-success-dark">
                   <Archive className="size-3.5" />
@@ -48,7 +46,7 @@ export default function ApprovedHistoryPage() {
                 </span>
               </div>
 
-              <dl className="mt-4 grid gap-4 border-t border-line pt-4 sm:grid-cols-2 lg:grid-cols-4">
+              <dl className="mt-4 grid grid-cols-1 gap-4 border-t border-line pt-4 sm:grid-cols-2 lg:grid-cols-4">
                 <DataField label={T.common.department}>{report.department_name}</DataField>
                 <DataField label={T.create.engagement}>
                   {REPORT_TYPE_LABELS[report.engagement_type]}
@@ -62,6 +60,13 @@ export default function ApprovedHistoryPage() {
               </dl>
             </Card>
           ))}
+          <LoadMore
+            loaded={reports.length}
+            total={list.total}
+            hasMore={Boolean(list.hasNextPage)}
+            loading={list.isFetchingNextPage}
+            onMore={() => list.fetchNextPage()}
+          />
         </div>
       ) : (
         <EmptyState

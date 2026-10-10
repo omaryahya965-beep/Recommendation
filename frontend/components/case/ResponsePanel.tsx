@@ -15,13 +15,14 @@ import {
   TextArea,
 } from "@/components/ui/Base";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { FilePicker } from "@/components/ui/FilePicker";
 import { parseFinding } from "@/lib/finding";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { errorMessage } from "@/lib/api";
 import type { WorkflowAction } from "@/lib/hooks";
 import { DECISION_LABELS, REVIEW_STATUS_LABELS, T, useI18n } from "@/lib/i18n";
 import type { RecommendationDetail } from "@/lib/types";
-import { FILE_INPUT_ACCEPT, prepareFileSubmission } from "@/lib/upload";
+import { prepareFileSubmission } from "@/lib/upload";
 import { useUnsavedChanges } from "@/lib/useUnsavedChanges";
 
 const REVIEW_TONE = {
@@ -50,7 +51,14 @@ function FindingExcerpt({ rec }: { rec: RecommendationDetail }) {
 }
 
 /** Read-only record: management response kept visually apart from the audit decision. */
-export function ResponseRecord({ rec }: { rec: RecommendationDetail }) {
+export function ResponseRecord({
+  rec,
+  withFinding = true,
+}: {
+  rec: RecommendationDetail;
+  /** Repeat the recommendation above the response (off where the finding is already shown). */
+  withFinding?: boolean;
+}) {
   useI18n();
   const response = rec.response;
   if (!response) {
@@ -59,7 +67,7 @@ export function ResponseRecord({ rec }: { rec: RecommendationDetail }) {
         icon={<MessageSquareWarning className="size-8" />}
         title={T.case.noResponseYet}
         description={T.case.notAvailableYet}
-        className="bg-surface py-12"
+        className="border-dashed py-10 shadow-none"
       />
     );
   }
@@ -73,7 +81,7 @@ export function ResponseRecord({ rec }: { rec: RecommendationDetail }) {
 
   return (
     <div className="space-y-8">
-      <FindingExcerpt rec={rec} />
+      {withFinding ? <FindingExcerpt rec={rec} /> : null}
 
       <section className="bg-surface border border-line rounded-xl p-5 shadow-sm">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
@@ -111,7 +119,7 @@ export function ResponseRecord({ rec }: { rec: RecommendationDetail }) {
           </a>
         ) : null}
 
-        <dl className="mt-5 grid gap-4 border-t border-line pt-5 bg-subtle/30 rounded-xl p-4 sm:grid-cols-2 lg:grid-cols-4">
+        <dl className="mt-5 grid grid-cols-1 gap-4 border-t border-line pt-5 bg-subtle/30 rounded-xl p-4 sm:grid-cols-2 lg:grid-cols-4">
           <DataField label={T.response.submittedBy}>
             <span className="font-bold text-navy">{response.submitted_by_detail?.full_name_ar || response.submitted_by_detail?.username}</span>
           </DataField>
@@ -263,17 +271,14 @@ export function RespondForm({
           />
         </Field>
 
-        <Field label={`${T.response.attachment}${needsAttachment ? " *" : ""}`} className="max-w-md">
-          <input
-            type="file"
-            accept={FILE_INPUT_ACCEPT}
-            onChange={(event) => setAttachment(event.target.files?.[0] ?? null)}
-            className="block w-full border border-line bg-surface px-3.5 py-2.5 text-sm file:me-3 file:border-0 file:bg-subtle file:px-3 file:py-1 file:text-sm file:text-ink rounded-lg shadow-sm"
-          />
-          <p className="mt-1.5 text-xs text-muted">
-            {needsAttachment ? T.response.attachmentRequired : T.evidenceRegister.allowedTypes}
-          </p>
-        </Field>
+        <FilePicker
+          label={`${T.response.attachment}${needsAttachment ? " *" : ""}`}
+          file={attachment}
+          onChange={setAttachment}
+          required={needsAttachment}
+          hint={needsAttachment ? T.response.attachmentRequired : T.evidenceRegister.allowedTypes}
+          className="max-w-md"
+        />
 
         {requirePlan && decision === "agree" && planSlot ? (
           <div className="border border-primary/20 bg-primary-light/30 p-5 rounded-xl space-y-3">

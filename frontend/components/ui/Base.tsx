@@ -110,19 +110,25 @@ const FIELD_CLASS =
   "w-full min-h-11 rounded-md border border-line bg-surface px-3.5 py-2.5 text-base md:text-[14px] " +
   "text-ink outline-none transition-all duration-200 hover:border-muted/40 focus:border-primary focus:bg-surface focus:ring-4 focus:ring-primary/10";
 
+// Every control gets an id (the caller's, else a stable generated one): the
+// browser expects form fields to be identifiable (id or name), and autofill
+// and focus restoration rely on it. Labels stay associated by nesting (Field).
 export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   useI18n();
-  return <input {...props} className={cn(FIELD_CLASS, props.className)} />;
+  const fallbackId = useId();
+  return <input {...props} id={props.id ?? fallbackId} className={cn(FIELD_CLASS, props.className)} />;
 }
 
 export function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   useI18n();
-  return <textarea rows={3} {...props} className={cn(FIELD_CLASS, "resize-y", props.className)} />;
+  const fallbackId = useId();
+  return <textarea rows={3} {...props} id={props.id ?? fallbackId} className={cn(FIELD_CLASS, "resize-y", props.className)} />;
 }
 
 export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
   useI18n();
-  return <select {...props} className={cn(FIELD_CLASS, props.className)} />;
+  const fallbackId = useId();
+  return <select {...props} id={props.id ?? fallbackId} className={cn(FIELD_CLASS, props.className)} />;
 }
 
 export function ErrorBanner({
@@ -251,7 +257,7 @@ export function ProseBlock({
     <div className={cn("rounded-md border border-line bg-surface p-4 shadow-sm relative overflow-hidden", className)}>
       <div className="absolute start-0 top-0 bottom-0 w-1 bg-line" aria-hidden />
       <p className="mb-2 text-[13px] font-bold text-muted">{label}</p>
-      <div className="whitespace-pre-wrap text-[14px] leading-relaxed text-ink">{children}</div>
+      <div className="whitespace-pre-wrap text-[14px] leading-relaxed text-ink" dir="auto">{children}</div>
       {hint ? <p className="mt-3 border-t border-line pt-2 text-[12px] text-muted">{hint}</p> : null}
     </div>
   );

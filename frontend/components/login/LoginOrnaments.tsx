@@ -33,6 +33,9 @@ function Ornament({ name, className }: { name: ArtName; className: string }) {
       height={h}
       draggable={false}
       loading="lazy"
+      // CSS sets the width and leaves the height auto, so the ratio is stated
+      // explicitly (the art's own ratio): no layout shift while it loads.
+      style={{ aspectRatio: `${w} / ${h}` }}
       className={cn("pointer-events-none absolute h-auto max-w-none select-none", className)}
     />
   );

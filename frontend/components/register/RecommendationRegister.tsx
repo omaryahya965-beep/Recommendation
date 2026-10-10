@@ -4,29 +4,34 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Download, LayoutList, Rows3, Search, SlidersHorizontal, X, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 
+import { CaseDue } from "@/components/home/Queues";
+import { Sheet } from "@/components/mobile/Sheet";
+import { SavedViews, viewQuery } from "@/components/register/SavedViews";
 import { Button, ProgressBar, Select, TextInput } from "@/components/ui/Base";
 import { EmptyState, TableSkeleton } from "@/components/ui/EmptyState";
 import { LedgerCell, LedgerTable, RecordId } from "@/components/ui/Ledger";
 import { ErrorBanner } from "@/components/ui/Base";
-import { OverdueBadge } from "@/components/ui/OverdueBadge";
 import { RiskBadge } from "@/components/ui/RiskBadge";
 import { StatusBadge } from "@/components/ui/StampBadge";
 import { api, downloadFile, errorMessage, loadAuth } from "@/lib/api";
 import { cn } from "@/lib/cn";
-import { caseTitle } from "@/lib/finding";
-import { formatDate } from "@/lib/format";
+import { clipTitle } from "@/lib/finding";
+import { dayCount, formatDate, localISODate, plural } from "@/lib/format";
 import { useDepartments, usePrefetchRecommendation } from "@/lib/hooks";
 import { RISK_LABELS, STATUS_LABELS, T, useI18n } from "@/lib/i18n";
 import { LIVE } from "@/lib/queryPolicy";
+import { useIsPhone } from "@/lib/useMediaQuery";
 import type { Paginated, RecommendationListItem, RecommendationStatus } from "@/lib/types";
 import {
   EMPLOYEE_WORK_STATUSES,
-  STATUS_NEXT_ACTION,
-  WORKFLOW_STAGES,
   localizedWorkflowStages,
+  normalizeStageId,
+  STATUS_NEXT_ACTION,
 } from "@/lib/workflow";
+import { statusesForStage } from "@/lib/contract";
+import { activeQueue, queueFilterKeys, queueParamKeys, queueTitle } from "@/lib/registerQueues";
 
 const PAGE_SIZE = 25;
 
@@ -35,7 +40,14 @@ function sortOptions() {
     { value: "-priority_score", label: T.register.sortPriority },
     { value: "-created_at", label: T.register.sortNewest },
     { value: "created_at", label: T.register.sortOldest },
-    { value: "risk_level", label: T.register.sortRisk },
+    // Severity, highest first (the API sorts risk by rank, not alphabetically).
+    { value: "-risk_level", label: T.register.sortRisk },
+    // The binding deadline (plan, audit-set after verification, or response).
+    { value: "deadline", label: T.register.sortDeadline },
+    { value: "waiting", label: T.register.sortWaiting },
+    // Newest arrival in the current status first (the home queues' order).
+    { value: "-waiting", label: T.queues.newestFirst },
+    { value: "target_date", label: T.register.sortPlanDate },
   ] as const;
 }
 
@@ -46,6 +58,19 @@ function assignedToMe(item: RecommendationListItem) {
   if (!owner) return true;
   const name = (auth.user.full_name_ar || "").trim();
   return owner === name || owner === auth.user.username;
+}
+
+/** Worth a chip: late, response late, or due within a week. */
+function urgent(item: RecommendationListItem) {
+  return item.overdue || item.response_overdue || (item.due_in_days != null && item.due_in_days <= 7);
+}
+
+/** "Internal Audit · 12 days in this queue" — who holds the case and for how long. */
+function waitingText(item: RecommendationListItem) {
+  const who = T.workflow.waitingOn[item.waiting_on];
+  return item.days_waiting > 0
+    ? `${who} · ${T.home.waitingDays.replace("{days}", dayCount(item.days_waiting))}`
+    : `${who} · ${T.home.waitingToday}`;
 }
 
 const RISK_BORDER_TONES: Record<string, string> = {
@@ -84,7 +109,7 @@ function RegisterCard({
           item.overdue && "border-danger/30"
         )}
       >
-        <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex flex-col-reverse gap-2.5 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-3">
               <RecordId id={item.id} />
@@ -94,11 +119,11 @@ function RegisterCard({
                 </span>
               ) : null}
             </div>
-            <h3 className="mt-3 font-heading text-[16px] font-semibold leading-snug text-navy group-hover:text-primary transition-colors">
-              {caseTitle(item.text, 130)}
-            </h3>
-            <p className="mt-1 text-[13px] text-ink-soft">
-              {hideDepartment ? item.report_title : `${item.department_name} • ${item.report_title}`}
+            <h2 className="mt-3 font-heading text-[16px] font-semibold leading-snug text-navy group-hover:text-primary transition-colors">
+              <bdi>{clipTitle(item.title, 130)}</bdi>
+            </h2>
+            <p className="mt-1 line-clamp-2 text-[13px] text-ink-soft">
+              {hideDepartment ? null : <>{item.department_name} • </>}<bdi>{item.report_title}</bdi>
             </p>
           </div>
 
@@ -108,7 +133,7 @@ function RegisterCard({
           </div>
         </div>
 
-        <dl className="mt-4 grid gap-x-6 gap-y-3 border-t border-line pt-4 text-[13px] sm:grid-cols-2 lg:grid-cols-4 bg-subtle/30 rounded-lg p-3">
+        <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 rounded-lg border-t border-line bg-subtle/30 p-3 pt-4 text-[13px] lg:grid-cols-4">
           {mine ? null : (
             <div>
               <dt className="text-muted font-semibold text-[11px] uppercase tracking-wider mb-0.5">{T.common.responsible}</dt>
@@ -116,16 +141,18 @@ function RegisterCard({
             </div>
           )}
           <div>
-            <dt className="text-muted font-semibold text-[11px] uppercase tracking-wider mb-0.5">{T.common.targetDate}</dt>
-            <dd className="flex items-center gap-2 font-medium text-ink">
-              <span className="font-mono text-muted" dir="ltr">{formatDate(item.target_date)}</span>
-              <OverdueBadge targetDate={item.target_date} overdue={item.overdue} />
+            <dt className="text-muted font-semibold text-[11px] uppercase tracking-wider mb-0.5">
+              {item.deadline_source ? T.workflow.deadlineSource[item.deadline_source] : T.workflow.bindingDeadline}
+            </dt>
+            <dd className="flex flex-wrap items-center gap-2 font-medium text-ink">
+              <span className="font-mono text-muted" dir="ltr">{formatDate(item.deadline)}</span>
+              {urgent(item) ? <CaseDue item={item} /> : null}
             </dd>
           </div>
           <div>
             <dt className="text-muted font-semibold text-[11px] uppercase tracking-wider mb-0.5">{T.common.priority}</dt>
             <dd className="mt-1">
-              <ProgressBar value={item.priority_score} showValue tone="primary" />
+              <ProgressBar value={item.priority_score} showValue tone="primary" label={T.common.priority} />
             </dd>
           </div>
           <div className="min-w-0">
@@ -133,6 +160,9 @@ function RegisterCard({
             <dd className="truncate font-bold text-primary-dark uppercase tracking-wide text-[12px]" title={next.action}>
               {next.action}
             </dd>
+            {item.waiting_on !== "none" ? (
+              <dd className="mt-0.5 truncate text-[11.5px] text-muted">{waitingText(item)}</dd>
+            ) : null}
           </div>
         </dl>
       </Link>
@@ -159,8 +189,9 @@ function CompactTable({
         T.table.recommendation,
         ...(hideDepartment ? [] : [T.common.department]),
         T.common.status,
+        T.register.waitingColumn,
         T.common.risk,
-        T.common.targetDate,
+        T.workflow.bindingDeadline,
       ]}
     >
       {items.map((item) => (
@@ -172,7 +203,7 @@ function CompactTable({
           </LedgerCell>
           <LedgerCell>
             <Link href={`${detailBase}/${item.id}`} className="font-medium text-ink group-hover:text-primary transition-colors">
-              {caseTitle(item.text, 80)}
+              <bdi>{clipTitle(item.title, 80)}</bdi>
             </Link>
           </LedgerCell>
           {hideDepartment ? null : <LedgerCell>{item.department_name}</LedgerCell>}
@@ -180,10 +211,20 @@ function CompactTable({
             <StatusBadge status={item.status} />
           </LedgerCell>
           <LedgerCell>
+            {item.waiting_on === "none" ? (
+              <span className="text-muted">—</span>
+            ) : (
+              <span className="text-[12.5px] text-ink-soft">{waitingText(item)}</span>
+            )}
+          </LedgerCell>
+          <LedgerCell>
             <RiskBadge level={item.risk_level} />
           </LedgerCell>
           <LedgerCell mono>
-            <span className="font-mono font-medium text-muted" dir="ltr">{formatDate(item.target_date)}</span>
+            <span className="flex flex-col items-start gap-1">
+              <span className="font-mono font-medium text-muted" dir="ltr">{formatDate(item.deadline)}</span>
+              {urgent(item) ? <CaseDue item={item} /> : null}
+            </span>
           </LedgerCell>
         </tr>
       ))}
@@ -206,6 +247,69 @@ export function RecommendationRegister(props: {
   );
 }
 
+const WAITING_SIDES = ["department", "audit", "council"] as const;
+
+/** Filters that arrive from dashboard links; the API evaluates them with the same rules as the badges. */
+const LINK_FILTERS = [
+  "status__in",
+  "waiting_on",
+  "waiting_over",
+  "my_turn",
+  "response_overdue",
+  "due_within",
+  "report",
+  "responsible_employee",
+  "open",
+  "issued",
+  "recurrence_confirmed",
+] as const;
+
+/** A removable chip for each dashboard-link filter, so a filtered list says why. */
+function linkFilterChips(searchParams: URLSearchParams): Array<{ key: string; label: string }> {
+  const chips: Array<{ key: string; label: string }> = [];
+  const value = (key: string) => searchParams.get(key);
+  const statuses = value("status__in");
+  if (statuses) {
+    chips.push({
+      key: "status__in",
+      label: T.register.chipStatuses.replace(
+        "{list}",
+        statuses
+          .split(",")
+          .map((item) => STATUS_LABELS[item] ?? item)
+          .join(T.register.listSeparator)
+      ),
+    });
+  }
+  const sides = value("waiting_on");
+  if (sides) {
+    const who = sides
+      .split(",")
+      .map((side) => T.workflow.waitingOn[side as keyof typeof T.workflow.waitingOn] ?? side)
+      .join(T.register.listSeparator);
+    chips.push({ key: "waiting_on", label: T.register.chipWaitingOn.replace("{who}", who) });
+  }
+  if (value("waiting_over")) {
+    chips.push({ key: "waiting_over", label: T.register.chipWaitingOver.replace("{days}", value("waiting_over")!) });
+  }
+  if (value("due_within")) {
+    chips.push({ key: "due_within", label: T.register.chipDueWithin.replace("{days}", value("due_within")!) });
+  }
+  if (value("responsible_employee")) chips.push({ key: "responsible_employee", label: T.register.chipEmployee });
+  if (value("open") === "true") chips.push({ key: "open", label: T.register.chipOpen });
+  if (value("issued") === "true") chips.push({ key: "issued", label: T.register.chipIssued });
+  if (value("my_turn") === "true") chips.push({ key: "my_turn", label: T.register.chipMyTurn });
+  if (value("response_overdue") === "true") chips.push({ key: "response_overdue", label: T.register.chipResponseLate });
+  if (value("report")) chips.push({ key: "report", label: T.register.chipReport });
+  if (value("recurrence_confirmed") === "false") {
+    chips.push({ key: "recurrence_confirmed", label: T.register.chipUnconfirmedRecurrence });
+  }
+  if (value("recurrence_confirmed") === "true") {
+    chips.push({ key: "recurrence_confirmed", label: T.register.chipConfirmedRecurrence });
+  }
+  return chips;
+}
+
 function RegisterInner({
   detailBase,
   showDepartmentFilter = false,
@@ -225,9 +329,11 @@ function RegisterInner({
   const searchParams = useSearchParams();
 
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const phone = useIsPhone();
   const [view, setView] = useState<"list" | "compact">("compact");
 
-  const stage = searchParams.get("stage") ?? "";
+  // Old nine-stage ids in saved links still resolve.
+  const stage = normalizeStageId(searchParams.get("stage")) ?? "";
   const status = searchParams.get("status") ?? "";
   const risk = searchParams.get("risk_level") ?? "";
   const department = searchParams.get("report__department") ?? "";
@@ -236,19 +342,23 @@ function RegisterInner({
   const page = Number(searchParams.get("page") ?? "1") || 1;
   const overdueOnly = searchParams.get("overdue") === "1";
   const recurringOnly = searchParams.get("is_recurring") === "true";
+  const waitingOn = searchParams.get("waiting_on") ?? "";
 
   const [searchDraft, setSearchDraft] = useState(search);
 
-  const setParams = (patch: Record<string, string | null>) => {
-    const next = new URLSearchParams(searchParams.toString());
-    for (const [key, value] of Object.entries(patch)) {
-      if (!value) next.delete(key);
-      else next.set(key, value);
-    }
-    if (!("page" in patch)) next.set("page", "1");
-    const query = next.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname);
-  };
+  const setParams = useCallback(
+    (patch: Record<string, string | null>) => {
+      const next = new URLSearchParams(searchParams.toString());
+      for (const [key, value] of Object.entries(patch)) {
+        if (!value) next.delete(key);
+        else next.set(key, value);
+      }
+      if (!("page" in patch)) next.set("page", "1");
+      const query = next.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname);
+    },
+    [searchParams, router, pathname]
+  );
 
   useEffect(() => {
     const next = searchDraft.trim();
@@ -257,7 +367,7 @@ function RegisterInner({
       setParams({ search: next || null });
     }, 220);
     return () => window.clearTimeout(timer);
-  }, [searchDraft, search]);
+  }, [searchDraft, search, setParams]);
 
   const params = useMemo(() => {
     const query = new URLSearchParams();
@@ -267,8 +377,7 @@ function RegisterInner({
       if (status && allowed.has(status as RecommendationStatus)) {
         query.set("status", status);
       } else if (stage) {
-        const definition = WORKFLOW_STAGES.find((item) => item.id === stage);
-        const overlap = (definition?.statuses ?? []).filter((item) => allowed.has(item));
+        const overlap = statusesForStage(stage).filter((item) => allowed.has(item));
         if (overlap.length) query.set("status__in", overlap.join(","));
         else query.set("status", "draft");
       } else {
@@ -277,8 +386,12 @@ function RegisterInner({
     } else if (status) {
       query.set("status", status);
     } else if (stage) {
-      const definition = WORKFLOW_STAGES.find((item) => item.id === stage);
-      if (definition?.statuses.length) query.set("status__in", definition.statuses.join(","));
+      query.set("stage", stage);
+    }
+    // Queue links from the dashboards (evaluated by the API, same rules as the badges).
+    for (const key of LINK_FILTERS) {
+      const value = searchParams.get(key);
+      if (value) query.set(key, value);
     }
     if (risk) query.set("risk_level", risk);
     if (department && !mine && !departmentOnly) query.set("report__department", department);
@@ -286,7 +399,6 @@ function RegisterInner({
     if (recurringOnly) query.set("is_recurring", "true");
     // Evaluated in SQL so the count and pagination are correct.
     if (overdueOnly) query.set("overdue", "true");
-    if (searchParams.get("open") === "true") query.set("open", "true");
     query.set("ordering", ordering);
     query.set("page", String(page));
     return query;
@@ -334,7 +446,15 @@ function RegisterInner({
     search ? { key: "search", label: `"${search}"` } : null,
     overdueOnly ? { key: "overdue", label: T.filters.overdueOnly } : null,
     recurringOnly ? { key: "is_recurring", label: T.filters.recurringOnly } : null,
+    ...linkFilterChips(searchParams),
   ].filter(Boolean) as Array<{ key: string; label: string }>;
+  // Opened from a home queue: one chip names the queue instead of its parts.
+  const queue = activeQueue(searchParams);
+  if (queue) {
+    const parts = new Set(queueFilterKeys(queue));
+    chips.splice(0, chips.length, { key: "queue", label: T.queues.queueChip.replace("{name}", queueTitle(queue)) },
+      ...chips.filter((chip) => !parts.has(chip.key)));
+  }
 
   // Exports the complete filtered result set from the server (not just this page).
   const [exporting, setExporting] = useState(false);
@@ -347,7 +467,7 @@ function RegisterInner({
       query.delete("page");
       await downloadFile(
         `/api/recommendations/export/?${query.toString()}`,
-        `recommendations-${new Date().toISOString().slice(0, 10)}.csv`
+        `recommendations-${localISODate()}.csv`
       );
     } catch (err) {
       setExportError(errorMessage(err));
@@ -359,10 +479,125 @@ function RegisterInner({
   const DirForward = locale === "ar" ? ChevronLeft : ChevronRight;
   const DirBack = locale === "ar" ? ChevronRight : ChevronLeft;
 
+  // The same filter controls inline on desktop and in a sheet on phones.
+  const filterSelects = (
+    <>
+    <label className="block text-sm">
+      <span className="mb-2 block text-[13px] font-bold text-navy">{T.register.stage}</span>
+      <Select value={stage} onChange={(event) => setParams({ stage: event.target.value || null, status: null })}>
+        <option value="">{T.common.all}</option>
+        {stages.map((item) => (
+          <option key={item.id} value={item.id}>
+            {item.label}
+          </option>
+        ))}
+      </Select>
+    </label>
+
+    <label className="block text-sm">
+      <span className="mb-2 block text-[13px] font-bold text-navy">{T.common.status}</span>
+      <Select value={status} onChange={(event) => setParams({ status: event.target.value || null, stage: null })}>
+        <option value="">{T.common.all}</option>
+        {statusOptions.map(([value, label]) => (
+          <option key={value} value={value}>
+            {label}
+          </option>
+        ))}
+      </Select>
+    </label>
+
+    <label className="block text-sm">
+      <span className="mb-2 block text-[13px] font-bold text-navy">{T.common.risk}</span>
+      <Select value={risk} onChange={(event) => setParams({ risk_level: event.target.value || null })}>
+        <option value="">{T.common.all}</option>
+        {Object.entries(RISK_LABELS).map(([value, label]) => (
+          <option key={value} value={value}>
+            {label}
+          </option>
+        ))}
+      </Select>
+    </label>
+
+    <label className="block text-sm">
+      <span className="mb-2 block text-[13px] font-bold text-navy">{T.register.waitingColumn}</span>
+      <Select
+        value={(WAITING_SIDES as readonly string[]).includes(waitingOn) ? waitingOn : ""}
+        onChange={(event) => setParams({ waiting_on: event.target.value || null })}
+      >
+        <option value="">{T.common.all}</option>
+        {WAITING_SIDES.map((side) => (
+          <option key={side} value={side}>
+            {T.workflow.waitingOn[side]}
+          </option>
+        ))}
+      </Select>
+    </label>
+
+    {showDepartmentFilter && !mine && !departmentOnly ? (
+      <label className="block text-sm">
+        <span className="mb-2 block text-[13px] font-bold text-navy">{T.common.department}</span>
+        <Select
+          value={department}
+          onChange={(event) => setParams({ report__department: event.target.value || null })}
+        >
+          <option value="">{T.common.all}</option>
+          {departments?.results.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.name}
+            </option>
+          ))}
+        </Select>
+      </label>
+    ) : null}
+
+    
+    </>
+  );
+  const filterChecks = (
+    <>
+    <label className="flex min-h-11 items-center gap-2.5 text-[14px] font-bold text-navy cursor-pointer select-none">
+      <input
+        type="checkbox"
+        name="overdue"
+        checked={overdueOnly}
+        onChange={(event) => setParams({ overdue: event.target.checked ? "1" : null })}
+        className="size-4.5 rounded border-line text-primary focus:ring-primary accent-primary"
+      />
+      {T.filters.overdueOnly}
+    </label>
+    <label className="flex min-h-11 items-center gap-2.5 text-[14px] font-bold text-navy cursor-pointer select-none">
+      <input
+        type="checkbox"
+        name="is_recurring"
+        checked={recurringOnly}
+        onChange={(event) => setParams({ is_recurring: event.target.checked ? "true" : null })}
+        className="size-4.5 rounded border-line text-primary focus:ring-primary accent-primary"
+      />
+      {T.filters.recurringOnly}
+    </label>
+    <label className="flex min-h-11 items-center gap-2.5 text-[14px] font-bold text-navy cursor-pointer select-none">
+      <input
+        type="checkbox"
+        name="my_turn"
+        checked={searchParams.get("my_turn") === "true"}
+        onChange={(event) => setParams({ my_turn: event.target.checked ? "true" : null })}
+        className="size-4.5 rounded border-line text-primary focus:ring-primary accent-primary"
+      />
+      {T.register.chipMyTurn}
+    </label>
+    
+    </>
+  );
+  const resetFilters = () => {
+    setSearchDraft("");
+    router.replace(pathname);
+  };
+
+
   return (
     <div className="space-y-6">
       {/* Toolbar */}
-      <div className="flex flex-col gap-3 rounded-xl border border-line bg-surface p-4 shadow-sm md:flex-row md:flex-wrap md:items-center">
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-surface p-3 shadow-sm md:gap-3 md:p-4">
         <form
           className="flex min-w-0 flex-1 items-center gap-2"
           onSubmit={(event) => {
@@ -386,17 +621,18 @@ function RegisterInner({
           type="button"
           variant={filtersOpen || chips.length ? "secondary" : "ghost"}
           onClick={() => setFiltersOpen((value) => !value)}
-          className="font-bold gap-2"
+          className="font-bold gap-2 max-md:size-12 max-md:p-0"
+          aria-label={T.filters.title}
         >
           <SlidersHorizontal className="size-4" />
-          {T.filters.title}
+          <span className="max-md:sr-only">{T.filters.title}</span>
           {chips.length ? <span className="flex size-5 items-center justify-center rounded-full bg-primary/20 text-primary-dark text-[11px] font-bold font-mono">{chips.length}</span> : null}
         </Button>
 
         <Select
           value={ordering}
           onChange={(event) => setParams({ ordering: event.target.value })}
-          className="w-auto font-medium"
+          className="w-auto font-medium max-md:hidden"
           aria-label={T.register.sortBy}
         >
           {sortOptions().map((sort) => (
@@ -427,9 +663,16 @@ function RegisterInner({
           </button>
         </div>
 
-        <Button type="button" variant="ghost" onClick={exportCsv} disabled={exporting || !data?.count} className="font-bold gap-1.5">
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={exportCsv}
+          disabled={exporting || !data?.count}
+          className="font-bold gap-1.5 max-md:size-12 max-md:p-0"
+          aria-label={T.register.export}
+        >
           <Download className="size-4" />
-          {T.register.export}
+          <span className="max-md:sr-only">{T.register.export}</span>
         </Button>
 
         {createHref ? (
@@ -439,94 +682,50 @@ function RegisterInner({
         ) : null}
       </div>
 
-      {/* Filter panel */}
-      {filtersOpen ? (
-        <div className="grid grid-cols-1 gap-5 rounded-xl border border-line bg-surface p-5 shadow-inner ring-1 ring-inset ring-line/50 md:grid-cols-2 lg:grid-cols-4 animate-scale-in">
-          <label className="block text-sm">
-            <span className="mb-2 block text-[13px] font-bold text-navy">{T.register.stage}</span>
-            <Select value={stage} onChange={(event) => setParams({ stage: event.target.value || null, status: null })}>
-              <option value="">{T.common.all}</option>
-              {stages.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.label}
-                </option>
-              ))}
-            </Select>
-          </label>
-
-          <label className="block text-sm">
-            <span className="mb-2 block text-[13px] font-bold text-navy">{T.common.status}</span>
-            <Select value={status} onChange={(event) => setParams({ status: event.target.value || null, stage: null })}>
-              <option value="">{T.common.all}</option>
-              {statusOptions.map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </Select>
-          </label>
-
-          <label className="block text-sm">
-            <span className="mb-2 block text-[13px] font-bold text-navy">{T.common.risk}</span>
-            <Select value={risk} onChange={(event) => setParams({ risk_level: event.target.value || null })}>
-              <option value="">{T.common.all}</option>
-              {Object.entries(RISK_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </Select>
-          </label>
-
-          {showDepartmentFilter && !mine && !departmentOnly ? (
+      {/* Filter panel: inline on desktop, a sheet on phones */}
+      {phone ? (
+        <Sheet
+          open={filtersOpen}
+          onClose={() => setFiltersOpen(false)}
+          title={T.mobile.filters}
+          size="full"
+          testId="filter-sheet"
+          footer={
+            <div className="flex gap-2">
+              <Button type="button" className="min-h-12 flex-1" onClick={() => setFiltersOpen(false)}>
+                {plural(data?.count ?? 0, T.mobile.showResults)}
+              </Button>
+              <Button type="button" variant="ghost" className="min-h-12 ring-1 ring-line" onClick={resetFilters}>
+                {T.filters.reset}
+              </Button>
+            </div>
+          }
+        >
+          <div className="space-y-5">
             <label className="block text-sm">
-              <span className="mb-2 block text-[13px] font-bold text-navy">{T.common.department}</span>
-              <Select
-                value={department}
-                onChange={(event) => setParams({ report__department: event.target.value || null })}
-              >
-                <option value="">{T.common.all}</option>
-                {departments?.results.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
+              <span className="mb-2 block text-[13px] font-bold text-navy">{T.mobile.sortBy}</span>
+              <Select value={ordering} onChange={(event) => setParams({ ordering: event.target.value })}>
+                {sortOptions().map((sort) => (
+                  <option key={sort.value} value={sort.value}>
+                    {sort.label}
                   </option>
                 ))}
               </Select>
             </label>
-          ) : null}
-
+            {filterSelects}
+            <div className="flex flex-col gap-1 border-t border-line/60 pt-3">{filterChecks}</div>
+          </div>
+        </Sheet>
+      ) : filtersOpen ? (
+        <div className="grid grid-cols-1 gap-5 rounded-xl border border-line bg-surface p-5 shadow-inner ring-1 ring-inset ring-line/50 md:grid-cols-2 lg:grid-cols-4 animate-scale-in">
+          {filterSelects}
           <div className="flex flex-col gap-3 border-t border-line/60 pt-4 mt-1 md:col-span-2 md:flex-row md:flex-wrap md:items-center md:gap-6 lg:col-span-4">
-            <label className="flex min-h-11 items-center gap-2.5 text-[14px] font-bold text-navy cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={overdueOnly}
-                onChange={(event) => setParams({ overdue: event.target.checked ? "1" : null })}
-                className="size-4.5 rounded border-line text-primary focus:ring-primary accent-primary"
-              />
-              {T.filters.overdueOnly}
-            </label>
-            <label className="flex min-h-11 items-center gap-2.5 text-[14px] font-bold text-navy cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={recurringOnly}
-                onChange={(event) => setParams({ is_recurring: event.target.checked ? "true" : null })}
-                className="size-4.5 rounded border-line text-primary focus:ring-primary accent-primary"
-              />
-              {T.filters.recurringOnly}
-            </label>
+            {filterChecks}
             <div className="flex w-full flex-col gap-2 md:ms-auto md:w-auto md:flex-row">
               <Button type="button" className="min-h-12 w-full md:w-auto" onClick={() => setFiltersOpen(false)}>
                 {T.filters.apply}
               </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                className="min-h-12 w-full md:w-auto"
-                onClick={() => {
-                  setSearchDraft("");
-                  router.replace(pathname);
-                }}
-              >
+              <Button type="button" variant="ghost" className="min-h-12 w-full md:w-auto" onClick={resetFilters}>
                 {T.filters.reset}
               </Button>
             </div>
@@ -548,7 +747,11 @@ function RegisterInner({
             type="button"
             onClick={() => {
               if (chip.key === "search") setSearchDraft("");
-              setParams({ [chip.key]: null });
+              if (chip.key === "queue" && queue) {
+                setParams(Object.fromEntries(queueParamKeys(queue).map((key) => [key, null])));
+              } else {
+                setParams({ [chip.key]: null });
+              }
             }}
             className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-primary/20 bg-primary-light/50 px-3 py-1 text-[13px] font-bold text-primary-dark"
           >
@@ -569,6 +772,17 @@ function RegisterInner({
           </button>
         ) : null}
       </div>
+
+      <SavedViews
+        scope={pathname}
+        currentQuery={viewQuery(searchParams)}
+        canSave={chips.length > 0 || searchParams.has("ordering")}
+        suggestedName={queue ? queueTitle(queue) : undefined}
+        onApply={(query) => {
+          setSearchDraft(new URLSearchParams(query).get("search") ?? "");
+          router.replace(query ? `${pathname}?${query}` : pathname);
+        }}
+      />
 
       {exportError ? <ErrorBanner message={exportError} onRetry={() => void exportCsv()} /> : null}
 

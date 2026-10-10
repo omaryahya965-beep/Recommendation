@@ -24,7 +24,7 @@ export function AppearanceSettings() {
   const { preference, setTheme } = useTheme();
 
   return (
-    <div className="grid items-start gap-6 lg:grid-cols-2">
+    <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
       {/* Theme preference */}
       <Section title={T.nav.theme} hint={T.nav.themeHint} padded className="rounded-2xl border border-line bg-surface shadow-sm">
         <div className="grid gap-3" role="radiogroup" aria-label={T.nav.theme}>
@@ -79,7 +79,7 @@ export function AppearanceSettings() {
           >
             <div>
               <span className="block text-[14px] font-bold">العربية</span>
-              <span className="mt-0.5 block text-[11.5px] font-medium text-muted">Arabic</span>
+              <span lang="en" className="mt-0.5 block text-[11.5px] font-medium text-muted">Arabic</span>
             </div>
             {locale === "ar" && (
               <span className="flex size-5 items-center justify-center rounded-full bg-primary-dark text-white">
@@ -104,7 +104,7 @@ export function AppearanceSettings() {
           >
             <div>
               <span className="block text-[14px] font-bold">English</span>
-              <span className="mt-0.5 block text-[11.5px] font-medium text-muted">الإنجليزية</span>
+              <span lang="ar" className="mt-0.5 block text-[11.5px] font-medium text-muted">الإنجليزية</span>
             </div>
             {locale === "en" && (
               <span className="flex size-5 items-center justify-center rounded-full bg-primary-dark text-white">

@@ -97,8 +97,9 @@ export function MunicipalityLogo({
         style={{ width: `${RING_SCALE * 100}%` }}
         // Physical left/top (not start/end) on purpose: centring is
         // direction-independent, and a logical property here would need a
-        // per-direction translate. `h-auto` keeps the image square.
-        className="absolute left-1/2 top-1/2 h-auto max-w-none -translate-x-1/2 -translate-y-1/2"
+        // per-direction translate. `h-auto` with an explicit square ratio
+        // keeps it square and gives the browser its size before it loads.
+        className="absolute left-1/2 top-1/2 aspect-square h-auto max-w-none -translate-x-1/2 -translate-y-1/2"
       />
     </span>
   );

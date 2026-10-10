@@ -37,14 +37,6 @@ const STATE_TONE: Record<PresentState, string> = {
   delayed: "text-warning-dark",
 };
 
-const STATE_DOT: Record<PresentState, string> = {
-  done: "bg-success ring-success/20",
-  active: "bg-primary ring-primary/20",
-  pending: "bg-line ring-line",
-  blocked: "bg-muted/30 ring-line",
-  delayed: "bg-warning ring-warning/20",
-};
-
 const STATE_LINE: Record<PresentState, string> = {
   done: "bg-success/30",
   active: "bg-primary/20",
@@ -91,7 +83,7 @@ export function ActionPlanTimeline({
         </div>
 
         {/* Meta grid */}
-        <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <DataField label={T.plan.owner}>
             {plan.responsible_employee_detail?.full_name_ar || plan.responsible_employee_detail?.username}
           </DataField>
