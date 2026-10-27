@@ -14,12 +14,12 @@ import { T, useI18n } from "@/lib/i18n";
 import { MODERATE } from "@/lib/queryPolicy";
 import type { FollowUpPreview, FollowUpReport, Paginated } from "@/lib/types";
 
-/** An unsaved preview, shown in full while the auditor decides to save it. */
-export function FollowUpSessionCard({ preview }: { preview: FollowUpPreview }) {
+/** A preview, shown in full while the auditor decides to save it. Once saved it is no longer session-only. */
+export function FollowUpSessionCard({ preview, saved = false }: { preview: FollowUpPreview; saved?: boolean }) {
   useI18n();
   return (
     <div className="space-y-3">
-      <p className="text-[12.5px] font-medium text-ink-soft">{T.followup.sessionOnly}</p>
+      {saved ? null : <p className="text-[12.5px] font-medium text-ink-soft">{T.followup.sessionOnly}</p>}
       <FollowUpReportView
         snapshot={preview.snapshot}
         summary={preview.executive_summary}

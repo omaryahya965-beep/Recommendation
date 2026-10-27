@@ -113,3 +113,36 @@ describe("register queues", () => {
     expect(params.get("status__in")).toBe("audit_review,action_plan_review,submitted_for_verification,closure_review");
   });
 });
+
+describe("notificationText (BUG-16)", () => {
+  const base = {
+    id: 1, recommendation: 7, report: null, recommendation_text: null, department_name: null, report_title: null,
+    type: "returned", is_read: false, sent_at: "2026-10-27T00:00:00Z",
+  };
+
+  it("renders the key in the current language with its parameters", async () => {
+    const { notificationText } = await import("./notifications");
+    const { setLocale } = await import("./i18n/store");
+    const item = { ...base, message: "أعادت الإدارة التنفيذ للمزيد من العمل على REC-0007: sign it", message_key: "implementation_returned", message_params: { ref: "REC-0007", notes: "sign it" } };
+    setLocale("en");
+    expect(notificationText(item as never)).toBe("The department returned the implementation of REC-0007 for more work: sign it");
+    setLocale("ar");
+    expect(notificationText(item as never)).toBe("أعادت الإدارة التنفيذ للمزيد من العمل على REC-0007: sign it");
+  });
+
+  it("uses real counts and days", async () => {
+    const { notificationText } = await import("./notifications");
+    const { setLocale } = await import("./i18n/store");
+    setLocale("en");
+    const report = { ...base, message: "x", message_key: "report_ratification_needed", message_params: { title: "Cash audit", count: 3 } };
+    expect(notificationText(report as never)).toBe("Report awaiting Council ratification: Cash audit (3 recommendations).");
+    const reminder = { ...base, message: "x", message_key: "reminder", message_params: { ref: "REC-0007", title: "T", anchor: "plan", days: -60, deadline: "2026-12-26" } };
+    expect(notificationText(reminder as never)).toContain("60 days left");
+    setLocale("ar");
+  });
+
+  it("falls back to the stored text for older rows", async () => {
+    const { notificationText } = await import("./notifications");
+    expect(notificationText({ ...base, message: "رسالة قديمة" } as never)).toBe("رسالة قديمة");
+  });
+});

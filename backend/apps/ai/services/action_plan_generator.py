@@ -18,6 +18,7 @@ from apps.ai.services.common import (
 from apps.ai.services.prompt_manager import render_prompt
 from apps.ai.services.sanitizer import recommendation_public_facts, scrub_text
 from apps.audits.models import Recommendation
+from apps.core.refs import record_code
 
 ALLOWED_STATUSES = {
     Recommendation.Status.APPROVED_FOR_IMPLEMENTATION,
@@ -51,7 +52,7 @@ def local_action_plan(rec, language: str) -> dict:
     if ar:
         steps.append(step(
             "تحليل الفجوة وتوثيق الوضع الحالي",
-            f"مراجعة التوصية REC-{rec.id} وتوثيق الفجوة الرقابية" + (f" المرتبطة بـ: {root[:180]}" if root else "."),
+            f"مراجعة التوصية {record_code(rec.id)} وتوثيق الفجوة الرقابية" + (f" المرتبطة بـ: {root[:180]}" if root else "."),
             7,
             "محضر مراجعة / وصف الوضع الحالي",
             "وثيقة فجوة معتمدة من رئيس الدائرة",
@@ -73,13 +74,13 @@ def local_action_plan(rec, language: str) -> dict:
             "رئيس الدائرة يؤكد اكتمال الملف",
             "department_head",
         ))
-        objective = f"معالجة التوصية REC-{rec.id} عبر خطوات قابلة للقياس دون تغيير حالة سير العمل تلقائياً."
+        objective = f"معالجة التوصية {record_code(rec.id)} عبر خطوات قابلة للقياس دون تغيير حالة سير العمل تلقائياً."
         risks = ["تأخر اعتماد الإجراءات الداخلية", "عدم كفاية الأدلة المرفوعة"]
         dependencies = ["توفر صلاحيات الاعتماد داخل الدائرة", "وضوح المسؤول التنفيذي"]
     else:
         steps.append(step(
             "Document the current control gap",
-            f"Review REC-{rec.id} and document the current weakness"
+            f"Review {record_code(rec.id)} and document the current weakness"
             + (f" related to: {root[:180]}" if root else "."),
             7,
             "Gap memo / current-state note",
@@ -102,7 +103,7 @@ def local_action_plan(rec, language: str) -> dict:
             "Department head confirms the file is complete",
             "department_head",
         ))
-        objective = f"Address REC-{rec.id} through measurable steps. This is a draft only."
+        objective = f"Address {record_code(rec.id)} through measurable steps. This is a draft only."
         risks = ["Internal approval delays", "Insufficient supporting evidence"]
         dependencies = ["Delegated approval authority", "Named executor selected by management"]
 

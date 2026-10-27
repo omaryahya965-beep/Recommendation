@@ -133,7 +133,8 @@ function Stages({ data, base }: { data: AnalyticsPayload; base: string }) {
           label: stage.label,
           sublabel: stage.actor,
           value: stage.count,
-          href: `${base}?stage=${stage.id}`,
+          // Analytics counts issued cases only; so does the list (BUG-23).
+          href: `${base}?stage=${stage.id}&issued=true`,
         }))}
       />
     </Panel>
@@ -161,7 +162,13 @@ function Aging({ data, base }: { data: AnalyticsPayload; base: string }) {
     <Panel title={T.insights.agingTitle} hint={T.insights.agingHint}>
       <div className="grid grid-cols-3 gap-3">
         {AGING_ORDER.map((bucket, index) => (
-          <StatTile key={bucket} label={labels[index]} value={data.overdue_aging[bucket] ?? 0} alert href={`${base}?overdue=1`} />
+          <StatTile
+            key={bucket}
+            label={labels[index]}
+            value={data.overdue_aging[bucket] ?? 0}
+            alert
+            href={`${base}?overdue_age=${encodeURIComponent(bucket)}&issued=true`}
+          />
         ))}
       </div>
     </Panel>
@@ -187,7 +194,7 @@ function Departments({ data, base }: { data: AnalyticsPayload; base: string }) {
         {rows.map((row) => (
           <tr key={row.department} className="hover:bg-subtle/60">
             <LedgerCell>
-              <a href={`${base}?report__department=${row.department}`} className="font-semibold text-ink hover:text-primary-dark hover:underline">
+              <a href={`${base}?report__department=${row.department}&issued=true`} className="font-semibold text-ink hover:text-primary-dark hover:underline">
                 {row.name}
               </a>
             </LedgerCell>
@@ -235,7 +242,7 @@ function Recurrence({ data, base }: { data: AnalyticsPayload; base: string }) {
   return (
     <Panel title={T.insights.recurrenceTitle}>
       <div className="grid grid-cols-2 gap-3">
-        <StatTile label={T.insights.recurrenceConfirmed} value={data.recurrence.confirmed} href={`${base}?is_recurring=true&recurrence_confirmed=true`} />
+        <StatTile label={T.insights.recurrenceConfirmed} value={data.recurrence.confirmed} href={`${base}?is_recurring=true&recurrence_confirmed=true&issued=true`} />
         <StatTile label={T.insights.recurrenceAwaiting} value={data.recurrence.awaiting_confirmation} />
       </div>
     </Panel>

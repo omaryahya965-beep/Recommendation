@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Info, Plus, Trash2 } from "lucide-react";
 
@@ -10,6 +10,8 @@ import { api, errorMessage } from "@/lib/api";
 import { formatDateTime, plural } from "@/lib/format";
 import { RECIPIENT_ROLE_LABELS, T, useI18n } from "@/lib/i18n";
 import type { Paginated, ReminderRule, Role, WorkflowPolicy } from "@/lib/types";
+import { useGuardedMutation } from "@/lib/useGuardedMutation";
+import { MAX_REMINDER_OFFSET_DAYS } from "@/lib/limits";
 
 type Direction = "before" | "on" | "after";
 
@@ -36,7 +38,7 @@ function whenPhrase(offset: number) {
 function offsetFromForm(direction: Direction, days: string): number | null {
   if (direction === "on") return 0;
   const n = Number(days);
-  if (!Number.isInteger(n) || n < 1) return null;
+  if (!Number.isInteger(n) || n < 1 || n > MAX_REMINDER_OFFSET_DAYS) return null;
   return direction === "before" ? -n : n;
 }
 
@@ -160,7 +162,7 @@ function AuditReminderEditor() {
   const list = rules?.results ?? [];
   const draftOffset = offsetFromForm(direction, days);
 
-  const createRule = useMutation({
+  const createRule = useGuardedMutation({
     mutationFn: (offsetDays: number) =>
       api("/api/reminder-rules/", {
         method: "POST",
@@ -174,20 +176,20 @@ function AuditReminderEditor() {
     onError: (err) => setError(errorMessage(err)),
   });
 
-  const toggleRule = useMutation({
+  const toggleRule = useGuardedMutation({
     mutationFn: (rule: ReminderRule) =>
       api(`/api/reminder-rules/${rule.id}/`, { method: "PATCH", body: { enabled: !rule.enabled } }),
     onSuccess: invalidate,
     onError: (err) => setError(errorMessage(err)),
   });
 
-  const deleteRule = useMutation({
+  const deleteRule = useGuardedMutation({
     mutationFn: (rule: ReminderRule) => api(`/api/reminder-rules/${rule.id}/`, { method: "DELETE" }),
     onSuccess: invalidate,
     onError: (err) => setError(errorMessage(err)),
   });
 
-  const updatePolicy = useMutation({
+  const updatePolicy = useGuardedMutation({
     mutationFn: (body: Partial<WorkflowPolicy>) =>
       api("/api/workflow-policy/", { method: "PATCH", body }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["workflow-policy"] }),
@@ -273,6 +275,7 @@ function AuditReminderEditor() {
                 <TextInput
                   type="number"
                   min={1}
+                  max={MAX_REMINDER_OFFSET_DAYS}
                   step={1}
                   value={days}
                   onChange={(e) => setDays(e.target.value)}

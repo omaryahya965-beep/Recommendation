@@ -6,6 +6,7 @@ from rest_framework.test import APIClient
 
 from apps.ai.services.risk_engine import collect_risk_inputs, delay_risk_score_only
 from apps.workflow.tests import drive_to_in_progress, make_world
+from apps.core.refs import record_code
 
 
 class RiskEngineTests(TestCase):
@@ -18,7 +19,7 @@ class RiskEngineTests(TestCase):
 
     def test_inputs_from_system_data(self):
         data = collect_risk_inputs(self.rec)
-        self.assertEqual(data["reference"], f"REC-{self.rec.id}")
+        self.assertEqual(data["reference"], record_code(self.rec.id))
         self.assertEqual(data["status"], "in_progress")
         self.assertIsNotNone(data["target_date"])
         self.assertIn("progress_percent", data)

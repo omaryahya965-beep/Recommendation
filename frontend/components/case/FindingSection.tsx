@@ -2,7 +2,7 @@
 
 import { Repeat2, ScrollText } from "lucide-react";
 
-import { Callout, ProseBlock } from "@/components/ui/Base";
+import { Callout, LongText, ProseBlock } from "@/components/ui/Base";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { parseFinding } from "@/lib/finding";
 import { T, useI18n } from "@/lib/i18n";
@@ -32,7 +32,7 @@ export function FindingSection({
       {parsed.structured ? (
         <div className="space-y-5">
           {parsed.preamble ? (
-            <p className="whitespace-pre-wrap text-sm leading-[1.8] text-ink font-medium bg-subtle/30 rounded-xl p-4 border border-line">{parsed.preamble}</p>
+            <p className="whitespace-pre-wrap text-sm leading-[1.8] text-ink font-medium bg-subtle/30 rounded-xl p-4 border border-line"><LongText text={parsed.preamble} /></p>
           ) : null}
           <div className="grid gap-4">
             {parsed.sections.map((section) => (
@@ -43,7 +43,7 @@ export function FindingSection({
           </div>
         </div>
       ) : parsed.preamble ? (
-        <p className="whitespace-pre-wrap text-sm leading-[1.8] text-ink font-medium bg-subtle/30 rounded-xl p-4 border border-line">{parsed.preamble}</p>
+        <p className="whitespace-pre-wrap text-sm leading-[1.8] text-ink font-medium bg-subtle/30 rounded-xl p-4 border border-line"><LongText text={parsed.preamble} /></p>
       ) : (
         <EmptyState icon={<ScrollText className="size-8" />} title={T.empty.generic} className="border-dashed shadow-none py-10" />
       )}
@@ -51,7 +51,7 @@ export function FindingSection({
       {rec.root_cause?.trim() ? (
         <section className="border-t border-line pt-5">
           <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-muted">{T.case.rootCause}</h3>
-          <p className="whitespace-pre-wrap text-sm leading-[1.8] text-ink font-medium bg-subtle/30 rounded-xl p-4 border border-line">{rec.root_cause}</p>
+          <p className="whitespace-pre-wrap text-sm leading-[1.8] text-ink font-medium bg-subtle/30 rounded-xl p-4 border border-line"><LongText text={rec.root_cause} /></p>
         </section>
       ) : null}
 

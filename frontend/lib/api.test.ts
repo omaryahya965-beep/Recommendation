@@ -7,6 +7,7 @@ import {
   errorMessage,
   isViewableFile,
   loadAuth,
+  openProtectedFile,
   saveAuth,
   saveProtectedFile,
 } from "./api";
@@ -224,6 +225,34 @@ describe("protected files", () => {
     expect(click).toHaveBeenCalledOnce();
     const blob = (created.mock.calls[0] as unknown as [Blob])[0];
     expect(blob.type).toBe("application/pdf");
+  });
+
+  it("saves a PDF under its real name when the browser has no PDF viewer (BUG-14)", async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response("%PDF-1.4", { status: 200 }));
+    vi.stubGlobal("URL", Object.assign(URL, { createObjectURL: vi.fn(() => "blob:local/2"), revokeObjectURL: vi.fn() }));
+    vi.stubGlobal("navigator", { ...navigator, pdfViewerEnabled: false });
+    const open = vi.spyOn(window, "open").mockImplementation(() => null);
+    const names: string[] = [];
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+      names.push(this.download);
+    });
+
+    await openProtectedFile("http://127.0.0.1:8000/api/evidence/5/download/", "تقرير التسوية.pdf");
+
+    expect(open).not.toHaveBeenCalled();
+    expect(names).toEqual(["تقرير التسوية.pdf"]);
+  });
+
+  it("still opens a PDF in a tab when the browser can show it", async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response("%PDF-1.4", { status: 200 }));
+    vi.stubGlobal("URL", Object.assign(URL, { createObjectURL: vi.fn(() => "blob:local/3"), revokeObjectURL: vi.fn() }));
+    vi.stubGlobal("navigator", { ...navigator, pdfViewerEnabled: true });
+    const tab = { closed: false, location: { href: "" }, close: vi.fn() };
+    vi.spyOn(window, "open").mockImplementation(() => tab as unknown as Window);
+
+    await openProtectedFile("http://127.0.0.1:8000/api/evidence/5/download/", "proof.pdf");
+
+    expect(tab.location.href).toBe("blob:local/3");
   });
 
   it("never sends the token to another origin", async () => {

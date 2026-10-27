@@ -1,6 +1,5 @@
 "use client";
 
-import { useMutation } from "@tanstack/react-query";
 import { Eraser, Send, Copy, Check, Sparkles, Info } from "lucide-react";
 import { useLayoutEffect, useRef, useState } from "react";
 
@@ -12,6 +11,9 @@ import { T, useI18n } from "@/lib/i18n";
 import type { AIAssistantResponse } from "@/lib/types";
 
 import { AIPanel } from "./AIPrimitives";
+import { AssistantText } from "./AssistantText";
+import { useGuardedMutation } from "@/lib/useGuardedMutation";
+import { ASSISTANT_MESSAGE_MAX } from "@/lib/limits";
 
 const CHIPS = [
   { labelKey: "chipsOverdue" as const, messageKey: "chipsOverdue" as const },
@@ -54,7 +56,7 @@ export function AIAuditAssistant() {
   const reportId = searchParams?.get("report_id") ? parseInt(searchParams.get("report_id")!) : undefined;
   const departmentId = searchParams?.get("department_id") ? parseInt(searchParams.get("department_id")!) : undefined;
 
-  const ask = useMutation({
+  const ask = useGuardedMutation({
     mutationFn: (message: string) =>
       api<AIAssistantResponse>("/api/ai/assistant/", {
         method: "POST",
@@ -81,7 +83,7 @@ export function AIAuditAssistant() {
     },
   });
 
-  const clear = useMutation({
+  const clear = useGuardedMutation({
     mutationFn: () => api("/api/ai/assistant/conversations/", { method: "DELETE" }),
     onSuccess: () => {
       setPendingPreview(null);
@@ -235,7 +237,9 @@ export function AIAuditAssistant() {
                     <Copy className="size-3.5" />
                   )}
                 </button>
-                <p className="whitespace-pre-wrap font-medium pe-6">{message.content}</p>
+                <div className="pe-6">
+                  <AssistantText text={message.content} />
+                </div>
               </div>
 
               {/* Provider / fallback note — outside & below the bubble */}
@@ -304,6 +308,7 @@ export function AIAuditAssistant() {
             ref={textareaRef}
             name="question"
             value={text}
+            maxLength={ASSISTANT_MESSAGE_MAX}
             rows={2}
             placeholder={T.ai.askPlaceholder}
             disabled={ask.isPending}

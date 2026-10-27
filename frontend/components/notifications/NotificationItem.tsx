@@ -22,6 +22,7 @@ import {
   daysOverdueLabel,
   notificationHref,
   notificationTarget,
+  notificationText,
   notificationTitle,
   notifyMeta,
   requiredAction,
@@ -145,7 +146,7 @@ export function NotificationItem({
               unread ? "font-bold" : "font-medium"
             )}
           >
-            <bdi>{item.message}</bdi>
+            <bdi>{notificationText(item)}</bdi>
           </span>
           {item.recommendation ? (
             <span className="mt-1 flex min-w-0 items-center gap-1.5 text-[12px] text-ink-soft">

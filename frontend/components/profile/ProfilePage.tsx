@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type FormEvent } from "react";
 
 import { Button, ErrorBanner, Field as FormField, SuccessBanner, TextInput } from "@/components/ui/Base";
@@ -10,6 +10,7 @@ import { api, errorMessage, loadAuth, saveAuth } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { ROLE_LABELS, T, useI18n } from "@/lib/i18n";
 import type { Role, User } from "@/lib/types";
+import { useGuardedMutation } from "@/lib/useGuardedMutation";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 8;
@@ -62,7 +63,7 @@ export function ProfilePage({ role }: { role: Role }) {
   const [success, setSuccess] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const emailMutation = useMutation({
+  const emailMutation = useGuardedMutation({
     mutationFn: (email: string) => api<User>("/api/auth/me/", { method: "PATCH", body: { email } }),
     onSuccess: (updated) => {
       persistUser(updated);
@@ -78,9 +79,9 @@ export function ProfilePage({ role }: { role: Role }) {
     },
   });
 
-  const passwordMutation = useMutation({
+  const passwordMutation = useGuardedMutation({
     mutationFn: () =>
-      api("/api/auth/change-password/", {
+      api<{ access: string; refresh: string }>("/api/auth/change-password/", {
         method: "POST",
         body: {
           current_password: currentPassword,
@@ -88,7 +89,10 @@ export function ProfilePage({ role }: { role: Role }) {
           new_password_confirm: confirmPassword,
         },
       }),
-    onSuccess: () => {
+    onSuccess: (tokens) => {
+      // The server ended every other session; this tab continues on the new pair.
+      const auth = loadAuth();
+      if (auth && tokens?.access) saveAuth({ ...auth, access: tokens.access, refresh: tokens.refresh });
       setChangingPassword(false);
       setCurrentPassword("");
       setNewPassword("");
@@ -124,6 +128,9 @@ export function ProfilePage({ role }: { role: Role }) {
 
   function savePassword(event: FormEvent) {
     event.preventDefault();
+    // A new attempt starts clean: never show the previous attempt's reason.
+    setFormError(null);
+    setSuccess(null);
     if (newPassword.length < MIN_PASSWORD_LENGTH) {
       setPasswordError(T.profile.passwordTooShort);
       return;

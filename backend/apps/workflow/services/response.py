@@ -1,5 +1,4 @@
 """The department's management response and audit's review of it."""
-from django.db import transaction as db_transaction
 
 from apps.audits.models import AuditReport, Recommendation
 from apps.core.exceptions import StorageUnavailable, WorkflowError
@@ -15,8 +14,9 @@ from ..models import (
 from .. import guards
 from ..transitions import transition
 from .plan import _upsert_plan
-from .common import _policy
+from .common import _policy, locked_transition
 from .notify import (
+    msg,
     _audit_users,
     _department_heads,
     _heads_of,
@@ -27,7 +27,7 @@ from .notify import (
 S = Recommendation.Status
 
 
-@db_transaction.atomic
+@locked_transition
 def submit_response(recommendation, user, decision, justification="", attachment=None,
                     plan_data=None, stored_name=""):
     guards.require("respond", recommendation, user)
@@ -91,12 +91,12 @@ def submit_response(recommendation, user, decision, justification="", attachment
         _audit_users(recommendation.report.municipality),
         recommendation,
         Notification.Type.ACTION_REQUIRED,
-        f"رد إدارة جديد بانتظار مراجعة التدقيق الداخلي — {_rec_ref(recommendation)}.",
+        msg("response_submitted", f"رد إدارة جديد بانتظار مراجعة التدقيق الداخلي — {_rec_ref(recommendation)}.", ref=_rec_ref(recommendation)),
     )
     return response
 
 
-@db_transaction.atomic
+@locked_transition
 def review_response(recommendation, user, accept, notes=""):
     """Audit reviews the response (and plan, when submitted together) as one unit."""
     guards.require("review_response", recommendation, user)
@@ -130,7 +130,7 @@ def review_response(recommendation, user, accept, notes=""):
             _heads_of(recommendation),
             recommendation,
             Notification.Type.STATUS_CHANGE,
-            f"قبل التدقيق رد الإدارة على {_rec_ref(recommendation)}. بانتظار رفع التقرير للمجلس.",
+            msg("response_accepted", f"قبل التدقيق رد الإدارة على {_rec_ref(recommendation)}. بانتظار رفع التقرير للمجلس.", ref=_rec_ref(recommendation)),
         )
     else:
         if not notes.strip():
@@ -147,6 +147,6 @@ def review_response(recommendation, user, accept, notes=""):
             _department_heads(recommendation.report.department),
             recommendation,
             Notification.Type.RETURNED,
-            f"أُعيد رد الإدارة للتعديل على {_rec_ref(recommendation)}: {notes}",
+            msg("response_returned", f"أُعيد رد الإدارة للتعديل على {_rec_ref(recommendation)}: {notes}", ref=_rec_ref(recommendation), notes=notes),
         )
     return response

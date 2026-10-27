@@ -4,7 +4,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Download, LayoutList, Rows3, Search, SlidersHorizontal, X, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { CaseDue } from "@/components/home/Queues";
 import { Sheet } from "@/components/mobile/Sheet";
@@ -15,7 +15,7 @@ import { LedgerCell, LedgerTable, RecordId } from "@/components/ui/Ledger";
 import { ErrorBanner } from "@/components/ui/Base";
 import { RiskBadge } from "@/components/ui/RiskBadge";
 import { StatusBadge } from "@/components/ui/StampBadge";
-import { api, downloadFile, errorMessage, loadAuth } from "@/lib/api";
+import { api, ApiError, downloadFile, errorMessage, loadAuth } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { clipTitle } from "@/lib/finding";
 import { dayCount, formatDate, localISODate, plural } from "@/lib/format";
@@ -254,6 +254,7 @@ const LINK_FILTERS = [
   "status__in",
   "waiting_on",
   "waiting_over",
+  "overdue_age",
   "my_turn",
   "response_overdue",
   "due_within",
@@ -291,6 +292,11 @@ function linkFilterChips(searchParams: URLSearchParams): Array<{ key: string; la
   }
   if (value("waiting_over")) {
     chips.push({ key: "waiting_over", label: T.register.chipWaitingOver.replace("{days}", value("waiting_over")!) });
+  }
+  const age = value("overdue_age");
+  if (age) {
+    const range = { "1-30": T.insights.aging1, "31-90": T.insights.aging2, "91+": T.insights.aging3 }[age] ?? age;
+    chips.push({ key: "overdue_age", label: T.register.chipOverdueAge.replace("{range}", range) });
   }
   if (value("due_within")) {
     chips.push({ key: "due_within", label: T.register.chipDueWithin.replace("{days}", value("due_within")!) });
@@ -339,22 +345,38 @@ function RegisterInner({
   const department = searchParams.get("report__department") ?? "";
   const search = searchParams.get("search") ?? "";
   const ordering = searchParams.get("ordering") ?? "-priority_score";
-  const page = Number(searchParams.get("page") ?? "1") || 1;
+  // A whole page number from 1 up; "-1", "abc" or "2.5" in a link fall back (BUG-22).
+  const rawPage = searchParams.get("page");
+  const page = Math.max(1, Math.floor(Number(rawPage ?? "1")) || 1);
   const overdueOnly = searchParams.get("overdue") === "1";
   const recurringOnly = searchParams.get("is_recurring") === "true";
   const waitingOn = searchParams.get("waiting_on") ?? "";
 
   const [searchDraft, setSearchDraft] = useState(search);
 
+  // Queries written with router.replace that the URL does not show yet. Two
+  // filters changed in quick succession must compose: the second change
+  // builds on the first, not on the stale URL (BUG-20).
+  const pendingQueries = useRef<string[]>([]);
+  const currentQuery = searchParams.toString();
+  useEffect(() => {
+    const index = pendingQueries.current.indexOf(currentQuery);
+    // Our own write arrived: keep only the ones after it. Anything else
+    // (back/forward, a link) replaces the URL, so drop them all.
+    pendingQueries.current = index === -1 ? [] : pendingQueries.current.slice(index + 1);
+  }, [currentQuery]);
+
   const setParams = useCallback(
     (patch: Record<string, string | null>) => {
-      const next = new URLSearchParams(searchParams.toString());
+      const pending = pendingQueries.current;
+      const next = new URLSearchParams(pending.length ? pending[pending.length - 1] : searchParams.toString());
       for (const [key, value] of Object.entries(patch)) {
         if (!value) next.delete(key);
         else next.set(key, value);
       }
       if (!("page" in patch)) next.set("page", "1");
       const query = next.toString();
+      pendingQueries.current = [...pending, query];
       router.replace(query ? `${pathname}?${query}` : pathname);
     },
     [searchParams, router, pathname]
@@ -407,7 +429,22 @@ function RegisterInner({
   const scopeKey = mine ? "mine" : departmentOnly ? "department" : "all";
   const { data, isLoading, isError, refetch, isPlaceholderData } = useQuery({
     queryKey: ["recommendations", scopeKey, params.toString()],
-    queryFn: () => api<Paginated<RecommendationListItem>>(`/api/recommendations/?${params}`),
+    queryFn: async (): Promise<Paginated<RecommendationListItem> & { clampedPage?: number }> => {
+      try {
+        return await api<Paginated<RecommendationListItem>>(`/api/recommendations/?${params}`);
+      } catch (err) {
+        // A page past the end (an old link, or rows that left the filter):
+        // show the last page instead of a permanent error (BUG-22).
+        if (!(err instanceof ApiError) || err.status !== 404 || page <= 1) throw err;
+        const query = new URLSearchParams(params);
+        query.set("page", "1");
+        const first = await api<Paginated<RecommendationListItem>>(`/api/recommendations/?${query}`);
+        const last = Math.max(1, Math.ceil(first.count / PAGE_SIZE));
+        if (last === 1) return { ...first, clampedPage: 1 };
+        query.set("page", String(last));
+        return { ...(await api<Paginated<RecommendationListItem>>(`/api/recommendations/?${query}`)), clampedPage: last };
+      }
+    },
     ...LIVE,
     // Changing page or filter keeps the current rows on screen (dimmed)
     // instead of flashing a skeleton while the next page loads.
@@ -426,6 +463,12 @@ function RegisterInner({
     return true;
   });
   const totalPages = data ? Math.max(1, Math.ceil(data.count / PAGE_SIZE)) : 1;
+
+  // Keep the URL on the page actually shown.
+  const shownPage = isPlaceholderData ? page : (data?.clampedPage ?? page);
+  useEffect(() => {
+    if (rawPage !== null && rawPage !== String(shownPage)) setParams({ page: String(shownPage) });
+  }, [rawPage, shownPage, setParams]);
 
   const stages = localizedWorkflowStages().filter((item) =>
     mine ? item.statuses.some((statusId) => EMPLOYEE_WORK_STATUSES.includes(statusId)) : true

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { Save, Sparkles } from "lucide-react";
 import { useState } from "react";
 
@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { api, errorMessage } from "@/lib/api";
 import { T, useI18n } from "@/lib/i18n";
 import type { FollowUpPreview } from "@/lib/types";
+import { useGuardedMutation } from "@/lib/useGuardedMutation";
 
 export default function AuditFollowUpsPage() {
   useI18n();
@@ -23,7 +24,7 @@ export default function AuditFollowUpsPage() {
 
   // "generate" used to only compute a preview. The API now separates the two:
   // /preview/ computes without saving, /generate/ stores a frozen report.
-  const generate = useMutation({
+  const generate = useGuardedMutation({
     mutationFn: () =>
       api<FollowUpPreview>("/api/followup-reports/preview/", {
         method: "POST",
@@ -37,11 +38,13 @@ export default function AuditFollowUpsPage() {
     onError: (err) => setError(errorMessage(err)),
   });
 
-  const save = useMutation({
+  // Saves the period that was previewed, even if the date fields were
+  // edited afterwards (external QA).
+  const save = useGuardedMutation({
     mutationFn: () =>
       api("/api/followup-reports/generate/", {
         method: "POST",
-        body: { period_start: start, period_end: end, language: "ar" },
+        body: { period_start: preview?.period_start, period_end: preview?.period_end, language: "ar" },
       }),
     onSuccess: () => {
       setError(null);
@@ -88,7 +91,7 @@ export default function AuditFollowUpsPage() {
         </Callout>
       </div>
 
-      {preview ? <FollowUpSessionCard preview={preview} /> : null}
+      {preview ? <FollowUpSessionCard preview={preview} saved={saved} /> : null}
 
       <section className="space-y-3 pt-2" data-print={preview ? "hide" : undefined}>
         <h2 className="font-heading text-[16px] font-bold text-navy">{T.followup.archive}</h2>

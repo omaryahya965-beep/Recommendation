@@ -4,6 +4,7 @@ from rest_framework.test import APIClient
 from apps.accounts.models import User
 from apps.audits.models import Recommendation
 from apps.workflow.tests import make_world
+from apps.core.refs import record_code
 
 
 class InsightsAndSummaryTests(TestCase):
@@ -60,11 +61,11 @@ class InsightsAndSummaryTests(TestCase):
         self.assertEqual(res.status_code, 200)
         output = res.data["analysis"]["output"]
         body = output["body"]
-        self.assertIn(f"REC-{self.rec.id}", body)
+        self.assertIn(record_code(self.rec.id), body)
         self.assertIn("Segregate", body)
         self.assertIn("resolve", body.lower())
         self.assertEqual(output["stats"]["total"], 1)
-        self.assertEqual(output["stats"]["reference"], f"REC-{self.rec.id}")
+        self.assertEqual(output["stats"]["reference"], record_code(self.rec.id))
 
     def test_summary_report(self):
         res = self.client.post(

@@ -43,6 +43,9 @@ from .models import Notification, ReminderDispatch, ReminderRule, ReminderRun
 
 logger = logging.getLogger("apps.notifications")
 
+# Reminders more than a year before or after a deadline are not reminders.
+MAX_REMINDER_OFFSET_DAYS = 365
+
 S = Recommendation.Status
 Role = ReminderRule.RecipientRole
 
@@ -181,7 +184,7 @@ def _process_case(rec, anchor, deadline, rules_by_role, today, run, audit_cache)
     for role, rules in rules_by_role.items():
         if role == Role.AUDIT:
             rules = [rule for rule in rules if rule.offset_days > 0]
-        due = [rule for rule in rules if today >= deadline + timedelta(days=rule.offset_days)]
+        due = [rule for rule in rules if _is_due(rule, deadline, today)]
         if not due:
             continue
         latest = max(due, key=lambda rule: rule.offset_days)
@@ -204,6 +207,15 @@ def _process_case(rec, anchor, deadline, rules_by_role, today, run, audit_cache)
                         recommendation=rec,
                         type=_type_for(delta, anchor),
                         message=_message(rec, delta, anchor, deadline),
+                        message_key="reminder",
+                        message_params={
+                            "ref": record_code(rec.id),
+                            "title": case_title(rec.text, 80),
+                            "anchor": anchor,
+                            # days left (< 0 means overdue by that many)
+                            "days": delta,
+                            "deadline": deadline.isoformat(),
+                        },
                         dedupe_key=key,
                     )
                 try:
@@ -233,18 +245,48 @@ def _process_case(rec, anchor, deadline, rules_by_role, today, run, audit_cache)
     return sent, superseded
 
 
+def _is_due(rule, deadline, today):
+    """Whether this rule's milestone has been reached. A date out of range
+    (an offset beyond what the API now accepts) never fires."""
+    try:
+        return today >= deadline + timedelta(days=rule.offset_days)
+    except OverflowError:
+        return False
+
+
+def _usable_rules(municipality, skipped):
+    """Enabled rules by recipient role; rules outside the accepted range
+    (left over from before the bound existed) are skipped and logged."""
+    rules_by_role = defaultdict(list)
+    for rule in municipality.reminder_rules.filter(enabled=True):
+        if abs(rule.offset_days) > MAX_REMINDER_OFFSET_DAYS:
+            logger.warning(
+                "reminder_rule_skipped rule=%s municipality=%s offset=%s",
+                rule.pk, municipality.pk, rule.offset_days,
+            )
+            skipped.append(f"skipped rule {rule.pk} ({municipality.name}): offset {rule.offset_days} days")
+            continue
+        rules_by_role[rule.recipient_role].append(rule)
+    return rules_by_role
+
+
 def run_reminders(today=None, trigger="command"):
     """One catch-up pass. Returns the number of reminders sent. Safe to run
-    any number of times a day, and after any number of missed days."""
+    any number of times a day, and after any number of missed days.
+
+    Each municipality runs on its own: a failure in one is logged and recorded
+    on the run (status FAILED, so the health card shows it) while every other
+    municipality still receives its reminders.
+    """
     today = today or timezone.localdate()
     run = ReminderRun.objects.create(trigger=trigger)
     sent = superseded = 0
-    try:
-        audit_cache = {}
-        for municipality in Municipality.objects.all():
-            rules_by_role = defaultdict(list)
-            for rule in municipality.reminder_rules.filter(enabled=True):
-                rules_by_role[rule.recipient_role].append(rule)
+    notes = []
+    failed = False
+    audit_cache = {}
+    for municipality in Municipality.objects.all():
+        try:
+            rules_by_role = _usable_rules(municipality, notes)
             if not rules_by_role:
                 continue
             for rec, anchor, deadline in _cases(municipality):
@@ -253,21 +295,16 @@ def run_reminders(today=None, trigger="command"):
                 )
                 sent += case_sent
                 superseded += case_superseded
-    except Exception as exc:
-        ReminderRun.objects.filter(pk=run.pk).update(
-            status=ReminderRun.Status.FAILED,
-            finished_at=timezone.now(),
-            sent=sent,
-            superseded=superseded,
-            error=f"{type(exc).__name__}: {exc}"[:2000],
-        )
-        logger.exception("reminder_run_failed run=%s", run.pk)
-        raise
+        except Exception as exc:
+            failed = True
+            notes.append(f"{municipality.name}: {type(exc).__name__}: {exc}")
+            logger.exception("reminder_run_municipality_failed run=%s municipality=%s", run.pk, municipality.pk)
     ReminderRun.objects.filter(pk=run.pk).update(
-        status=ReminderRun.Status.OK,
+        status=ReminderRun.Status.FAILED if failed else ReminderRun.Status.OK,
         finished_at=timezone.now(),
         sent=sent,
         superseded=superseded,
+        error="\n".join(notes)[:2000],
     )
     return sent
 

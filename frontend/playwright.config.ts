@@ -1,3 +1,6 @@
+import os from "node:os";
+import path from "node:path";
+
 import { defineConfig, devices } from "@playwright/test";
 
 /**
@@ -15,6 +18,10 @@ const API_PORT = Number(process.env.E2E_API_PORT ?? 8100);
 const WEB_PORT = Number(process.env.E2E_WEB_PORT ?? 3100);
 export const API_URL = `http://127.0.0.1:${API_PORT}`;
 const WEB_URL = `http://127.0.0.1:${WEB_PORT}`;
+// Failure screenshots, traces and the HTML report are written outside the
+// repository (override with E2E_ARTIFACTS_DIR). Tests assert on the DOM;
+// no image baselines are kept in the repo.
+const ARTIFACTS = process.env.E2E_ARTIFACTS_DIR ?? path.join(os.tmpdir(), "raqeeb-playwright");
 const PYTHON =
   process.env.E2E_PYTHON ?? (process.platform === "win32" ? "venv\\Scripts\\python.exe" : "python");
 
@@ -27,7 +34,8 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   timeout: 90_000,
   expect: { timeout: 15_000 },
-  reporter: [["list"], ["html", { open: "never", outputFolder: "playwright-report" }]],
+  outputDir: path.join(ARTIFACTS, "test-results"),
+  reporter: [["list"], ["html", { open: "never", outputFolder: path.join(ARTIFACTS, "playwright-report") }]],
   use: {
     baseURL: WEB_URL,
     locale: "ar",

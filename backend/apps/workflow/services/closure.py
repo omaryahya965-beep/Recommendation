@@ -3,7 +3,6 @@
 Verification never closes: sufficient evidence starts closure review, and
 only the council closes.
 """
-from django.db import transaction as db_transaction
 from django.utils import timezone
 
 from apps.audits.models import Recommendation
@@ -14,7 +13,9 @@ from apps.notifications.models import Notification
 from .. import guards
 from ..models import ApprovalRecord, VerificationDecision
 from ..transitions import transition
+from .common import locked_transition
 from .notify import (
+    msg,
     _VERIFICATION_LABELS_AR,
     _assignee,
     _audit_users,
@@ -27,7 +28,7 @@ from .notify import (
 S = Recommendation.Status
 
 
-@db_transaction.atomic
+@locked_transition
 def verify(recommendation, user, decision, notes="", rejected_items="", rejection_reason="",
            required_action="", action_deadline=None, notify=True):
     guards.require("verify", recommendation, user)
@@ -79,7 +80,7 @@ def verify(recommendation, user, decision, notes="", rejected_items="", rejectio
                 list(_heads_of(recommendation)) + [_assignee(recommendation)],
                 recommendation,
                 Notification.Type.STATUS_CHANGE,
-                f"قبل التدقيق أدلة {_rec_ref(recommendation)}. التوصية في مراجعة الإغلاق.",
+                msg("verification_sufficient", f"قبل التدقيق أدلة {_rec_ref(recommendation)}. التوصية في مراجعة الإغلاق.", ref=_rec_ref(recommendation)),
             )
     elif decision == D.PARTIAL:
         transition(recommendation, S.PARTIAL, user, "verified_partial", notes=notes)
@@ -92,15 +93,21 @@ def verify(recommendation, user, decision, notes="", rejected_items="", rejectio
             recommendation,
             Notification.Type.RETURNED,
             (
-                f"قرار التحقق على {_rec_ref(recommendation)}: {_VERIFICATION_LABELS_AR.get(decision, decision)}. "
-                f"المرفوض: {rejected_items}. السبب: {rejection_reason}. "
-                f"المطلوب: {required_action}. الموعد النهائي: {date_ar(action_deadline)}."
+                msg(
+                    "verification_returned",
+                    f"قرار التحقق على {_rec_ref(recommendation)}: {_VERIFICATION_LABELS_AR.get(decision, decision)}. "
+                    f"المرفوض: {rejected_items}. السبب: {rejection_reason}. "
+                    f"المطلوب: {required_action}. الموعد النهائي: {date_ar(action_deadline)}.",
+                    ref=_rec_ref(recommendation), decision=decision, rejected_items=rejected_items,
+                    reason=rejection_reason, action=required_action,
+                    deadline=str(action_deadline) if action_deadline else "",
+                )
             ),
         )
     return verification
 
 
-@db_transaction.atomic
+@locked_transition
 def submit_for_closure(recommendation, user, notes=""):
     """Audit completes the Recommendation Closure Review and sends it to council."""
     guards.require("submit_for_closure", recommendation, user)
@@ -118,18 +125,18 @@ def submit_for_closure(recommendation, user, notes=""):
         _council_users(recommendation.report.municipality),
         recommendation,
         Notification.Type.ACTION_REQUIRED,
-        f"توصية بانتظار مراجعة المجلس لإغلاقها — {_rec_ref(recommendation)}.",
+        msg("closure_council_needed", f"توصية بانتظار مراجعة المجلس لإغلاقها — {_rec_ref(recommendation)}.", ref=_rec_ref(recommendation)),
     )
     _notify(
         list(_heads_of(recommendation)) + [_assignee(recommendation)],
         recommendation,
         Notification.Type.STATUS_CHANGE,
-        f"أُرسلت {_rec_ref(recommendation)} إلى المجلس لمراجعة الإغلاق.",
+        msg("closure_sent", f"أُرسلت {_rec_ref(recommendation)} إلى المجلس لمراجعة الإغلاق.", ref=_rec_ref(recommendation)),
     )
     return recommendation
 
 
-@db_transaction.atomic
+@locked_transition
 def verify_and_submit_for_closure(recommendation, user, notes="", closure_notes=""):
     """Audit's combined action (W4): evidence sufficient AND send to council.
 
@@ -148,7 +155,7 @@ def verify_and_submit_for_closure(recommendation, user, notes="", closure_notes=
     return verification
 
 
-@db_transaction.atomic
+@locked_transition
 def council_closure(recommendation, user, accept, notes=""):
     """Council reviews the follow-up / closure package.
 
@@ -177,7 +184,7 @@ def council_closure(recommendation, user, accept, notes=""):
             + [_assignee(recommendation)],
             recommendation,
             Notification.Type.STATUS_CHANGE,
-            f"أغلق المجلس التوصية {_rec_ref(recommendation)}.",
+            msg("council_closed", f"أغلق المجلس التوصية {_rec_ref(recommendation)}.", ref=_rec_ref(recommendation)),
         )
     else:
         transition(recommendation, S.REOPENED, user, "council_reopened_recommendation", notes=notes)
@@ -187,6 +194,6 @@ def council_closure(recommendation, user, accept, notes=""):
             + list(_audit_users(recommendation.report.municipality)),
             recommendation,
             Notification.Type.RETURNED,
-            f"المجلس طلب إجراءً إضافياً ولم يُغلق {_rec_ref(recommendation)}: {notes}",
+            msg("council_reopened", f"المجلس طلب إجراءً إضافياً ولم يُغلق {_rec_ref(recommendation)}: {notes}", ref=_rec_ref(recommendation), notes=notes),
         )
     return recommendation

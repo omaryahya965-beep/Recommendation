@@ -41,9 +41,17 @@ export function evidenceByStep(rec: RecommendationDetail) {
   return map;
 }
 
+/**
+ * The most recent verification decision by time. The API lists them newest
+ * first; never rely on list position (taking the last item showed a
+ * superseded partial verification as current).
+ */
 export function latestVerification(rec: RecommendationDetail) {
   const list = rec.verifications ?? [];
-  return list.length ? list[list.length - 1] : null;
+  return list.reduce<(typeof list)[number] | null>(
+    (latest, item) => (!latest || item.created_at > latest.created_at ? item : latest),
+    null
+  );
 }
 
 /** Requirements still outstanding from the most recent non-sufficient verification. */

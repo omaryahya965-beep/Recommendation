@@ -8,6 +8,7 @@ for workflow errors). The `detail` text stays English for logs and API
 clients; the Arabic/English UI translates by code, so English server wording
 never reaches an Arabic screen.
 """
+from django.db import IntegrityError
 from rest_framework import status
 from rest_framework.exceptions import APIException, ValidationError
 from rest_framework.response import Response
@@ -71,6 +72,15 @@ def api_exception_handler(exc, context):
         if exc.params:
             body["params"] = exc.params
         return Response(body, status=status.HTTP_409_CONFLICT)
+    if isinstance(exc, IntegrityError):
+        # Two requests raced to create a row that may exist once (e.g. one
+        # management response per recommendation). The row locks prevent this
+        # for workflow actions; anything that still slips through is a clean
+        # conflict, never an HTTP 500.
+        return Response(
+            {"detail": "This action was already recorded.", "code": "duplicate_request"},
+            status=status.HTTP_409_CONFLICT,
+        )
     if isinstance(exc, StorageUnavailable):
         return Response(
             {"detail": exc.detail, "code": exc.code},

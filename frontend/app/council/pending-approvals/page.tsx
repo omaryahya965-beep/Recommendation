@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Building2,
   ChevronDown,
@@ -35,6 +35,8 @@ import { formatDate, plural } from "@/lib/format";
 import { REPORT_TYPE_LABELS, RISK_LABELS, T, useI18n } from "@/lib/i18n";
 import { LIVE } from "@/lib/queryPolicy";
 import type { AuditReport, RecommendationListItem } from "@/lib/types";
+import { useGuardedMutation } from "@/lib/useGuardedMutation";
+import { NOTE_MAX } from "@/lib/limits";
 
 const BASE = "/council/recommendations";
 
@@ -59,7 +61,7 @@ function PendingReportCard({ report, updatedAt }: { report: AuditReport; updated
     queryFn: () => api<AuditReport>(`/api/reports/${report.id}/`),
   });
 
-  const ratify = useMutation({
+  const ratify = useGuardedMutation({
     mutationFn: () => api(`/api/reports/${report.id}/ratify/`, { method: "POST", body: { notes } }),
     onSuccess: () => {
       setError(null);
@@ -148,7 +150,7 @@ function PendingReportCard({ report, updatedAt }: { report: AuditReport; updated
             />
           ) : null}
           <Field label={`${T.common.notes} (${T.common.optional})`}>
-            <TextArea value={notes} onChange={(event) => setNotes(event.target.value)} rows={2} />
+            <TextArea maxLength={NOTE_MAX} value={notes} onChange={(event) => setNotes(event.target.value)} rows={2} />
           </Field>
           <ErrorBanner message={error} />
           <div className="flex flex-col gap-3 md:flex-row md:items-center">

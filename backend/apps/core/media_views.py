@@ -10,7 +10,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.core.cloudinary_storage import configure_cloudinary, resource_type_for_name
+from apps.core.cloudinary_storage import configure_cloudinary, delivery_type, resource_type_for_name
 from apps.core.uploads import allowed_formats_param, signed_upload_tags
 from config.settings.storage import cloudinary_enabled
 
@@ -57,6 +57,8 @@ def build_signed_upload_params(
     params = {
         "folder": folder,
         "overwrite": "false",
+        # Signed: the browser cannot store a confidential file as public.
+        "type": delivery_type(),
         "timestamp": str(timestamp),
         "unique_filename": "true",
         "use_filename": "true",
@@ -77,6 +79,26 @@ def sign_upload_params(params: dict[str, str], api_secret: str) -> str:
         return cloudinary.utils.api_sign_request(params, api_secret)
 
 
+def serve_protected_file(field_file):
+    """The file itself, for a caller the view has already authorized.
+
+    Local storage streams the bytes (there is no public media route).
+    Cloudinary redirects to a signed download link that expires in minutes:
+    streaming through a serverless function would hit its response size
+    limit, and a private asset has no public URL to leak.
+    """
+    import os
+
+    from django.http import FileResponse
+    from django.shortcuts import redirect
+
+    from apps.core.cloudinary_storage import CloudinaryMediaStorage
+
+    if isinstance(field_file.storage, CloudinaryMediaStorage):
+        return redirect(field_file.storage.url(field_file.name))
+    return FileResponse(field_file.open("rb"), filename=os.path.basename(field_file.name))
+
+
 class EvidenceDownloadView(APIView):
     """Authorization-checked access to an evidence file.
 
@@ -89,8 +111,6 @@ class EvidenceDownloadView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, pk):
-        from django.shortcuts import redirect
-
         from apps.audits.models import Recommendation
         from apps.core.models import log_action
         from apps.core.permissions import scope_recommendations
@@ -115,7 +135,7 @@ class EvidenceDownloadView(APIView):
             evidence_id=evidence.id,
             file_name=evidence.file.name,
         )
-        return redirect(evidence.file.url)
+        return serve_protected_file(evidence.file)
 
 
 class MediaSignView(APIView):

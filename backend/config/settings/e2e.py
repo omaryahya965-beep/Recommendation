@@ -58,7 +58,7 @@ ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 # Many sign-ins and exports per minute are normal for a browser suite.
 REST_FRAMEWORK = {
     **REST_FRAMEWORK,
-    "DEFAULT_THROTTLE_RATES": {"login": "1000/min", "ai": "1000/min", "export": "1000/min"},
+    "DEFAULT_THROTTLE_RATES": {"login": "1000/min", "refresh": "1000/min", "ai": "1000/min", "export": "1000/min"},
 }
 
 CRON_SECRET = "e2e-cron-secret"

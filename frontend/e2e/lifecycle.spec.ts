@@ -48,6 +48,8 @@ test("a recommendation travels from issue to council closure", async ({ page, re
   // --- Audit: send the report to the department ---------------------------
   await page.goto(`/audit/reports/${report.id}`);
   await page.getByRole("button", { name: T.reports.submitToDepartment }).click();
+  // Sending a report asks for confirmation first (BUG-09).
+  await page.getByRole("alertdialog").getByRole("button", { name: T.reports.submitToDepartment }).click();
   await expectStatus(request, recId, "pending_response");
 
   // --- Head: respond (agree) ---------------------------------------------
@@ -64,6 +66,8 @@ test("a recommendation travels from issue to council closure", async ({ page, re
   await expectStatus(request, recId, "pending_council");
   await page.goto(`/audit/reports/${report.id}`);
   await page.getByRole("button", { name: T.reports.submitToCouncil }).click();
+  // Sending a report asks for confirmation first (BUG-09).
+  await page.getByRole("alertdialog").getByRole("button", { name: T.reports.submitToCouncil }).click();
   await expect
     .poll(async () => (await apiGet<{ status: string }>(request, "audit", `/api/reports/${report.id}/`)).body.status)
     .toBe("pending_council");

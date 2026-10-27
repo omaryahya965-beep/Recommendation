@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, FilePlus2, FileText, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -11,6 +11,8 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { api, errorMessage } from "@/lib/api";
 import { ENGAGEMENT_TYPE_LABELS, T, useI18n } from "@/lib/i18n";
 import type { AuditReport, Department, Paginated } from "@/lib/types";
+import { useGuardedMutation } from "@/lib/useGuardedMutation";
+import { isoDateFromToday, MAX_RESPONSE_DEADLINE_DAYS } from "@/lib/limits";
 
 export default function NewReportPage() {
   const { locale } = useI18n();
@@ -28,7 +30,7 @@ export default function NewReportPage() {
     queryFn: () => api<Paginated<Department>>("/api/departments/"),
   });
 
-  const createReport = useMutation({
+  const createReport = useGuardedMutation({
     mutationFn: () =>
       api<AuditReport>("/api/reports/", {
         method: "POST",
@@ -104,7 +106,14 @@ export default function NewReportPage() {
             </Select>
           </Field>
           <Field label={T.create.deadline}>
-            <TextInput type="date" value={deadline} onChange={(event) => setDeadline(event.target.value)} />
+            <TextInput
+              type="date"
+              dir="ltr"
+              value={deadline}
+              onChange={(event) => setDeadline(event.target.value)}
+              min={isoDateFromToday()}
+              max={isoDateFromToday(MAX_RESPONSE_DEADLINE_DAYS)}
+            />
           </Field>
 
           <ErrorBanner message={error} />

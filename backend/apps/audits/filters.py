@@ -11,7 +11,9 @@ from datetime import timedelta
 from django.db.models import Case, F, IntegerField, Q, Value, When
 from django.utils import timezone
 from django_filters import rest_framework as filters
-from rest_framework.filters import OrderingFilter
+from rest_framework.filters import OrderingFilter, SearchFilter
+
+from apps.core.refs import parse_reference
 
 from .models import (
     DEPARTMENT_DEADLINE_STATUSES,
@@ -97,6 +99,9 @@ class RecommendationFilterSet(filters.FilterSet):
     is_recurring = filters.BooleanFilter(field_name="is_recurring")
     recurrence_confirmed = filters.BooleanFilter(field_name="recurrence_confirmed")
     overdue = filters.BooleanFilter(method="filter_overdue")
+    # One overdue-aging bucket of the analytics page ("1-30", "31-90",
+    # "91+"), so the aging tiles open exactly the cases they count (BUG-23).
+    overdue_age = filters.CharFilter(method="filter_overdue_age")
     open = filters.BooleanFilter(method="filter_open")
     # Issued to the department (not an audit draft): the population every
     # analytics figure counts, so a KPI link lists exactly what it counted.
@@ -125,6 +130,7 @@ class RecommendationFilterSet(filters.FilterSet):
             "is_recurring",
             "recurrence_confirmed",
             "overdue",
+            "overdue_age",
             "open",
             "issued",
             "responsible_employee",
@@ -145,6 +151,25 @@ class RecommendationFilterSet(filters.FilterSet):
         if value:
             return queryset.filter(overdue_q())
         return queryset.exclude(overdue_q())
+
+    def filter_overdue_age(self, queryset, name, value):
+        from rest_framework.exceptions import ValidationError
+
+        from apps.core.analytics import AGING_BUCKETS
+        from apps.workflow.presentation import annotate_workflow, overdue_q
+
+        if not value:
+            return queryset
+        buckets = {f"{low}-{high}" if high else f"{low}+": (low, high) for low, high in AGING_BUCKETS}
+        if value not in buckets:
+            raise ValidationError({"overdue_age": [f"Unknown bucket: {value}."]})
+        low, high = buckets[value]
+        today = timezone.localdate()
+        # Days overdue = today - deadline, so "low..high days" is a deadline range.
+        condition = overdue_q(today) & Q(binding_deadline__lte=today - timedelta(days=low))
+        if high is not None:
+            condition &= Q(binding_deadline__gte=today - timedelta(days=high))
+        return annotate_workflow(queryset).filter(condition)
 
     def filter_stage(self, queryset, name, value):
         from apps.workflow.presentation import statuses_for_stage
@@ -220,3 +245,22 @@ class RecommendationFilterSet(filters.FilterSet):
         if value:
             return queryset.filter(status__in=OPEN_STATUSES)
         return queryset.exclude(status__in=OPEN_STATUSES)
+
+
+class ReferenceSearchFilter(SearchFilter):
+    """`?search=` that also understands references (BUG-19).
+
+    A case reference (REC-0041, REC-41, 41) or a report reference (RPT-5)
+    matches that record, in addition to the usual word search, so a bare
+    number still finds text that contains it. Scoping is untouched: the
+    reference only narrows the queryset the view already allowed.
+    """
+
+    def filter_queryset(self, request, queryset, view):
+        words = super().filter_queryset(request, queryset, view)
+        ref = parse_reference(request.query_params.get(self.search_param, ""))
+        if ref is None:
+            return words
+        kind, pk = ref
+        by_ref = Q(pk=pk) if kind == "case" else Q(report_id=pk)
+        return queryset.filter(by_ref | Q(pk__in=words.values("pk")))

@@ -15,7 +15,7 @@ import { EvidenceUploadForm } from "@/components/evidence/EvidenceUploadForm";
 import { ExpandableSection } from "@/components/mobile/ExpandableSection";
 import { Button, Callout, DataField, ErrorBanner, Field, ProgressBar, TextArea } from "@/components/ui/Base";
 import { DecisionRecord, VerificationPanel } from "@/components/verification/VerificationPanel";
-import { evidenceByStep, latestVerification, outstandingRequirements, sortSteps, stepState, type StepState } from "@/lib/case";
+import { evidenceByStep, latestVerification, sortSteps, stepState, type StepState } from "@/lib/case";
 import { cn } from "@/lib/cn";
 import { formatDate, plural } from "@/lib/format";
 import type { WorkflowAction } from "@/lib/hooks";
@@ -24,6 +24,7 @@ import { parseStep } from "@/lib/planStep";
 import type { ActionStep, RecommendationDetail } from "@/lib/types";
 import { isExecutionDesk } from "@/lib/viewmodels/caseView";
 import { canAct, caseAction, isOffered } from "@/lib/workflow";
+import { NOTE_MAX } from "@/lib/limits";
 
 /* ------------------------------------------------------------------ */
 /* Small pieces                                                        */
@@ -45,13 +46,32 @@ function DeskHeading({ title, hint, aside }: { title: string; hint?: string; asi
   );
 }
 
-/** What audit asked for when it returned the work (and by when — W1). */
+/**
+ * Why the work came back, from the latest decision that sent it back:
+ * audit's partial/insufficient verification (with its deadline — W1), the
+ * department head's return, or the council's reopen (BUG-15). Computed by
+ * the server (workflow.outstanding_request).
+ */
 export function OutstandingRequest({ rec }: { rec: RecommendationDetail }) {
   useI18n();
-  const outstanding = outstandingRequirements(rec);
+  const outstanding = rec.workflow?.outstanding_request;
   if (!outstanding) return null;
+  const title =
+    outstanding.source === "head"
+      ? T.caseView.desk.outstandingHead
+      : outstanding.source === "council"
+        ? T.caseView.desk.outstandingCouncil
+        : T.caseView.desk.outstanding;
   return (
-    <Callout tone="danger" title={T.caseView.desk.outstanding}>
+    <Callout tone="danger" title={title}>
+      {outstanding.source !== "audit" && outstanding.notes?.trim() ? (
+        <p className="mt-2 whitespace-pre-wrap text-[13.5px] leading-relaxed">{outstanding.notes}</p>
+      ) : null}
+      {outstanding.by ? (
+        <p className="mt-1 text-[12px] text-ink-soft">
+          {outstanding.by} · <span dir="ltr">{formatDate(outstanding.at)}</span>
+        </p>
+      ) : null}
       <dl className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
         {outstanding.rejection_reason?.trim() ? (
           <DataField label={T.verify.returnReason}>{outstanding.rejection_reason}</DataField>
@@ -346,7 +366,7 @@ function ClosureSubmitPanel({ action }: { action: WorkflowAction }) {
   return (
     <div className="space-y-4">
       <Field label={T.verify.closureNotes}>
-        <TextArea rows={3} value={notes} onChange={(event) => setNotes(event.target.value)} />
+        <TextArea maxLength={NOTE_MAX} rows={3} value={notes} onChange={(event) => setNotes(event.target.value)} />
       </Field>
       <ErrorBanner message={action.error} />
       <Button

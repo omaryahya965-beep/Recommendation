@@ -136,8 +136,11 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "apps.core.exceptions.api_exception_handler",
     "DEFAULT_THROTTLE_RATES": {
-        # Credential stuffing guard on login/refresh, keyed by client IP.
+        # Credential stuffing guard on login, keyed by client IP.
         "login": os.environ.get("THROTTLE_LOGIN", "10/min"),
+        # Token refresh: its own bucket, also per IP. Many colleagues behind
+        # one office NAT refresh around the same time.
+        "refresh": os.environ.get("THROTTLE_REFRESH", "120/min"),
         # LLM calls cost money and time.
         "ai": os.environ.get("THROTTLE_AI", "30/min"),
         # Full-table CSV builds.
@@ -215,6 +218,11 @@ TEST_RUNNER = "config.test_runner.SafeTestRunner"
 # Uploads: restrict evidence/attachment files by size and type
 # ---------------------------------------------------------------------------
 MAX_UPLOAD_SIZE_MB = int(os.environ.get("MAX_UPLOAD_SIZE_MB", "20"))
+# Cloudinary delivery type for evidence and response attachments. "private"
+# means the plain CDN URL does not serve the file; the API hands out signed
+# download links that expire (CLOUDINARY_SIGNED_URL_SECONDS).
+CLOUDINARY_DELIVERY_TYPE = os.environ.get("CLOUDINARY_DELIVERY_TYPE", "private")
+CLOUDINARY_SIGNED_URL_SECONDS = int(os.environ.get("CLOUDINARY_SIGNED_URL_SECONDS", "300"))
 ALLOWED_UPLOAD_EXTENSIONS = [
     ".pdf", ".png", ".jpg", ".jpeg", ".doc", ".docx",
     ".xls", ".xlsx", ".csv", ".txt", ".zip",

@@ -4,6 +4,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.accounts.models import User
+from apps.core.dedupe import reject_duplicates
 from apps.core.permissions import IsAudit, RolePermission
 
 from .models import FollowUpReport
@@ -54,6 +55,7 @@ class FollowUpReportViewSet(
         return Response(preview, status=http_status.HTTP_200_OK)
 
     @action(detail=False, methods=["post"], permission_classes=[IsAudit])
+    @reject_duplicates
     def generate(self, request):
         """Freeze the period into a stored, retrievable FollowUpReport."""
         period_start, period_end, language = self._bounds(request)

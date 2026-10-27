@@ -3,6 +3,7 @@ advisory framing. Tools live in tools.py."""
 from __future__ import annotations
 
 import json
+import re
 import logging
 
 from django.conf import settings
@@ -24,6 +25,41 @@ from .tools import (
 )
 
 logger = logging.getLogger("apps.ai")
+
+
+# Case references in any written form: REC-0016, REC-16, rec 16.
+_CASE_REF = re.compile(r"(?<![A-Za-z])REC[-\s]?0*(\d+)\b", re.IGNORECASE)
+UNVERIFIED_NOTE = {"ar": "(غير متحقق منها في بيانات المنظومة)", "en": "(not verified in the system's data)"}
+
+
+def _verified_case_ids(tool_results, earlier_answers) -> set[int]:
+    """Cases the answer may name: those in this turn's tool results, and
+    those named (and not flagged) in earlier answers of the conversation."""
+    ids = {int(n) for n in _CASE_REF.findall(json.dumps(tool_results, ensure_ascii=False, default=str))}
+    flags = tuple(UNVERIFIED_NOTE.values())
+    for text in earlier_answers:
+        for match in _CASE_REF.finditer(text or ""):
+            if not text[match.end():].lstrip().startswith(flags):
+                ids.add(int(match.group(1)))
+    return ids
+
+
+def flag_unverified_references(answer: str, verified: set[int], lang: str) -> str:
+    """Marks every case reference the tools did not return, so an invented or
+    out-of-scope case is never presented as fact (external QA)."""
+    note = UNVERIFIED_NOTE["en" if lang == "en" else "ar"]
+    flagged = []
+
+    def mark(match):
+        if int(match.group(1)) in verified or answer[match.end():].lstrip().startswith(note):
+            return match.group(0)
+        flagged.append(match.group(0))
+        return f"{match.group(0)} {note}"
+
+    result = _CASE_REF.sub(mark, answer)
+    if flagged:
+        logger.warning("ai_assistant_unverified_references refs=%s", ",".join(flagged))
+    return result
 
 
 def get_or_create_conversation(user) -> AIConversation:
@@ -170,6 +206,9 @@ def run_assistant(user, message: str, language: str = "ar", conversation_id: int
     except Exception:
         logger.exception("ai_assistant_chat_failed")
         raise AIUnavailable(USER_SAFE_UNAVAILABLE)
+
+    earlier = [item.content for item in prior if item.role == AIMessage.Role.ASSISTANT]
+    answer = flag_unverified_references(answer, _verified_case_ids(tool_results, earlier), lang)
 
     advisory = ADVISORY_AR if ar else ADVISORY_EN
     if advisory not in answer:

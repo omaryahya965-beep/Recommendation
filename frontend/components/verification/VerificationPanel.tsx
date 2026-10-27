@@ -29,6 +29,7 @@ import { formatDate, formatDateTime, localISODate } from "@/lib/format";
 import type { WorkflowAction } from "@/lib/hooks";
 import { T, VERIFICATION_LABELS, useI18n } from "@/lib/i18n";
 import type { RecommendationDetail, VerificationDecision } from "@/lib/types";
+import { NOTE_MAX } from "@/lib/limits";
 
 type Decision = "sufficient" | "partial" | "insufficient";
 
@@ -269,7 +270,7 @@ export function VerificationPanel({
           <VerificationChecklist state={checklist} onChange={setChecklist} />
 
           <Field label={T.verify.notes}>
-            <TextArea rows={4} value={notes} onChange={(event) => setNotes(event.target.value)} />
+            <TextArea maxLength={NOTE_MAX} rows={4} value={notes} onChange={(event) => setNotes(event.target.value)} />
           </Field>
 
           {/* Decision band */}
@@ -294,7 +295,7 @@ export function VerificationPanel({
                 <p className="text-[12px] font-bold text-warning-light">{T.verify.structuredRequired}</p>
                 <div className="grid grid-cols-1 gap-4 rounded-xl bg-surface p-5 sm:grid-cols-2">
                   <Field label={`${T.verify.rejectedItems} *`}>
-                    <TextArea
+                    <TextArea maxLength={NOTE_MAX}
                       rows={2}
                       value={rejectedItems}
                       onChange={(event) => setRejectedItems(event.target.value)}
@@ -302,7 +303,7 @@ export function VerificationPanel({
                     />
                   </Field>
                   <Field label={`${T.verify.rejectionReason} *`}>
-                    <TextArea
+                    <TextArea maxLength={NOTE_MAX}
                       rows={2}
                       value={rejectionReason}
                       onChange={(event) => setRejectionReason(event.target.value)}
@@ -310,7 +311,7 @@ export function VerificationPanel({
                     />
                   </Field>
                   <Field label={`${T.verify.requiredAction} *`}>
-                    <TextArea
+                    <TextArea maxLength={NOTE_MAX}
                       rows={2}
                       value={requiredAction}
                       onChange={(event) => setRequiredAction(event.target.value)}
@@ -349,7 +350,7 @@ export function VerificationPanel({
                 </label>
                 {sendToCouncil ? (
                   <Field label={T.verify.closureNotes} className="text-ink">
-                    <TextArea rows={2} value={closureNotes} onChange={(event) => setClosureNotes(event.target.value)} />
+                    <TextArea maxLength={NOTE_MAX} rows={2} value={closureNotes} onChange={(event) => setClosureNotes(event.target.value)} />
                   </Field>
                 ) : null}
               </div>

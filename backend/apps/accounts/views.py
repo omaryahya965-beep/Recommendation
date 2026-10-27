@@ -22,6 +22,7 @@ class LoginRateThrottle(ScopedRateThrottle):
             "ident": self.get_ident(request),
         }
 
+from .sessions import revoke_sessions_and_issue
 from .serializers import (
     ChangePasswordSerializer,
     RoleTokenObtainPairSerializer,
@@ -47,8 +48,10 @@ class RefreshView(TokenRefreshView):
     """
 
     serializer_class = SafeTokenRefreshSerializer
+    # Its own bucket: sharing "login" let ten failed sign-ins from one office
+    # IP make every colleague's refresh fail, which signed them out.
     throttle_classes = [LoginRateThrottle]
-    throttle_scope = "login"
+    throttle_scope = "refresh"
 
 
 class LogoutView(APIView):
@@ -91,8 +94,10 @@ class ChangePasswordView(CreateAPIView):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(status=204)
+        user = serializer.save()
+        # Every other session ends with the old password; this one continues
+        # on the fresh pair returned here.
+        return Response(revoke_sessions_and_issue(user))
 
 
 class EmployeeListView(ListAPIView):

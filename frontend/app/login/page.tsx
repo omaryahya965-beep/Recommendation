@@ -21,7 +21,7 @@ import { PanelOrnaments } from "@/components/login/LoginOrnaments";
 import { RaqeebWordmark } from "@/components/brand/RaqeebWordmark";
 import { MunicipalityMark } from "@/components/login/MunicipalityMark";
 import { ErrorBanner } from "@/components/ui/Base";
-import { classifyLoginError, login, ROLE_HOME } from "@/lib/api";
+import { classifyLoginError, login, ROLE_HOME, type LoginFailure } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { ROLE_LABELS, T, useI18n } from "@/lib/i18n";
 import type { Role } from "@/lib/types";
@@ -57,6 +57,14 @@ function fieldClass(invalid: boolean) {
   );
 }
 
+function loginFailureText(kind: LoginFailure, retryAfter: number | null): string {
+  if (kind === "credentials") return T.login.error;
+  if (kind === "throttled") {
+    return retryAfter ? T.login.errorThrottled.replace("{seconds}", String(retryAfter)) : T.login.errorThrottledShort;
+  }
+  return kind === "server" ? T.login.errorServer : T.login.errorNetwork;
+}
+
 export default function LoginPage() {
   const { dir } = useI18n();
   const router = useRouter();
@@ -71,11 +79,20 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
   const [showDemo, setShowDemo] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // What went wrong is kept, not its wording, so the messages re-render in
+  // the new language when the user switches it (external QA).
+  const [failure, setFailure] = useState<{ kind: LoginFailure; retryAfter: number | null } | null>(null);
+  const error = failure ? loginFailureText(failure.kind, failure.retryAfter) : null;
+  // "Forgot password" is help, not an error (BUG-08): there is no
+  // self-service reset; an administrator resets passwords.
+  const [showForgot, setShowForgot] = useState(false);
+  const forgotId = useId();
   // Only a credentials failure marks the fields invalid.
   const [credentialsFailed, setCredentialsFailed] = useState(false);
-  const [usernameError, setUsernameError] = useState<string | null>(null);
-  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [usernameMissing, setUsernameMissing] = useState(false);
+  const [passwordMissing, setPasswordMissing] = useState(false);
+  const usernameError = usernameMissing ? T.login.errorUsername : null;
+  const passwordError = passwordMissing ? T.login.errorPassword : null;
   const [busy, setBusy] = useState(false);
   const [activeDemo, setActiveDemo] = useState<string | null>(null);
 
@@ -97,10 +114,10 @@ export default function LoginPage() {
   const signIn = async (user: string, pass: string) => {
     if (busy) return;
     setBusy(true);
-    setError(null);
+    setFailure(null);
     setCredentialsFailed(false);
-    setUsernameError(null);
-    setPasswordError(null);
+    setUsernameMissing(false);
+    setPasswordMissing(false);
     try {
       const auth = await login(user, pass);
       // Query keys are not per-user. The login page can be reached by a
@@ -113,17 +130,7 @@ export default function LoginPage() {
     } catch (err) {
       const failure = classifyLoginError(err);
       setCredentialsFailed(failure.kind === "credentials");
-      setError(
-        failure.kind === "credentials"
-          ? T.login.error
-          : failure.kind === "throttled"
-            ? failure.retryAfter
-              ? T.login.errorThrottled.replace("{seconds}", String(failure.retryAfter))
-              : T.login.errorThrottledShort
-            : failure.kind === "server"
-              ? T.login.errorServer
-              : T.login.errorNetwork
-      );
+      setFailure(failure);
       setBusy(false);
       setActiveDemo(null);
       usernameRef.current?.focus();
@@ -137,11 +144,11 @@ export default function LoginPage() {
     const pass = passwordRef.current?.value ?? password;
     if (user !== username) setUsername(user);
     if (pass !== password) setPassword(pass);
-    const nextUserError = user.trim() ? null : T.login.errorUsername;
-    const nextPassError = pass ? null : T.login.errorPassword;
-    setUsernameError(nextUserError);
-    setPasswordError(nextPassError);
-    setError(null);
+    const nextUserError = !user.trim();
+    const nextPassError = !pass;
+    setUsernameMissing(nextUserError);
+    setPasswordMissing(nextPassError);
+    setFailure(null);
     if (nextUserError || nextPassError) {
       (nextUserError ? usernameRef : passwordRef).current?.focus();
       return;
@@ -259,8 +266,8 @@ export default function LoginPage() {
                         value={username}
                         onChange={(e) => {
                           setUsername(e.target.value);
-                          if (usernameError) setUsernameError(null);
-                          if (error) setError(null);
+                          if (usernameMissing) setUsernameMissing(false);
+                          if (failure) setFailure(null);
                         }}
                         placeholder={T.login.usernamePlaceholder}
                         autoComplete="username"
@@ -311,8 +318,8 @@ export default function LoginPage() {
                         value={password}
                         onChange={(e) => {
                           setPassword(e.target.value);
-                          if (passwordError) setPasswordError(null);
-                          if (error) setError(null);
+                          if (passwordMissing) setPasswordMissing(false);
+                          if (failure) setFailure(null);
                         }}
                         placeholder={T.login.passwordPlaceholder}
                         autoComplete="current-password"
@@ -357,16 +364,15 @@ export default function LoginPage() {
 
                   {/* Options row: remember me + forgot password */}
                   <div className="mt-3 flex items-center justify-between text-[0.75rem] px-1">
-                    <a
-                      href="#forgot"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setError(T.login.forgotPassword);
-                      }}
+                    <button
+                      type="button"
+                      aria-expanded={showForgot}
+                      aria-controls={forgotId}
+                      onClick={() => setShowForgot((value) => !value)}
                       className="font-medium text-[var(--login-accent)] hover:underline focus-visible:outline-2 focus-visible:outline-[var(--login-accent)]"
                     >
                       {T.login.forgotPassword}
-                    </a>
+                    </button>
                     <label className="flex items-center gap-1.5 cursor-pointer font-medium text-[var(--login-navy)]">
                       <span>{T.login.rememberMe}</span>
                       <input
@@ -377,6 +383,13 @@ export default function LoginPage() {
                         className="size-3.5 rounded border-[var(--login-border)] bg-[var(--login-field)] text-[var(--login-accent)] focus:ring-[var(--login-accent)]"
                       />
                     </label>
+                  </div>
+                  <div id={forgotId} role="status" aria-live="polite">
+                    {showForgot ? (
+                      <p className="mt-2 rounded-md border border-[var(--login-border)] bg-[var(--login-field)] px-3 py-2 text-[0.75rem] leading-relaxed text-[var(--login-navy)]">
+                        {T.login.forgotHelp}
+                      </p>
+                    ) : null}
                   </div>
 
                   {/* Submit button */}

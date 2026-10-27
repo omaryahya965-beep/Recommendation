@@ -3,9 +3,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { Search, X } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useFocusTrap } from "@/components/mobile/useFocusTrap";
+import { registerSearchHref } from "@/components/shell/navigation";
 import { StatusBadge } from "@/components/ui/StampBadge";
 import { api } from "@/lib/api";
 import { clipTitle } from "@/lib/finding";
@@ -31,6 +33,7 @@ export function MobileSearchOverlay({
   role: Role;
 }) {
   useI18n();
+  const router = useRouter();
   const panelRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [q, setQ] = useState("");
@@ -67,6 +70,17 @@ export function MobileSearchOverlay({
 
   const results = byId ? [byId] : (data?.results ?? []);
   const base = searchBase(role);
+  const total = byId ? 1 : (data?.count ?? 0);
+  const seeAllHref = query.kind !== "case" && total > results.length ? registerSearchHref(role, debounced) : null;
+
+  // Enter goes to the referenced case, or to the register with every match (BUG-21).
+  const submit = () => {
+    const text = q.trim();
+    if (!text) return;
+    const typed = parseSearch(text);
+    handleClose();
+    router.push(typed.kind === "case" ? `${base}/${typed.id}` : registerSearchHref(role, text));
+  };
 
   if (!open) return null;
 
@@ -87,6 +101,13 @@ export function MobileSearchOverlay({
               name="q"
               value={q}
               onChange={(event) => setQ(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  submit();
+                }
+              }}
+              enterKeyHint="search"
               placeholder={T.nav.searchPlaceholder}
               className="h-12 w-full rounded-lg border border-line bg-surface py-2 ps-10 pe-3 text-base text-ink outline-none placeholder:text-muted focus:border-primary focus:ring-2 focus:ring-primary/20"
               aria-label={T.nav.search}
@@ -137,6 +158,15 @@ export function MobileSearchOverlay({
           ) : (
             <p className="px-2 py-10 text-center text-[15px] text-ink-soft">{T.nav.searchPlaceholder}</p>
           )}
+          {debounced.length >= 2 && seeAllHref ? (
+            <Link
+              href={seeAllHref}
+              onClick={handleClose}
+              className="mt-3 flex min-h-12 items-center justify-center rounded-xl border border-line bg-surface px-4 text-[14px] font-semibold text-primary-dark"
+            >
+              {T.nav.searchSeeAll.replace("{n}", String(total))}
+            </Link>
+          ) : null}
         </div>
       </div>
     </div>

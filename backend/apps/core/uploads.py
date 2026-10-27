@@ -153,8 +153,10 @@ def _fetch_resource(name: str) -> dict | None:
         if suffix:
             public_id = name[: -len(suffix)]
     try:
+        from apps.core.cloudinary_storage import delivery_type
+
         return cloudinary.api.resource(
-            public_id, resource_type=resource_type, tags=True
+            public_id, resource_type=resource_type, type=delivery_type(), tags=True
         )
     except Exception:
         logger.warning("upload_claim_lookup_failed name=%s", name, exc_info=True)

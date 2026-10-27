@@ -1,6 +1,5 @@
 "use client";
 
-import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { Button, ErrorBanner } from "@/components/ui/Base";
@@ -10,6 +9,7 @@ import { T, useI18n } from "@/lib/i18n";
 import type { AIJob } from "@/lib/types";
 
 import { AIConfidenceBadge, AIJobStatus, AIMeta, AIPanel } from "./AIPrimitives";
+import { useGuardedMutation } from "@/lib/useGuardedMutation";
 
 export interface SuggestedStep {
   title: string;
@@ -48,7 +48,7 @@ export function AIActionPlanSuggestion({
 }) {
   useI18n();
   const [error, setError] = useState<string | null>(null);
-  const mutation = useMutation({
+  const mutation = useGuardedMutation({
     mutationFn: () =>
       api<AIJob>(`/api/ai/recommendations/${recommendationId}/action-plan/suggest/`, {
         method: "POST",

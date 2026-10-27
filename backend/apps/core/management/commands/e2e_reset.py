@@ -107,6 +107,7 @@ def seed() -> dict:
     from apps.notifications.services import ensure_default_rules
     from apps.organizations.models import Department, Municipality, WorkflowPolicy
     from apps.workflow import services
+    from apps.workflow.models import ActionPlan
 
     municipality = Municipality.objects.create(name=MUNICIPALITY)
     WorkflowPolicy.objects.create(municipality=municipality)
@@ -171,7 +172,9 @@ def seed() -> dict:
             head,
             {
                 "responsible_employee": employee,
-                "target_date": today + timedelta(days=days),
+                # Plans are dated today or later (BUG-13); an overdue case is
+                # backdated below, as an old real-world plan would be.
+                "target_date": today + timedelta(days=max(days, 30)),
                 "notes": "خطة اختبار",
                 "steps": [
                     {"title": "إعداد مسودة الإجراء", "order": 0},
@@ -181,6 +184,8 @@ def seed() -> dict:
         )
         recommendation.refresh_from_db()
         services.review_action_plan(recommendation, audit, approve=True, notes="معتمدة")
+        if days < 0:
+            ActionPlan.objects.filter(recommendation=recommendation).update(target_date=today + timedelta(days=days))
         recommendation.refresh_from_db()
         return recommendation
 

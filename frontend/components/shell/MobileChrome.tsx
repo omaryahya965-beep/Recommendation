@@ -47,7 +47,7 @@ function Badge({ value, className }: { value: number; className?: string }) {
     <span
       aria-hidden
       className={cn(
-        "flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-warning px-1 font-mono text-[10.5px] font-bold leading-none text-white ring-2 ring-surface",
+        "flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-warning-light px-1 font-mono text-[10.5px] font-bold leading-none text-warning-dark ring-2 ring-surface",
         className
       )}
     >

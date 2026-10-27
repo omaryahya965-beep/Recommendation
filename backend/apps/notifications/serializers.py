@@ -6,6 +6,7 @@ from apps.audits.serializers import is_overdue
 from apps.workflow.presentation import binding_deadline
 
 from .models import Notification, ReminderRule
+from .services import MAX_REMINDER_OFFSET_DAYS
 
 
 def _rec(obj):
@@ -57,6 +58,8 @@ class NotificationSerializer(serializers.ModelSerializer):
             "deadline",
             "days_overdue",
             "type",
+            "message_key",
+            "message_params",
             "message",
             "is_read",
             "sent_at",
@@ -121,6 +124,14 @@ class ReminderRuleSerializer(serializers.ModelSerializer):
         model = ReminderRule
         fields = ["id", "municipality", "offset_days", "enabled", "recipient_role", "label"]
         read_only_fields = ["id", "municipality"]
+
+    def validate_offset_days(self, value):
+        if abs(value) > MAX_REMINDER_OFFSET_DAYS:
+            raise serializers.ValidationError(
+                f"Use at most {MAX_REMINDER_OFFSET_DAYS} days before or after the deadline.",
+                code="offset_out_of_range",
+            )
+        return value
 
     def validate(self, attrs):
         request = self.context["request"]

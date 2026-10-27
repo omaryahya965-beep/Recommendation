@@ -80,8 +80,29 @@ export function StepControls({
   className?: string;
 }) {
   useI18n();
-  const post = (body: Record<string, unknown>) =>
-    action.mutation.mutate({ path: `steps/${step.id}/progress/`, body });
+  // The workflow action runs one request at a time (double-submit guard), so
+  // progress changes made while one is saving are merged and sent when it
+  // settles: the latest value always reaches the server.
+  const sending = useRef(false);
+  const queued = useRef<Record<string, unknown> | null>(null);
+  const post = (body: Record<string, unknown>) => {
+    if (sending.current) {
+      queued.current = { ...queued.current, ...body };
+      return;
+    }
+    sending.current = true;
+    action.mutation.mutate(
+      { path: `steps/${step.id}/progress/`, body },
+      {
+        onSettled: () => {
+          sending.current = false;
+          const next = queued.current;
+          queued.current = null;
+          if (next) post(next);
+        },
+      }
+    );
+  };
 
   if (state === "blocked") return null;
 

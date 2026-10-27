@@ -39,9 +39,20 @@ export function formatDayParts(value?: Date) {
   };
 }
 
+/**
+ * The one way to read a date from the API. A date-only "YYYY-MM-DD"
+ * (deadline, target date) is a calendar day: `new Date("2026-11-05")` would
+ * be UTC midnight, which is 4 November west of UTC. Timestamps with a time
+ * part are instants and are read as such.
+ */
+export function parseDate(value: string): Date {
+  const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+  return day ? new Date(Number(day[1]), Number(day[2]) - 1, Number(day[3])) : new Date(value);
+}
+
 export function formatDate(value: string | null | undefined): string {
   if (!value) return "—";
-  const date = new Date(value);
+  const date = parseDate(value);
   if (Number.isNaN(date.getTime())) return value;
   return isolate(
     date.toLocaleDateString(localeDateTag(getLocale()), {
@@ -56,7 +67,7 @@ export function formatDate(value: string | null | undefined): string {
 /** "5 Oct" (this year) or "5 Oct 2025" — for dense timelines. */
 export function formatShortDate(value: string | null | undefined): string {
   if (!value) return "—";
-  const date = new Date(value);
+  const date = parseDate(value);
   if (Number.isNaN(date.getTime())) return value;
   const sameYear = date.getFullYear() === new Date().getFullYear();
   return isolate(
@@ -191,7 +202,7 @@ export const relativeTimeAr = relativeTime;
 
 export function daysUntil(dateStr: string | null | undefined): number | null {
   if (!dateStr) return null;
-  const target = new Date(dateStr);
+  const target = parseDate(dateStr);
   if (Number.isNaN(target.getTime())) return null;
   const today = new Date();
   today.setHours(0, 0, 0, 0);

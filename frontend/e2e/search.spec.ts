@@ -11,14 +11,14 @@ test("global search finds a case by reference, a report's cases by RPT reference
   const rec = await firstRecommendationOf(request, "audit", FIXTURES.financeInProgress);
   await signIn(page, request, "audit");
   await page.goto("/audit/dashboard");
-  const box = page.getByRole("textbox", { name: T.nav.search });
+  const box = page.getByRole("combobox", { name: T.nav.search });
 
   for (const query of [`REC-${String(rec.id).padStart(4, "0")}`, `RPT-${String(report.id).padStart(4, "0")}`, "قيد التنفيذ"]) {
     await box.fill(query);
-    const hit = page.locator(`a[href^="/audit/recommendations/${rec.id}"]`).first();
+    const hit = page.getByRole("listbox").locator(`a[href="/audit/recommendations/${rec.id}"]`).first();
     await expect(hit, query).toBeVisible();
   }
 
   await box.fill("لا-توجد-نتيجة-بهذا-النص");
-  await expect(page.locator(`a[href^="/audit/recommendations/${rec.id}"]`)).toHaveCount(0);
+  await expect(page.getByRole("listbox").locator(`a[href="/audit/recommendations/${rec.id}"]`)).toHaveCount(0);
 });

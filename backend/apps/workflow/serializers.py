@@ -4,6 +4,7 @@ from django.conf import settings
 from rest_framework import serializers
 
 from apps.accounts.serializers import UserSerializer
+from apps.core.limits import NOTE_MAX
 from apps.core.files import validate_stored_name
 
 from .models import (
@@ -64,11 +65,24 @@ class ActionPlanSerializer(serializers.ModelSerializer):
 
 class ManagementResponseSerializer(serializers.ModelSerializer):
     submitted_by_detail = UserSerializer(source="submitted_by", read_only=True)
+    # The authorization-checked endpoint, never the storage URL (S6).
+    attachment = serializers.SerializerMethodField()
+    attachment_name = serializers.SerializerMethodField()
+
+    def get_attachment(self, obj):
+        if not obj.attachment:
+            return None
+        path = f"/api/recommendations/{obj.recommendation_id}/response-attachment/"
+        request = self.context.get("request")
+        return request.build_absolute_uri(path) if request is not None else path
+
+    def get_attachment_name(self, obj):
+        return os.path.basename(obj.attachment.name) if obj.attachment else None
 
     class Meta:
         model = ManagementResponse
         fields = [
-            "id", "recommendation", "decision", "justification", "attachment",
+            "id", "recommendation", "decision", "justification", "attachment", "attachment_name",
             "submitted_by", "submitted_by_detail", "review_status",
             "audit_review_notes", "revision_count", "created_at", "updated_at",
         ]
@@ -86,6 +100,11 @@ class ApprovalRecordSerializer(serializers.ModelSerializer):
 
 class EvidenceSerializer(serializers.ModelSerializer):
     uploaded_by_detail = UserSerializer(source="uploaded_by", read_only=True)
+    # The file's name only; the bytes are reached through `file_url` (S6).
+    file = serializers.SerializerMethodField()
+
+    def get_file(self, obj):
+        return os.path.basename(obj.file.name) if obj.file else None
     file_url = serializers.SerializerMethodField()
     can_delete = serializers.SerializerMethodField()
 
@@ -144,20 +163,20 @@ class VerificationDecisionSerializer(serializers.ModelSerializer):
 class ActionStepInputSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=255)
     order = serializers.IntegerField(required=False, min_value=0)
-    comments = serializers.CharField(required=False, allow_blank=True)
+    comments = serializers.CharField(required=False, allow_blank=True, max_length=NOTE_MAX)
     depends_on_index = serializers.IntegerField(required=False, allow_null=True, min_value=0)
 
 
 class ActionPlanInputSerializer(serializers.Serializer):
     responsible_employee = serializers.IntegerField()
     target_date = serializers.DateField()
-    notes = serializers.CharField(required=False, allow_blank=True)
+    notes = serializers.CharField(required=False, allow_blank=True, max_length=NOTE_MAX)
     steps = ActionStepInputSerializer(many=True, required=False)
 
 
 class RespondInputSerializer(serializers.Serializer):
     decision = serializers.ChoiceField(choices=ManagementResponse.Decision.choices)
-    justification = serializers.CharField(required=False, allow_blank=True)
+    justification = serializers.CharField(required=False, allow_blank=True, max_length=NOTE_MAX)
     attachment = serializers.FileField(required=False, allow_null=True, validators=[validate_upload])
     stored_name = serializers.CharField(required=False, allow_blank=True, max_length=255)
     plan = ActionPlanInputSerializer(required=False, allow_null=True)
@@ -188,22 +207,26 @@ class RespondInputSerializer(serializers.Serializer):
         return attrs
 
 
+class NotesInputSerializer(serializers.Serializer):
+    notes = serializers.CharField(required=False, allow_blank=True, max_length=NOTE_MAX)
+
+
 class ReviewInputSerializer(serializers.Serializer):
     accept = serializers.BooleanField()
-    notes = serializers.CharField(required=False, allow_blank=True)
+    notes = serializers.CharField(required=False, allow_blank=True, max_length=NOTE_MAX)
 
 
 class StepProgressInputSerializer(serializers.Serializer):
     progress_percent = serializers.IntegerField(required=False, min_value=0, max_value=100)
     is_done = serializers.BooleanField(required=False)
-    comments = serializers.CharField(required=False, allow_blank=True)
+    comments = serializers.CharField(required=False, allow_blank=True, max_length=NOTE_MAX)
 
 
 class EvidenceInputSerializer(serializers.Serializer):
     file = serializers.FileField(required=False, allow_null=True, validators=[validate_upload])
     stored_name = serializers.CharField(required=False, allow_blank=True, max_length=255)
     step = serializers.IntegerField(required=False, allow_null=True)
-    notes = serializers.CharField(required=False, allow_blank=True)
+    notes = serializers.CharField(required=False, allow_blank=True, max_length=NOTE_MAX)
 
     def validate(self, attrs):
         stored = (attrs.get("stored_name") or "").strip()
@@ -224,15 +247,15 @@ class EvidenceInputSerializer(serializers.Serializer):
 
 class VerifyInputSerializer(serializers.Serializer):
     decision = serializers.ChoiceField(choices=VerificationDecision.Decision.choices)
-    notes = serializers.CharField(required=False, allow_blank=True)
-    rejected_items = serializers.CharField(required=False, allow_blank=True)
-    rejection_reason = serializers.CharField(required=False, allow_blank=True)
-    required_action = serializers.CharField(required=False, allow_blank=True)
+    notes = serializers.CharField(required=False, allow_blank=True, max_length=NOTE_MAX)
+    rejected_items = serializers.CharField(required=False, allow_blank=True, max_length=NOTE_MAX)
+    rejection_reason = serializers.CharField(required=False, allow_blank=True, max_length=NOTE_MAX)
+    required_action = serializers.CharField(required=False, allow_blank=True, max_length=NOTE_MAX)
     action_deadline = serializers.DateField(required=False, allow_null=True)
     # W4: "Sufficient + send to council" in one step. Both transitions and
     # both audit-trail entries are still written.
     send_to_council = serializers.BooleanField(required=False, default=False)
-    closure_notes = serializers.CharField(required=False, allow_blank=True)
+    closure_notes = serializers.CharField(required=False, allow_blank=True, max_length=NOTE_MAX)
 
     def validate(self, attrs):
         if attrs.get("send_to_council") and attrs["decision"] != VerificationDecision.Decision.SUFFICIENT:

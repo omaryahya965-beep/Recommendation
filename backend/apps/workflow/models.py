@@ -61,6 +61,8 @@ class ApprovalRecord(models.Model):
         AUDIT_APPROVAL = "audit_approval", "Audit approval"
         COUNCIL_RATIFICATION = "council_ratification", "Council ratification"
         HEAD_IMPLEMENTATION_REVIEW = "head_implementation_review", "Department review of implementation"
+        # The head sent the implementation back to the employee; notes say why.
+        HEAD_IMPLEMENTATION_RETURN = "head_implementation_return", "Department returned the implementation"
         CLOSURE_REVIEW = "closure_review", "Audit closure review"
         CLOSURE_COUNCIL = "closure_council", "Council closure decision"
 

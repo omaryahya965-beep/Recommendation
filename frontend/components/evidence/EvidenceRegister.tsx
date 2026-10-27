@@ -1,7 +1,7 @@
 "use client";
 
-import { FileCheck2, FolderOpen, Info, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { ChevronDown, FileCheck2, FolderOpen, Info, Trash2 } from "lucide-react";
+import { useId, useState } from "react";
 
 import { EvidenceCard } from "@/components/evidence/EvidenceCard";
 import { EvidenceFileActions, evidenceFileName } from "@/components/evidence/EvidenceFileActions";
@@ -12,10 +12,11 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { cn } from "@/lib/cn";
 import { evidenceReviewState, sortSteps, type EvidenceReviewState } from "@/lib/case";
-import { fileExt, fileNameFromUrl, formatDate, formatDateTime } from "@/lib/format";
+import { fileExt, formatDate, formatDateTime } from "@/lib/format";
 import type { WorkflowAction } from "@/lib/hooks";
 import { T, useI18n } from "@/lib/i18n";
 import type { Evidence, RecommendationDetail } from "@/lib/types";
+import { ProtectedFileLink } from "@/components/evidence/ProtectedFileLink";
 
 function reviewStateMeta(state: EvidenceReviewState) {
   const map: Record<EvidenceReviewState, { label: string; className: string }> = {
@@ -61,6 +62,7 @@ function EvidenceItem({
   useI18n();
   const review = reviewStateMeta(reviewState);
   const [open, setOpen] = useState(false);
+  const detailsId = useId();
   const name = evidenceFileName(evidence);
 
   return (
@@ -71,9 +73,22 @@ function EvidenceItem({
         onClick={() => setOpen((value) => !value)}
       >
         <td className="px-3 py-3">
-          <p className="truncate font-medium text-ink" title={name} dir="auto">
-            {name}
-          </p>
+          {/* The row also toggles on click; this button is the keyboard and
+              screen-reader way to open the details (BUG-26). */}
+          <button
+            type="button"
+            aria-expanded={open}
+            aria-controls={detailsId}
+            onClick={(event) => {
+              event.stopPropagation();
+              setOpen((value) => !value);
+            }}
+            className="flex max-w-full items-center gap-1 rounded text-start font-medium text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            title={name}
+          >
+            <ChevronDown aria-hidden className={cn("size-3.5 shrink-0 text-muted transition-transform", open && "rotate-180")} />
+            <span className="truncate" dir="auto">{name}</span>
+          </button>
           <p className="mt-0.5 truncate text-[11.5px] text-muted">
             <span className="font-mono" dir="ltr">
               {fileExt(name)}
@@ -115,7 +130,7 @@ function EvidenceItem({
         </td>
       </tr>
       {open ? (
-        <tr>
+        <tr id={detailsId}>
           <td colSpan={actionColSpan} className="bg-subtle/40 px-4 py-4">
             <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div>
@@ -325,15 +340,14 @@ export function EvidenceRegister({
       {rec.response?.attachment ? (
         <section className="border-t border-line pt-4">
           <h3 className="mb-2 font-heading text-sm font-semibold text-navy">{T.evidenceRegister.supporting}</h3>
-          <a
-            href={rec.response.attachment}
-            target="_blank"
-            rel="noreferrer"
+          <ProtectedFileLink
+            url={rec.response.attachment}
+            fileName={rec.response.attachment_name ?? "attachment"}
             className="inline-flex items-center gap-2 border border-line bg-subtle px-3 py-2 text-sm font-medium text-primary-dark hover:border-primary/40"
           >
             <FileCheck2 className="size-4" />
-            {fileNameFromUrl(rec.response.attachment)}
-          </a>
+            {rec.response.attachment_name ?? T.evidenceRegister.supporting}
+          </ProtectedFileLink>
           <p className="mt-2 text-xs text-muted">{T.evidenceRegister.distinction}</p>
         </section>
       ) : null}

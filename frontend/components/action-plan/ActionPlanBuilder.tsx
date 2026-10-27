@@ -18,6 +18,7 @@ import { T, useI18n } from "@/lib/i18n";
 import { composeStep, parseStep } from "@/lib/planStep";
 import type { ActionPlan } from "@/lib/types";
 import { useUnsavedChanges } from "@/lib/useUnsavedChanges";
+import { isoDateFromToday, MAX_PLAN_YEARS, NOTE_MAX, STEP_PART_MAX } from "@/lib/limits";
 
 export interface PlanStepDraft {
   key: string;
@@ -241,6 +242,8 @@ export function ActionPlanBuilder({
               dir="ltr"
               value={draft.target_date}
               onChange={(event) => patch({ target_date: event.target.value })}
+              min={isoDateFromToday()}
+              max={isoDateFromToday(365 * MAX_PLAN_YEARS)}
               required
             />
           </Field>
@@ -252,6 +255,7 @@ export function ActionPlanBuilder({
               rows={4}
               value={draft.notes}
               onChange={(event) => patch({ notes: event.target.value })}
+              maxLength={NOTE_MAX}
               placeholder={T.plan.notesHint}
             />
           </Field>
@@ -327,6 +331,7 @@ export function ActionPlanBuilder({
                 rows={2}
                 value={step.description}
                 onChange={(event) => patchStep(index, { description: event.target.value })}
+                maxLength={STEP_PART_MAX}
                 placeholder={T.plan.stepDescriptionHint}
                 aria-label={`${T.plan.stepDescription} ${index + 1}`}
               />
@@ -338,6 +343,7 @@ export function ActionPlanBuilder({
                     rows={2}
                     value={step.result}
                     onChange={(event) => patchStep(index, { result: event.target.value })}
+                    maxLength={STEP_PART_MAX}
                     placeholder={T.plan.expectedResultHint}
                   />
                 </Field>
@@ -346,6 +352,7 @@ export function ActionPlanBuilder({
                     rows={2}
                     value={step.evidence}
                     onChange={(event) => patchStep(index, { evidence: event.target.value })}
+                    maxLength={STEP_PART_MAX}
                     placeholder={T.plan.requiredEvidenceHint}
                   />
                 </Field>

@@ -23,15 +23,37 @@ export interface AuthState {
   user: User;
 }
 
+const ROLES: readonly Role[] = ["audit", "department_head", "employee", "council"];
+
+/** A stored session the app can use, or false (corrupt, legacy, hand-edited). */
+function isAuthState(value: unknown): value is AuthState {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const state = value as Partial<AuthState>;
+  const user = state.user as Partial<User> | null | undefined;
+  return (
+    typeof state.access === "string" &&
+    typeof state.refresh === "string" &&
+    !!user &&
+    typeof user === "object" &&
+    typeof user.id === "number" &&
+    ROLES.includes(user.role as Role)
+  );
+}
+
 export function loadAuth(): AuthState | null {
   if (typeof window === "undefined") return null;
   const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) return null;
+  let parsed: unknown = null;
   try {
-    return JSON.parse(raw) as AuthState;
+    parsed = JSON.parse(raw);
   } catch {
-    return null;
+    /* handled below */
   }
+  if (isAuthState(parsed)) return parsed;
+  // Unusable session: drop it so every page treats the visitor as signed out.
+  localStorage.removeItem(STORAGE_KEY);
+  return null;
 }
 
 export function saveAuth(state: AuthState | null) {
@@ -71,21 +93,74 @@ export function errorMessage(err: unknown): string {
   return T.common.connectionError;
 }
 
-async function tryRefresh(): Promise<string | null> {
-  const auth = loadAuth();
-  if (!auth?.refresh) return null;
-  const res = await fetch(`${API_BASE}/api/auth/refresh/`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ refresh: auth.refresh }),
+/** The session is fine but could not be renewed right now (429/5xx/offline). */
+export class SessionRenewError extends ClientError {}
+
+/** Waits between refresh attempts when the server is busy or unreachable. */
+const REFRESH_RETRY_DELAYS_MS = [1000, 3000];
+
+let refreshInFlight: Promise<string | null> | null = null;
+
+/** Window events for the app-wide session notice (components/shell/SessionNotice). */
+export const SESSION_RENEW_FAILED = "raqeeb:session-renew-failed";
+export const SESSION_RENEWED = "raqeeb:session-renewed";
+
+function announce(name: string) {
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(name));
+}
+
+/**
+ * Exchange the refresh token for a new access token.
+ *
+ * Single-flight: every request that hits 401 at the same moment awaits the
+ * same promise. With refresh rotation + blacklisting, parallel refreshes with
+ * one token signed the user out (the first rotated it, the rest were refused).
+ *
+ * Resolves to the new access token, or null when the refresh token itself was
+ * refused (400/401) — the only case that ends the session. Throttling, server
+ * errors and a dead connection are retried, then reported, keeping the session.
+ */
+function tryRefresh(): Promise<string | null> {
+  refreshInFlight ??= refreshWithRetry().finally(() => {
+    refreshInFlight = null;
   });
-  if (!res.ok) {
-    saveAuth(null);
-    return null;
+  return refreshInFlight;
+}
+
+async function refreshWithRetry(): Promise<string | null> {
+  for (let attempt = 0; ; attempt += 1) {
+    const auth = loadAuth();
+    if (!auth?.refresh) return null;
+    let res: Response | null = null;
+    try {
+      res = await fetch(`${API_BASE}/api/auth/refresh/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh: auth.refresh }),
+      });
+    } catch {
+      res = null;
+    }
+    if (res?.ok) {
+      const data = (await res.json()) as { access: string; refresh?: string };
+      saveAuth({ ...auth, access: data.access, refresh: data.refresh ?? auth.refresh });
+      announce(SESSION_RENEWED);
+      return data.access;
+    }
+    if (res && (res.status === 400 || res.status === 401)) {
+      saveAuth(null);
+      return null;
+    }
+    if (attempt >= REFRESH_RETRY_DELAYS_MS.length) {
+      announce(SESSION_RENEW_FAILED);
+      throw new SessionRenewError(currentT().common.sessionRenewFailed);
+    }
+    const retryAfter = Number(res?.headers.get("Retry-After"));
+    const wait = Number.isFinite(retryAfter) && retryAfter > 0
+      ? Math.min(retryAfter * 1000, 10_000)
+      : REFRESH_RETRY_DELAYS_MS[attempt];
+    await new Promise((resolve) => setTimeout(resolve, wait));
   }
-  const data = (await res.json()) as { access: string; refresh?: string };
-  saveAuth({ ...auth, access: data.access, refresh: data.refresh ?? auth.refresh });
-  return data.access;
 }
 
 export async function api<T>(
@@ -228,8 +303,19 @@ async function protectedBlob(pathOrUrl: string, fileName: string): Promise<Blob>
  * blockers allow it; the authenticated download then fills it with a local
  * object URL. Types a browser cannot display are saved instead.
  */
+/**
+ * Whether this browser can show the file in a tab. A PDF needs the built-in
+ * viewer: without it (mobile browsers, viewer turned off) the tab stays blank
+ * and the file is downloaded under the blob's UUID (BUG-14).
+ */
+function canShowInline(fileName: string): boolean {
+  if (!isViewableFile(fileName)) return false;
+  if (extensionOf(fileName) !== "pdf") return true;
+  return typeof navigator === "undefined" || navigator.pdfViewerEnabled !== false;
+}
+
 export async function openProtectedFile(pathOrUrl: string, fileName: string): Promise<void> {
-  if (!isViewableFile(fileName)) {
+  if (!canShowInline(fileName)) {
     await saveProtectedFile(pathOrUrl, fileName);
     return;
   }

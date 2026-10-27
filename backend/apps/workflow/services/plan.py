@@ -1,5 +1,8 @@
 """Action plans: submission by the department head and audit review."""
-from django.db import transaction as db_transaction
+from datetime import timedelta
+
+from django.utils import timezone
+
 
 from apps.accounts.models import User
 from apps.audits.models import Recommendation
@@ -10,7 +13,9 @@ from apps.notifications.models import Notification
 from ..models import ActionPlan, ActionStep
 from .. import guards
 from ..transitions import transition
+from .common import locked_transition
 from .notify import (
+    msg,
     _audit_users,
     _heads_of,
     _notify,
@@ -18,6 +23,20 @@ from .notify import (
 )
 
 S = Recommendation.Status
+
+
+# A plan longer than this is not a plan for one recommendation.
+MAX_PLAN_YEARS = 5
+
+
+def _check_target_date(target_date):
+    """Same rule as the deadline audit sets after a partial verification:
+    never in the past (a past date made the case instantly 'overdue')."""
+    today = timezone.localdate()
+    if target_date < today:
+        raise WorkflowError("The target date cannot be in the past.", code="target_date_in_past")
+    if target_date > today + timedelta(days=365 * MAX_PLAN_YEARS):
+        raise WorkflowError("The target date is too far in the future.", code="target_date_too_far")
 
 
 def _upsert_plan(recommendation, user, plan_data):
@@ -33,6 +52,8 @@ def _upsert_plan(recommendation, user, plan_data):
             "The responsible person must have the employee role.",
             code="employee_wrong_role",
         )
+
+    _check_target_date(plan_data["target_date"])
 
     plan = getattr(recommendation, "action_plan", None)
     previous = None
@@ -79,7 +100,7 @@ def _upsert_plan(recommendation, user, plan_data):
     return plan
 
 
-@db_transaction.atomic
+@locked_transition
 def submit_action_plan(recommendation, user, plan_data):
     guards.require("submit_plan", recommendation, user)
 
@@ -89,12 +110,12 @@ def submit_action_plan(recommendation, user, plan_data):
         _audit_users(recommendation.report.municipality),
         recommendation,
         Notification.Type.ACTION_REQUIRED,
-        f"خطة عمل جديدة بانتظار مراجعة التدقيق الداخلي — {_rec_ref(recommendation)}.",
+        msg("plan_submitted", f"خطة عمل جديدة بانتظار مراجعة التدقيق الداخلي — {_rec_ref(recommendation)}.", ref=_rec_ref(recommendation)),
     )
     return plan
 
 
-@db_transaction.atomic
+@locked_transition
 def review_action_plan(recommendation, user, approve, notes=""):
     guards.require("review_plan", recommendation, user)
     plan = recommendation.action_plan
@@ -111,13 +132,13 @@ def review_action_plan(recommendation, user, approve, notes=""):
             [plan.responsible_employee],
             recommendation,
             Notification.Type.ACTION_REQUIRED,
-            f"اعتُمدت خطة العمل وبدأ التنفيذ للتوصية المسندة إليك — {_rec_ref(recommendation)}.",
+            msg("plan_approved_assignee", f"اعتُمدت خطة العمل وبدأ التنفيذ للتوصية المسندة إليك — {_rec_ref(recommendation)}.", ref=_rec_ref(recommendation)),
         )
         _notify(
             _heads_of(recommendation),
             recommendation,
             Notification.Type.STATUS_CHANGE,
-            f"اعتُمدت خطة العمل لـ {_rec_ref(recommendation)} وبدأ التنفيذ.",
+            msg("plan_approved", f"اعتُمدت خطة العمل لـ {_rec_ref(recommendation)} وبدأ التنفيذ.", ref=_rec_ref(recommendation)),
         )
     else:
         if not notes.strip():
@@ -135,6 +156,6 @@ def review_action_plan(recommendation, user, approve, notes=""):
             recipients,
             recommendation,
             Notification.Type.RETURNED,
-            f"مطلوب تعديل خطة العمل لـ {_rec_ref(recommendation)}: {notes}",
+            msg("plan_revision", f"مطلوب تعديل خطة العمل لـ {_rec_ref(recommendation)}: {notes}", ref=_rec_ref(recommendation), notes=notes),
         )
     return plan

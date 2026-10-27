@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { AlertTriangle, Check, Sparkles } from "lucide-react";
@@ -12,6 +12,7 @@ import { T, useI18n } from "@/lib/i18n";
 import type { AIAnalysisEnvelope, AIJob } from "@/lib/types";
 
 import { AIConfidenceBadge, AIJobStatus, ScoreRow } from "./AIPrimitives";
+import { useGuardedMutation } from "@/lib/useGuardedMutation";
 
 export function AIEvidenceAnalysis({ evidenceId }: { evidenceId: number }) {
   useI18n();
@@ -21,7 +22,7 @@ export function AIEvidenceAnalysis({ evidenceId }: { evidenceId: number }) {
     queryKey: ["ai-evidence", evidenceId],
     queryFn: () => api<AIAnalysisEnvelope | { analysis: null }>(`/api/ai/evidence/${evidenceId}/analyze/`),
   });
-  const mutation = useMutation({
+  const mutation = useGuardedMutation({
     mutationFn: () =>
       api<AIJob>(`/api/ai/evidence/${evidenceId}/analyze/`, {
         method: "POST",
