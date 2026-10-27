@@ -220,13 +220,18 @@ export function ColumnChart({
 }) {
   useI18n();
   const [active, setActive] = useState<string | null>(null);
-  const { max, ticks } = niceMax(Math.max(0, ...data.flatMap((point) => point.values)));
-  const height = 168;
+  // Months before the first activity are empty space: start at the first
+  // month with data (keeping at least three) so the columns start where the
+  // reader starts and fill the chart.
+  const firstUsed = data.findIndex((point) => point.values.some((value) => value > 0));
+  const shown = firstUsed <= 0 ? data : data.slice(Math.max(0, Math.min(firstUsed, data.length - 3)));
+  const { max, ticks } = niceMax(Math.max(0, ...shown.flatMap((point) => point.values)));
+  const height = 184;
 
   return (
     <figure className="space-y-3" aria-label={label}>
       {series.length > 1 ? (
-        <ul className="flex flex-wrap gap-4 text-[12.5px] font-medium text-ink-soft" aria-hidden>
+        <ul className="mb-2 flex flex-wrap gap-4 text-[12.5px] font-medium text-ink-soft" aria-hidden>
           {series.map((item) => (
             <li key={item.name} className="inline-flex items-center gap-1.5">
               <span className={cn("size-2.5 rounded-[3px]", item.colorClass)} />
@@ -237,7 +242,7 @@ export function ColumnChart({
       ) : null}
 
       {/* pt-2 keeps the top tick label inside the figure */}
-      <div className="flex gap-2 pt-2">
+      <div className="flex gap-2 pt-5">
         {/* y axis */}
         <div className="relative w-8 shrink-0" style={{ height }} aria-hidden>
           {ticks.map((tick) => (
@@ -264,7 +269,7 @@ export function ColumnChart({
           </div>
           {/* columns */}
           <div className="relative flex items-end" style={{ height }}>
-            {data.map((point) => {
+            {shown.map((point) => {
               const readout = `${formatMonth(point.key, "long")}: ${series
                 .map((item, index) => `${item.name} ${point.values[index] ?? 0}`)
                 .join("، ")}`;
@@ -286,12 +291,19 @@ export function ColumnChart({
                   {series.map((item, index) => (
                     <span
                       key={item.name}
-                      className={cn("w-full max-w-[14px] rounded-t-[4px]", item.colorClass)}
+                      className={cn("relative w-full max-w-[22px] rounded-t-[4px]", item.colorClass)}
                       style={{
                         height: `${((point.values[index] ?? 0) / max) * 100}%`,
                         minHeight: point.values[index] ? 3 : 0,
                       }}
-                    />
+                    >
+                      {/* The value on the column: readable without hovering. */}
+                      {point.values[index] ? (
+                        <span className="absolute bottom-full start-1/2 mb-0.5 -translate-x-1/2 text-[10.5px] font-semibold tabular-nums text-ink-soft rtl:translate-x-1/2" aria-hidden>
+                          {point.values[index]}
+                        </span>
+                      ) : null}
+                    </span>
                   ))}
                   {isActive ? (
                     <span
@@ -318,11 +330,11 @@ export function ColumnChart({
           </div>
           {/* x axis */}
           <div className="mt-1.5 flex" aria-hidden>
-            {data.map((point, index) => (
+            {shown.map((point, index) => (
               <span
                 key={point.key}
                 className={cn(
-                  "min-w-0 flex-1 truncate text-center text-[10.5px] text-muted",
+                  "min-w-0 flex-1 truncate text-center text-[11px] text-ink-soft",
                   index % 2 === 1 && "max-sm:invisible"
                 )}
               >

@@ -178,7 +178,7 @@ export function AIAuditAssistant() {
 
           if (message.role === "user") {
             return (
-              <div key={`${message.created_at}-${index}`} className="flex w-full flex-col items-end gap-1">
+              <div key={`${message.created_at}-${index}`} className="flex w-full flex-col items-end gap-1 rtl:items-start">
                 {/* Caption above bubble */}
                 <span className="pe-1 text-[11px] font-bold text-muted">{T.ai.you}</span>
                 {/* Bubble */}
@@ -255,7 +255,7 @@ export function AIAuditAssistant() {
 
         {/* Pending user preview */}
         {showPendingUser && pendingPreview ? (
-          <div className="flex w-full flex-col items-end gap-1">
+          <div className="flex w-full flex-col items-end gap-1 rtl:items-start">
             <span className="pe-1 text-[11px] font-bold text-muted">{T.ai.you}</span>
             <div
               className="max-w-[92%] min-w-0 rounded-xl border border-line bg-white px-4 py-3 text-[15px] leading-[1.8] text-ink shadow-sm md:max-w-[78%] md:text-[13.5px]"

@@ -39,7 +39,7 @@ export function LedgerTable({
         <thead className="sticky top-0 z-10">
           <tr className="bg-subtle/95 backdrop-blur-sm border-b border-line text-start text-[11.5px] font-bold uppercase tracking-wider text-ink-soft shadow-sm">
             {headers.map((h) => (
-              <th key={h} className="px-3 py-3 text-start align-bottom [overflow-wrap:anywhere]">
+              <th key={h} className="px-3 py-3 text-start align-bottom break-words">
                 {h}
               </th>
             ))}
@@ -77,7 +77,7 @@ export function CellText({
     <span
       title={text}
       className={cn(
-        "block min-w-0 [overflow-wrap:anywhere]",
+        "block min-w-0 break-words",
         lines === 1 ? "truncate" : "line-clamp-2",
         className
       )}
@@ -97,7 +97,7 @@ export function LedgerCell({
   className?: string;
 }) {
   return (
-    <td className={cn("min-w-0 px-3 py-3 align-middle [overflow-wrap:anywhere] group-hover:bg-subtle/30 transition-colors", mono && "font-mono text-[12.5px]", className)}>
+    <td className={cn("min-w-0 px-3 py-3 align-middle break-words group-hover:bg-subtle/30 transition-colors", mono && "font-mono text-[12.5px]", className)}>
       {children}
     </td>
   );

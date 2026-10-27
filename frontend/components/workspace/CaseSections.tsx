@@ -1,6 +1,6 @@
 "use client";
 
-import { BellRing, ChevronDown, Stamp } from "lucide-react";
+import { BellRing, ChevronDown, ChevronLeft, ChevronRight, Stamp } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
 import { AuditTrail } from "@/components/trail/AuditTrail";
@@ -47,12 +47,90 @@ export function CaseSection({
   icon: ReactNode;
   open: boolean;
   onToggle: () => void;
-  variant?: "card" | "row" | "quiet";
+  /** tile / tile-wide: a card in a grid of sections; the open section's
+      content spans the grid's full width below the tiles. */
+  variant?: "card" | "row" | "quiet" | "tile" | "tile-wide";
   children: ReactNode;
 }) {
   const contentId = `section-${id}-content`;
   const titleId = `section-${id}-title`;
   const summaryId = `section-${id}-summary`;
+  if (variant === "tile" || variant === "tile-wide") {
+    const wide = variant === "tile-wide";
+    return (
+      // display:contents keeps tile and content inside #section-<id> while both
+      // take part in the parent grid (tiles in a row, content full width below).
+      <section id={`section-${id}`} data-open={open || undefined} className="contents">
+        <h3 className="min-w-0">
+          <button
+            type="button"
+            aria-expanded={open}
+            aria-controls={contentId}
+            aria-labelledby={titleId}
+            aria-describedby={summary ? summaryId : undefined}
+            onClick={onToggle}
+            className={cn(
+              "flex h-full w-full rounded-xl border bg-surface text-start transition-colors focus-visible:outline-2 focus-visible:outline-primary",
+              wide ? "items-center gap-3 p-4" : "flex-col items-center gap-2 px-3 py-4 text-center",
+              open ? "border-primary/50 bg-primary-light/30" : "border-line hover:border-primary/30 hover:bg-subtle/40"
+            )}
+          >
+            <span
+              className={cn(
+                "flex shrink-0 items-center justify-center rounded-lg",
+                wide ? "size-10" : "size-9",
+                open ? "bg-primary-light text-primary-dark" : "bg-subtle text-primary-dark"
+              )}
+              aria-hidden
+            >
+              {icon}
+            </span>
+            <span className={cn("min-w-0", wide && "flex-1")}>
+              <span id={titleId} className="block text-[14.5px] font-semibold text-navy">
+                {title}
+              </span>
+              {summary ? (
+                <span id={summaryId} className={cn("mt-1 block text-[12.5px] leading-snug text-ink-soft", wide ? "truncate" : "line-clamp-2")}>
+                  {summary}
+                </span>
+              ) : null}
+            </span>
+            {status || count ? (
+              <span className="flex flex-wrap items-center justify-center gap-1.5">
+                {status ? (
+                  <span className={cn("rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold ring-1", STATUS_PILL[status.tone])}>
+                    {status.label}
+                  </span>
+                ) : null}
+                {count ? (
+                  <span className="rounded-full bg-subtle px-2 py-0.5 text-[11.5px] font-semibold tabular-nums text-ink-soft">
+                    {count}
+                  </span>
+                ) : null}
+              </span>
+            ) : null}
+            {wide ? (
+              <>
+                <ChevronLeft className={cn("size-5 shrink-0 text-muted ltr:hidden", open && "-rotate-90")} aria-hidden />
+                <ChevronRight className={cn("size-5 shrink-0 text-muted rtl:hidden", open && "rotate-90")} aria-hidden />
+              </>
+            ) : null}
+          </button>
+        </h3>
+        {open ? (
+          <div
+            id={contentId}
+            // Flush with the record's edges: forms and tables inside keep the
+            // full width they had before the tiles (the evidence table needs it).
+            className="order-1 col-span-full -mx-4 scroll-mt-24 border-t border-line bg-surface px-4 py-5 md:-mx-5 md:px-6"
+          >
+            <p className="mb-4 text-[14px] font-semibold text-navy">{title}</p>
+            {children}
+          </div>
+        ) : null}
+      </section>
+    );
+  }
   const quiet = variant === "quiet";
   const Heading = variant === "card" ? "h2" : "h3";
   return (

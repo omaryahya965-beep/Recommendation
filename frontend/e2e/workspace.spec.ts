@@ -23,9 +23,13 @@ test("a reviewer sees whose turn it is, where the case stands, and its record", 
   // The timeline marks the stage the case is in.
   await expect(page.locator('[aria-current="step"]')).toContainText(T.workflow.stages.execution);
 
-  // The plan is the open part of the record; the history starts collapsed.
-  await expect(page.locator("#section-plan button[aria-expanded]")).toHaveAttribute("aria-expanded", "true");
-  await expect(page.locator("#section-history button[aria-expanded]")).toHaveAttribute("aria-expanded", "false");
+  // The record file starts as closed tiles (the action and dates stay in view);
+  // a tile opens its part below the row.
+  for (const id of ["finding", "response", "plan", "evidence", "verification", "history"]) {
+    await expect(page.locator(`#section-${id} button[aria-expanded]`).first()).toHaveAttribute("aria-expanded", "false");
+  }
+  await openSection(page, "plan");
+  await expect(page.locator("#section-plan-content")).toBeVisible();
 
   await openSection(page, "history");
   const history = page.locator("#section-history");
@@ -53,7 +57,7 @@ test("the responsible employee works from one execution desk", async ({ page, re
   await expect(desk.locator('input[type="file"]')).toHaveCount(1);
   // The uploader lives in the desk only; the evidence section lists files.
   // The section's own toggle (evidence cards hold their own, for the AI review).
-  await expect(page.locator("#section-evidence button[aria-expanded]").first()).toHaveAttribute("aria-expanded", "true");
+  await openSection(page, "evidence");
   await expect(page.locator('#section-evidence input[type="file"]')).toHaveCount(0);
 });
 

@@ -29,3 +29,24 @@ test("a saved follow-up no longer warns that it is unsaved, and saves the previe
   );
   expect([body.results[0].period_start, body.results[0].period_end]).toEqual([start, end]);
 });
+
+test("audit can delete a saved follow-up report after confirming; the council cannot", async ({ page, request }) => {
+  await signIn(page, request, "audit");
+  await page.goto("/audit/followup-reports");
+  await page.getByLabel(T.followup.from).fill(isoDate(-10));
+  await page.getByLabel(T.followup.to).fill(isoDate(-1));
+  await page.getByRole("button", { name: T.followup.generateAction }).click();
+  await page.getByRole("button", { name: T.followup.saveAction }).click();
+  await expect(page.getByText(T.followup.savedNotice)).toBeVisible();
+  const { body: before } = await apiGet<{ count: number }>(request, "audit", "/api/followup-reports/");
+  await page.getByRole("button", { name: T.followup.deleteReport }).first().click();
+  const dialog = page.getByRole("alertdialog");
+  await expect(dialog).toContainText(T.followup.deleteBody);
+  await dialog.getByRole("button", { name: T.followup.deleteReport }).click();
+  await expect.poll(async () => (await apiGet<{ count: number }>(request, "audit", "/api/followup-reports/")).body.count).toBe(before.count - 1);
+
+  await signIn(page, request, "council");
+  await page.goto("/council/followup-reports");
+  await expect(page.getByRole("button", { name: T.followup.viewReport }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: T.followup.deleteReport })).toHaveCount(0);
+});

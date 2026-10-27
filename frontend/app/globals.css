@@ -469,3 +469,12 @@ select {
     display: none !important;
   }
 }
+
+/* In the Arabic interface, "mono" text (dates, references, figures) uses the
+   page's Arabic font with fixed-width digits: Arabic month names next to a
+   Latin monospace face looked heavier and larger than the text around them. */
+:lang(ar) .font-mono {
+  font-family: var(--font-body);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}

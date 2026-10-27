@@ -153,7 +153,8 @@ test.describe("tables and lists with hostile data", () => {
   test("the full hostile title is available on hover", async ({ page, request }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await signIn(page, request, "audit");
-    await page.goto("/audit/recommendations?ordering=-created_at");
+    // The hostile rows' own report, so other data cannot push them off page 1.
+    await page.goto(`/audit/recommendations?report=${hostileRows().report}`);
     await page.waitForLoadState("networkidle");
     const report = await inspectLayout(page, true);
     // The register's title is the case title the API sends (clipped to 90 characters).

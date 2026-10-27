@@ -1,6 +1,6 @@
 "use client";
 
-import { Printer, SearchX } from "lucide-react";
+import { FolderOpen, Layers, Printer, SearchX } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -29,7 +29,6 @@ import { useRecommendation, useWorkflowAction, useWorkflowPolicy } from "@/lib/h
 import { T, useI18n } from "@/lib/i18n";
 import type { RecommendationStatus, Role } from "@/lib/types";
 import {
-  defaultOpenSection,
   isExecutionDesk,
   SECTION_IDS,
   sectionFacts,
@@ -86,7 +85,9 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
   useEffect(() => {
     if (!linked || loadedId !== id) return;
     const frame = window.requestAnimationFrame(() => {
-      document.getElementById(`section-${linked}`)?.scrollIntoView({ block: "start" });
+      // Tiles share one grid; the open section's content is what to show.
+      (document.getElementById(`section-${linked}-content`) ?? document.getElementById(`section-${linked}`))
+        ?.scrollIntoView({ block: "start" });
     });
     return () => window.cancelAnimationFrame(frame);
   }, [linked, loadedId, id]);
@@ -130,8 +131,10 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
   const facts = sectionFacts(rec);
   const primary = rec.workflow?.primary_action ?? null;
   const deskOpen = isExecutionDesk(primary);
-  // A linked section opens on its own, so the action card stays just above it.
-  const initial = new Set<SectionId>([linked ?? defaultOpenSection(rec)]);
+  // The record file sits above the action card and the details rail, so its
+  // tiles start closed: the first screen is the flow, the file, the current
+  // action and the key dates. Only a link that names a section opens it.
+  const initial = new Set<SectionId>(linked ? [linked] : []);
   const choices = toggled.recId === id ? toggled.open : {};
   const isOpen = (section: SectionId) => choices[section] ?? initial.has(section);
   const setOpen = (section: SectionId, open: boolean) =>
@@ -190,19 +193,17 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
             <RecurrencePanel action={action} />
           ) : null}
 
-          {/* The record: the working sections in stage order, in one frame. */}
+          {/* The record file, after the current action: its five parts side by
+              side, the open one below them. */}
           <section
             aria-labelledby="case-record-title"
             className="overflow-hidden rounded-2xl border border-line bg-surface shadow-section"
           >
             <header className="flex items-center justify-between gap-3 border-b border-line/70 px-4 py-3 md:px-5">
-              <div className="flex min-w-0 items-center gap-2.5">
-                <span className="h-5 w-[3px] shrink-0 rounded-full bg-primary" aria-hidden />
-                <h2 id="case-record-title" className="font-heading text-[15.5px] font-bold text-navy">
-                  {T.caseView.recordTitle}
-                </h2>
-                <p className="hidden truncate text-[12.5px] text-muted lg:block">{T.caseView.recordHint}</p>
-              </div>
+              <h2 id="case-record-title" className="flex min-w-0 items-center gap-2 text-[15.5px] font-semibold text-navy">
+                <FolderOpen className="size-5 shrink-0 text-primary-dark" aria-hidden />
+                {T.caseView.recordTitle}
+              </h2>
               <button
                 type="button"
                 onClick={() => setAll(!allOpen)}
@@ -212,12 +213,13 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
                 {allOpen ? T.caseView.collapseAll : T.caseView.expandAll}
               </button>
             </header>
-            <div className="divide-y divide-line/70">
+            {/* The five parts of the record side by side; the open one below. */}
+            <div className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 xl:grid-cols-5 md:p-5">
               {RECORD_SECTIONS.map((section) => (
                 <CaseSection
                   key={section}
                   {...sectionProps(section)}
-                  variant="row"
+                  variant="tile"
                   summary={sectionRowSummary(section, rec, facts)}
                   status={sectionStatus(section, rec, facts)}
                 >
@@ -227,17 +229,25 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
             </div>
           </section>
 
+
           {/* Decisions and the trail: reference material, drawn lighter. */}
-          <section aria-labelledby="case-trail-title" className="rounded-2xl border border-line/80 bg-subtle/40">
-            <h2 id="case-trail-title" className="px-4 pb-1 pt-3 text-[12.5px] font-bold text-muted md:px-5">
+          <section
+            aria-labelledby="case-trail-title"
+            className="overflow-hidden rounded-2xl border border-line bg-surface shadow-section"
+          >
+            <h2
+              id="case-trail-title"
+              className="flex items-center gap-2 border-b border-line/70 px-4 py-3 text-[15.5px] font-semibold text-navy md:px-5"
+            >
+              <Layers className="size-5 shrink-0 text-primary-dark" aria-hidden />
               {T.caseView.trailTitle}
             </h2>
-            <div className="divide-y divide-line/60">
+            <div className="grid grid-cols-1 gap-3 p-4 md:grid-cols-2 md:p-5">
               {TRAIL_SECTIONS.map((section) => (
                 <CaseSection
                   key={section}
                   {...sectionProps(section)}
-                  variant="quiet"
+                  variant="tile-wide"
                   summary={sectionSummary(section, rec, facts)}
                 >
                   <SectionBody id={section} rec={rec} action={action} deskOpen={deskOpen} />

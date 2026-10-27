@@ -124,8 +124,8 @@ function CaseTable({
         showDeadline ? T.followup.deadlineCol : T.common.date,
       ]}
       // Fits a 1024 px screen; narrower, the table scrolls inside its card.
-      widths={["6.5rem", undefined, "7rem", "5.5rem", "8.5rem", "8.5rem"]}
-      minWidth="44rem"
+      widths={["7rem", undefined, "8rem", "7.5rem", "10rem", "10.5rem"]}
+      minWidth="52rem"
       empty={T.followup.nothing}
     >
       {items.map((item) => {
@@ -164,7 +164,7 @@ function CaseTable({
                     {formatDate(legacy ? item.target_date : (item.deadline ?? null))}
                   </time>
                   {item.overdue ? (
-                    <span className="inline-flex w-fit items-center gap-1 rounded-full bg-danger-light px-2 py-0.5 text-[11.5px] font-bold text-danger-dark">
+                    <span className="inline-flex w-fit items-center gap-1 whitespace-nowrap rounded-full bg-danger-light px-2 py-0.5 text-[11.5px] font-bold text-danger-dark">
                       <AlertTriangle className="size-3" aria-hidden />
                       {T.followup.daysLate.replace("{days}", dayCount(item.days_overdue ?? 0, "accusative"))}
                     </span>
@@ -272,7 +272,7 @@ export function FollowUpReportView({
             <p className="inline-flex items-center gap-2 text-[14px] font-bold text-navy">
               <CalendarRange className="size-4 text-muted" aria-hidden />
               {T.followup.period}:
-              <span className="font-mono" dir="ltr">
+              <span className="font-mono">
                 {formatDate(periodStart)} — {formatDate(periodEnd)}
               </span>
             </p>

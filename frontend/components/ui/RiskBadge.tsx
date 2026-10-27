@@ -32,7 +32,7 @@ export function RiskBadge({ level }: { level: string }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11.5px] font-bold tracking-wide shadow-sm",
+        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11.5px] font-bold tracking-wide shadow-sm",
         style.fg,
         style.bg,
         style.border
