@@ -9,7 +9,7 @@ import { Suspense, useMemo, useState } from "react";
 import { ReportPipeline, REPORT_STATUS_FAMILY, type ReportStatus } from "@/components/reports/ReportPipeline";
 import { Button, ErrorBanner, Select, TextInput } from "@/components/ui/Base";
 import { EmptyState, TableSkeleton } from "@/components/ui/EmptyState";
-import { LedgerCell, LedgerTable, RecordId } from "@/components/ui/Ledger";
+import { CellText, LedgerCell, LedgerTable, RecordId } from "@/components/ui/Ledger";
 import { StatusBadge } from "@/components/ui/StampBadge";
 import { fetchAllPages } from "@/lib/api";
 import { cn } from "@/lib/cn";
@@ -89,7 +89,10 @@ function ReportCard({ report }: { report: AuditReport }) {
               </span>
             ) : null}
           </div>
-          <h3 className="mt-3 font-heading text-[16px] font-semibold leading-relaxed text-navy group-hover:text-primary transition-colors">
+          <h3
+            className="mt-3 line-clamp-3 font-heading text-[16px] font-semibold leading-relaxed text-navy [overflow-wrap:anywhere] group-hover:text-primary transition-colors"
+            title={report.title}
+          >
             <bdi>{report.title}</bdi>
           </h3>
           <p className="mt-1 text-[13px] font-bold text-primary-dark uppercase tracking-wide">{nextAction(report)}</p>
@@ -371,13 +374,13 @@ function ReportsRegisterInner() {
         />
       ) : (
         <>
-          <div className={cn("space-y-3.5", view === "compact" && "md:hidden")}>
+          <div className={cn("space-y-3.5", view === "compact" && "xl:hidden")}>
             {visible.map((report) => (
               <ReportCard key={report.id} report={report} />
             ))}
           </div>
           {view === "compact" ? (
-            <div className="hidden md:block">
+            <div className="hidden xl:block">
               <LedgerTable
                 headers={[
                   T.reports.number,
@@ -388,6 +391,8 @@ function ReportsRegisterInner() {
                   T.create.deadline,
                   T.workflow.requiredAction,
                 ]}
+                widths={["7rem", undefined, "8rem", "11rem", "5.5rem", "9rem", "11rem"]}
+                minWidth="60rem"
               >
                 {visible.map((report) => {
                   const late = deadlineOverdue(report);
@@ -399,28 +404,31 @@ function ReportsRegisterInner() {
                         </Link>
                       </LedgerCell>
                       <LedgerCell>
-                        <Link href={`/audit/reports/${report.id}`} className="font-semibold text-ink group-hover:text-primary transition-colors">
-                          <bdi>{report.title}</bdi>
+                        <Link href={`/audit/reports/${report.id}`} className="block min-w-0 font-semibold text-ink group-hover:text-primary transition-colors">
+                          <CellText text={report.title} />
                         </Link>
-                        <p className="mt-0.5 text-[11px] font-semibold text-muted">{REPORT_TYPE_LABELS[report.engagement_type]}</p>
+                        <p className="mt-0.5 truncate text-[11px] font-semibold text-muted">{REPORT_TYPE_LABELS[report.engagement_type]}</p>
                       </LedgerCell>
-                      <LedgerCell>{report.department_name}</LedgerCell>
+                      <LedgerCell>
+                        <CellText text={report.department_name} lines={2} />
+                      </LedgerCell>
                       <LedgerCell>
                         <StatusBadge
                           status={REPORT_STATUS_FAMILY[report.status]}
                           label={REPORT_STATUS_LABELS[report.status]}
+                          wrap
                         />
                       </LedgerCell>
                       <LedgerCell mono>
                         <span className="font-mono font-bold text-navy" dir="ltr">{report.recommendations_count}</span>
                       </LedgerCell>
                       <LedgerCell mono>
-                        <span className={cn("font-mono font-medium", late ? "font-bold text-danger-dark" : "text-muted")} dir="ltr">
+                        <span className={cn("whitespace-nowrap font-mono font-medium", late ? "font-bold text-danger-dark" : "text-muted")} dir="ltr">
                           {formatDate(report.response_deadline)}
                         </span>
                       </LedgerCell>
                       <LedgerCell>
-                        <span className="text-[13px] font-medium text-ink-soft">{nextAction(report)}</span>
+                        <CellText text={nextAction(report)} lines={2} className="text-[13px] font-medium text-ink-soft" />
                       </LedgerCell>
                     </tr>
                   );

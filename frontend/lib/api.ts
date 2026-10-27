@@ -288,13 +288,39 @@ export function isViewableFile(name: string): boolean {
   return VIEWABLE_EXT.has(extensionOf(name));
 }
 
-async function protectedBlob(pathOrUrl: string, fileName: string): Promise<Blob> {
-  const res = await authorizedGet(pathOrUrl);
+type ProtectedFile = { kind: "blob"; blob: Blob } | { kind: "link"; url: string };
+
+/**
+ * A protected file: the bytes (local storage), or a signed link that expires
+ * in minutes (Cloudinary). The API is asked for the link (`link=1`) instead of
+ * a redirect, because fetch() following a redirect to the storage host needs
+ * CORS there; a browser navigation to the link does not (round 2, 2.6).
+ */
+async function protectedFile(pathOrUrl: string, fileName: string, download: boolean): Promise<ProtectedFile> {
+  const target = new URL(pathOrUrl, `${API_BASE}/`);
+  target.searchParams.set("link", "1");
+  if (download) target.searchParams.set("download", "1");
+  const res = await authorizedGet(target.toString());
+  if ((res.headers.get("Content-Type") ?? "").includes("application/json")) {
+    const body = (await res.clone().json().catch(() => null)) as { storage?: string; url?: unknown } | null;
+    if (body?.storage === "signed_link" && typeof body.url === "string" && body.url.startsWith("https://")) {
+      return { kind: "link", url: body.url };
+    }
+  }
   const blob = await res.blob();
   // Storage often answers application/octet-stream; type the blob by its
   // extension so the browser can display a PDF or image inline.
   const type = MIME_BY_EXT[extensionOf(fileName)];
-  return type && blob.type !== type ? new Blob([blob], { type }) : blob;
+  return { kind: "blob", blob: type && blob.type !== type ? new Blob([blob], { type }) : blob };
+}
+
+function followLink(url: string) {
+  const link = document.createElement("a");
+  link.href = url;
+  link.rel = "noopener";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
 }
 
 /**
@@ -321,7 +347,13 @@ export async function openProtectedFile(pathOrUrl: string, fileName: string): Pr
   }
   const tab = window.open("", "_blank");
   try {
-    const blob = await protectedBlob(pathOrUrl, fileName);
+    const file = await protectedFile(pathOrUrl, fileName, false);
+    if (file.kind === "link") {
+      if (tab && !tab.closed) tab.location.href = file.url;
+      else followLink(file.url);
+      return;
+    }
+    const blob = file.blob;
     const url = URL.createObjectURL(blob);
     if (tab && !tab.closed) {
       tab.location.href = url;
@@ -337,7 +369,9 @@ export async function openProtectedFile(pathOrUrl: string, fileName: string): Pr
 
 /** Save a protected file under its original name. */
 export async function saveProtectedFile(pathOrUrl: string, fileName: string): Promise<void> {
-  saveBlob(await protectedBlob(pathOrUrl, fileName), fileName);
+  const file = await protectedFile(pathOrUrl, fileName, true);
+  if (file.kind === "link") followLink(file.url);
+  else saveBlob(file.blob, fileName);
 }
 
 export type LoginFailure = "credentials" | "throttled" | "server" | "network";

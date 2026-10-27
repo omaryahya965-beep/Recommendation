@@ -23,7 +23,7 @@ import {
   type ChecklistState,
 } from "@/components/verification/VerificationChecklist";
 import { cn } from "@/lib/cn";
-import { latestVerification, outstandingRequirements, planProgress } from "@/lib/case";
+import { latestVerification, outstandingRequirements, planProgress, verificationsNewestFirst } from "@/lib/case";
 import { parseFinding } from "@/lib/finding";
 import { formatDate, formatDateTime, localISODate } from "@/lib/format";
 import type { WorkflowAction } from "@/lib/hooks";
@@ -407,7 +407,7 @@ export function VerificationPanel({
 /** Every verification decision on the case, newest first. */
 export function VerificationHistory({ rec, className }: { rec: RecommendationDetail; className?: string }) {
   useI18n();
-  const decisions = rec.verifications ?? [];
+  const decisions = verificationsNewestFirst(rec);
   return (
     <section className={className}>
       <h3 className="mb-4 flex items-center gap-2 font-heading text-[15px] font-bold text-navy">
@@ -418,7 +418,7 @@ export function VerificationHistory({ rec, className }: { rec: RecommendationDet
       </h3>
       {decisions.length ? (
         <ul className="space-y-3">
-          {[...decisions].reverse().map((item) => (
+          {decisions.map((item) => (
             <DecisionRecord key={item.id} decision={item} />
           ))}
         </ul>

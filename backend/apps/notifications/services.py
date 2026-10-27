@@ -212,7 +212,7 @@ def _process_case(rec, anchor, deadline, rules_by_role, today, run, audit_cache)
                             "ref": record_code(rec.id),
                             "title": case_title(rec.text, 80),
                             "anchor": anchor,
-                            # days left (< 0 means overdue by that many)
+                            # today minus the deadline: < 0 = days left, > 0 = days overdue
                             "days": delta,
                             "deadline": deadline.isoformat(),
                         },

@@ -19,6 +19,8 @@ from apps.followup.models import FollowUpReport
 from apps.workflow.models import VerificationDecision
 from apps.core.refs import record_code
 
+from .validation import plan_progress
+
 logger = logging.getLogger("apps.ai")
 
 S = Recommendation.Status
@@ -69,6 +71,10 @@ def _brief(rec) -> dict:
         "department": rec.report.department.name,
         "overdue": overdue,
         "has_plan": plan is not None,
+        # Round 2, 2.4: the facts the answer is checked against, from the database.
+        "plan_status": plan.status if plan else None,
+        "plan_progress": plan_progress(plan) if plan else None,
+        "deadline": str(getattr(rec, "binding_deadline", None) or "") or None,
         "days_overdue": days_overdue,
         "is_recurring": rec.is_recurring,
         "recurrence_confirmed": rec.recurrence_confirmed,
@@ -182,6 +188,7 @@ def tool_get_action_plan_status(user, rec_id: int):
         "revision_count": plan.revision_count,
         "steps_total": len(steps),
         "steps_done": sum(1 for s in steps if s.is_done),
+        "progress_percent": plan_progress(plan),
         "step_titles": [s.title for s in steps[:12]],
     }
 

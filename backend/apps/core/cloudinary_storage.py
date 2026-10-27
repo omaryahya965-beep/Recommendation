@@ -134,7 +134,7 @@ class CloudinaryMediaStorage(Storage):
             return name[: -len(suffix)]
         return name
 
-    def url(self, name):
+    def url(self, name, attachment=False):
         """A signed download link that expires (CLOUDINARY_SIGNED_URL_SECONDS).
 
         Never the plain CDN URL: evidence is confidential, and a leaked link
@@ -156,6 +156,7 @@ class CloudinaryMediaStorage(Storage):
             resource_type=resource_type,
             type=delivery_type(),
             expires_at=int(time.time()) + int(getattr(settings, "CLOUDINARY_SIGNED_URL_SECONDS", 300)),
+            attachment=attachment,
         )
 
     def exists(self, name):

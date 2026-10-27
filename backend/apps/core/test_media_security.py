@@ -1,6 +1,7 @@
 """S6: uploaded files are reachable only through authorized endpoints."""
 import importlib
 import json
+from types import SimpleNamespace
 from unittest import mock
 
 from django.core.cache import cache
@@ -131,6 +132,13 @@ class CloudinaryPrivateDeliveryTests(TestCase):
 class SecureMediaCommandTests(TestCase):
     """The conversion command renames each referenced asset to the private type."""
 
+    @staticmethod
+    def public_asset(public_id, resource_type="image", type="upload", **kwargs):
+        # Cloudinary says the asset is stored with the public "upload" type only.
+        if type != "upload":
+            raise Exception("Resource not found")
+        return {"public_id": public_id, "type": type}
+
     def setUp(self):
         cache.clear()
         self.muni, self.dept, self.users, self.report, self.rec = make_world()
@@ -148,13 +156,15 @@ class SecureMediaCommandTests(TestCase):
 
         with mock.patch("apps.core.media_views.cloudinary_ready", return_value=True), mock.patch(
             "apps.core.management.commands.secure_media.configure_cloudinary"
-        ), mock.patch("cloudinary.uploader.rename") as rename:
+        ), mock.patch("cloudinary.api.resource", side_effect=self.public_asset), mock.patch(
+            "cloudinary.uploader.rename"
+        ) as rename:
             out = StringIO()
             call_command("secure_media", "--apply", stdout=out)
         self.assertEqual(rename.call_count, 1)
         kwargs = rename.call_args.kwargs
         self.assertEqual((kwargs["type"], kwargs["to_type"]), ("upload", "private"))
-        self.assertIn("converted=1", out.getvalue())
+        self.assertIn("changed=1", out.getvalue())
 
     def test_dry_run_changes_nothing(self):
         from io import StringIO
@@ -163,8 +173,67 @@ class SecureMediaCommandTests(TestCase):
 
         with mock.patch("apps.core.media_views.cloudinary_ready", return_value=True), mock.patch(
             "apps.core.management.commands.secure_media.configure_cloudinary"
-        ), mock.patch("cloudinary.uploader.rename") as rename:
+        ), mock.patch("cloudinary.api.resource", side_effect=self.public_asset), mock.patch(
+            "cloudinary.uploader.rename"
+        ) as rename:
             out = StringIO()
             call_command("secure_media", stdout=out)
         rename.assert_not_called()
-        self.assertIn("would convert", out.getvalue())
+        self.assertIn("would make private", out.getvalue())
+
+
+class SignedLinkTests(TestCase):
+    """Round 2, 2.6: the browser can get the signed link without fetching
+    api.cloudinary.com cross-origin; local files can never run as a page."""
+
+    def setUp(self):
+        import cloudinary
+
+        cloudinary.config(cloud_name="demo", api_key="123", api_secret="abc", secure=True)
+
+    def field_file(self):
+        from apps.core.cloudinary_storage import CloudinaryMediaStorage
+
+        with mock.patch("apps.core.cloudinary_storage.configure_cloudinary"):
+            storage = CloudinaryMediaStorage()
+        return SimpleNamespace(storage=storage, name="evidence/2026/10/proof.pdf")
+
+    def serve(self, params):
+        from apps.core.media_views import serve_protected_file
+
+        request = SimpleNamespace(query_params=params)
+        with mock.patch("apps.core.cloudinary_storage.configure_cloudinary"):
+            return serve_protected_file(self.field_file(), request)
+
+    def test_link_mode_returns_the_signed_url_as_json(self):
+        response = self.serve({"link": "1"})
+        self.assertEqual(response.status_code, 200)
+        body = json.loads(response.content)
+        self.assertIn("api.cloudinary.com/v1_1/demo/raw/download", body["url"])
+        self.assertIn("signature=", body["url"])
+        self.assertEqual(body["name"], "proof.pdf")
+        self.assertIn("attachment=0", body["url"])
+
+    def test_download_link_asks_for_an_attachment(self):
+        body = json.loads(self.serve({"link": "1", "download": "1"}).content)
+        self.assertRegex(body["url"], r"attachment=(1|true|True)")
+
+    def test_plain_request_still_redirects(self):
+        response = self.serve({})
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("signature=", response["Location"])
+
+    def test_local_file_cannot_run_as_a_page(self):
+        from django.core.files.base import ContentFile
+        from django.core.files.storage import FileSystemStorage
+
+        from apps.core.media_views import serve_protected_file
+
+        import tempfile
+
+        storage = FileSystemStorage(location=tempfile.mkdtemp())
+        name = storage.save("evidence/note.txt", ContentFile(b"<script>alert(1)</script>"))
+        field_file = SimpleNamespace(storage=storage, name=name, open=lambda mode: storage.open(name, mode))
+        response = serve_protected_file(field_file, SimpleNamespace(query_params={}))
+        self.assertEqual(response["X-Content-Type-Options"], "nosniff")
+        self.assertEqual(response["Content-Security-Policy"], "sandbox")

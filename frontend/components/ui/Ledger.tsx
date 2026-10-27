@@ -2,13 +2,25 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import { recordCode } from "@/lib/format";
 
+/**
+ * A register table. With `widths` (one CSS width per header; leave the
+ * flexible column `undefined`) it uses a fixed layout: column widths come from
+ * the <colgroup>, never from the longest text in some row, so one row with a
+ * long unbroken title cannot stretch its column and squeeze the others to one
+ * word per line (round 2, Part 1). `minWidth` is the narrowest the table may
+ * get; below it the table scrolls inside its own card, never the page.
+ */
 export function LedgerTable({
   headers,
+  widths,
+  minWidth = "760px",
   children,
   empty,
   framed = true,
 }: {
   headers: string[];
+  widths?: Array<string | undefined>;
+  minWidth?: string;
   children: ReactNode;
   empty?: string;
   framed?: boolean;
@@ -16,11 +28,18 @@ export function LedgerTable({
   const hasRows = Array.isArray(children) ? children.length > 0 : Boolean(children);
   return (
     <div className={cn("scrollbar-thin overflow-x-auto bg-surface", framed && "rounded-xl border border-line shadow-sm")}>
-      <table className="w-full min-w-[760px] text-[13.5px]">
+      <table className={cn("w-full text-[13.5px]", widths && "table-fixed")} style={{ minWidth }}>
+        {widths ? (
+          <colgroup>
+            {widths.map((width, index) => (
+              <col key={index} style={width ? { width } : undefined} />
+            ))}
+          </colgroup>
+        ) : null}
         <thead className="sticky top-0 z-10">
           <tr className="bg-subtle/95 backdrop-blur-sm border-b border-line text-start text-[11.5px] font-bold uppercase tracking-wider text-ink-soft shadow-sm">
             {headers.map((h) => (
-              <th key={h} className="px-4 py-3 text-start">
+              <th key={h} className="px-3 py-3 text-start align-bottom [overflow-wrap:anywhere]">
                 {h}
               </th>
             ))}
@@ -39,6 +58,35 @@ export function LedgerTable({
   );
 }
 
+/**
+ * Text in a table cell: one line with an ellipsis (`lines={1}`) or at most two
+ * (`lines={2}`), breaking even unbroken strings; the full text on hover.
+ */
+export function CellText({
+  text,
+  lines = 1,
+  className,
+  children,
+}: {
+  text: string;
+  lines?: 1 | 2;
+  className?: string;
+  children?: ReactNode;
+}) {
+  return (
+    <span
+      title={text}
+      className={cn(
+        "block min-w-0 [overflow-wrap:anywhere]",
+        lines === 1 ? "truncate" : "line-clamp-2",
+        className
+      )}
+    >
+      {children ?? <bdi>{text}</bdi>}
+    </span>
+  );
+}
+
 export function LedgerCell({
   children,
   mono,
@@ -49,7 +97,7 @@ export function LedgerCell({
   className?: string;
 }) {
   return (
-    <td className={cn("px-4 py-3.5 align-middle group-hover:bg-subtle/30 transition-colors", mono && "font-mono text-[12.5px]", className)}>
+    <td className={cn("min-w-0 px-3 py-3 align-middle [overflow-wrap:anywhere] group-hover:bg-subtle/30 transition-colors", mono && "font-mono text-[12.5px]", className)}>
       {children}
     </td>
   );

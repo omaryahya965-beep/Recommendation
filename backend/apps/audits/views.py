@@ -467,7 +467,7 @@ class RecommendationViewSet(viewsets.ModelViewSet):
             request.user, "response_attachment_downloaded", recommendation=recommendation,
             report=recommendation.report, file_name=response.attachment.name,
         )
-        return serve_protected_file(response.attachment)
+        return serve_protected_file(response.attachment, request)
 
     @action(detail=True, methods=["post"], url_path="mark-implemented")
     def mark_implemented(self, request, pk=None):

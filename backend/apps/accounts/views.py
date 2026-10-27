@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.db import transaction
 from rest_framework.generics import CreateAPIView, ListAPIView, RetrieveUpdateAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -94,10 +95,13 @@ class ChangePasswordView(CreateAPIView):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-        # Every other session ends with the old password; this one continues
-        # on the fresh pair returned here.
-        return Response(revoke_sessions_and_issue(user))
+        # One transaction: the new password and the end of every other
+        # session stand or fall together. This session continues on the
+        # fresh pair returned here.
+        with transaction.atomic():
+            user = serializer.save()
+            tokens = revoke_sessions_and_issue(user)
+        return Response(tokens)
 
 
 class EmployeeListView(ListAPIView):

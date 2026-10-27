@@ -46,12 +46,25 @@ export function evidenceByStep(rec: RecommendationDetail) {
  * first; never rely on list position (taking the last item showed a
  * superseded partial verification as current).
  */
-export function latestVerification(rec: RecommendationDetail) {
-  const list = rec.verifications ?? [];
-  return list.reduce<(typeof list)[number] | null>(
-    (latest, item) => (!latest || item.created_at > latest.created_at ? item : latest),
-    null
-  );
+type Verification = NonNullable<RecommendationDetail["verifications"]>[number];
+
+/** Later decision first: by time, then by id for decisions saved in the same instant. */
+function newerFirst(a: Verification, b: Verification) {
+  const at = (Date.parse(b.created_at) || 0) - (Date.parse(a.created_at) || 0);
+  return at !== 0 ? at : b.id - a.id;
+}
+
+/**
+ * Every verification decision, newest first, whatever order the API used
+ * (it lists newest first; older code read the last item as the latest, which
+ * made the summary show the oldest decision — round 2, 2.3).
+ */
+export function verificationsNewestFirst(rec: RecommendationDetail): Verification[] {
+  return [...(rec.verifications ?? [])].sort(newerFirst);
+}
+
+export function latestVerification(rec: RecommendationDetail): Verification | null {
+  return verificationsNewestFirst(rec)[0] ?? null;
 }
 
 /** Requirements still outstanding from the most recent non-sufficient verification. */

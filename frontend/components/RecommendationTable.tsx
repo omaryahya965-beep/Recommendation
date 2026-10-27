@@ -4,7 +4,7 @@ import Link from "next/link";
 
 import { CaseDue } from "@/components/home/Queues";
 import { MobileRecordCard } from "@/components/mobile/MobileRecordCard";
-import { LedgerCell, LedgerTable, RecordId } from "@/components/ui/Ledger";
+import { CellText, LedgerCell, LedgerTable, RecordId } from "@/components/ui/Ledger";
 import { RiskBadge } from "@/components/ui/RiskBadge";
 import { StatusBadge } from "@/components/ui/StampBadge";
 import { clipTitle } from "@/lib/finding";
@@ -38,7 +38,7 @@ export function RecommendationTable({
 
   return (
     <>
-      <ul className="space-y-3 md:hidden">
+      <ul className="space-y-3 xl:hidden">
         {items.map((item) => (
           <li key={item.id}>
             <MobileRecordCard
@@ -63,16 +63,21 @@ export function RecommendationTable({
           </li>
         ))}
       </ul>
-      <div className="hidden md:block">
-        <LedgerTable headers={headers} empty={T.common.noResults}>
+      <div className="hidden xl:block">
+        <LedgerTable
+          headers={headers}
+          widths={["7rem", undefined, ...(showDepartment ? ["8rem"] : []), "7.5rem", "11rem", "7rem", "10.5rem", "4.5rem"]}
+          minWidth="60rem"
+          empty={T.common.noResults}
+        >
           {items.map((item) => (
             <tr key={item.id} className="hover:bg-primary-light/60">
               <LedgerCell mono>
                 <RecordId id={item.id} />
               </LedgerCell>
-              <LedgerCell className="max-w-md">
-                <Link href={detailHref(item)} className="block hover:text-primary-dark hover:underline">
-                  <span className="line-clamp-2"><bdi>{clipTitle(item.title, 120)}</bdi></span>
+              <LedgerCell>
+                <Link href={detailHref(item)} className="block min-w-0 hover:text-primary-dark hover:underline">
+                  <CellText text={item.title} />
                 </Link>
                 {item.is_recurring && !item.recurrence_confirmed ? (
                   <span className="mt-1 inline-flex rounded-md bg-ai-light px-1.5 py-0.5 text-[10px] font-medium text-ai-dark">
@@ -80,18 +85,24 @@ export function RecommendationTable({
                   </span>
                 ) : null}
               </LedgerCell>
-              {showDepartment ? <LedgerCell>{item.department_name}</LedgerCell> : null}
+              {showDepartment ? (
+                <LedgerCell>
+                  <CellText text={item.department_name} lines={2} />
+                </LedgerCell>
+              ) : null}
               <LedgerCell>
                 <RiskBadge level={item.risk_level} />
               </LedgerCell>
               <LedgerCell>
-                <StatusBadge status={item.status} />
+                <StatusBadge status={item.status} wrap />
               </LedgerCell>
-              <LedgerCell>{item.responsible_employee ?? "—"}</LedgerCell>
+              <LedgerCell>
+                <CellText text={item.responsible_employee ?? "—"} lines={2} />
+              </LedgerCell>
               <LedgerCell mono>
                 {item.deadline ? (
                   <span className="flex flex-col items-start gap-1">
-                    <time dir="ltr">{formatDate(item.deadline)}</time>
+                    <time className="whitespace-nowrap" dir="ltr">{formatDate(item.deadline)}</time>
                     <CaseDue item={item} />
                   </span>
                 ) : (

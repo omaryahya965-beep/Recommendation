@@ -3,7 +3,6 @@ advisory framing. Tools live in tools.py."""
 from __future__ import annotations
 
 import json
-import re
 import logging
 
 from django.conf import settings
@@ -15,6 +14,7 @@ from apps.ai.providers.llm import USER_SAFE_UNAVAILABLE
 from apps.ai.services.prompt_manager import render_prompt
 from apps.ai.services.common import language_of
 
+from .validation import correction_message, safe_answer, validate_answer
 from .tools import (
     ADVISORY_AR,
     ADVISORY_EN,
@@ -25,41 +25,6 @@ from .tools import (
 )
 
 logger = logging.getLogger("apps.ai")
-
-
-# Case references in any written form: REC-0016, REC-16, rec 16.
-_CASE_REF = re.compile(r"(?<![A-Za-z])REC[-\s]?0*(\d+)\b", re.IGNORECASE)
-UNVERIFIED_NOTE = {"ar": "(غير متحقق منها في بيانات المنظومة)", "en": "(not verified in the system's data)"}
-
-
-def _verified_case_ids(tool_results, earlier_answers) -> set[int]:
-    """Cases the answer may name: those in this turn's tool results, and
-    those named (and not flagged) in earlier answers of the conversation."""
-    ids = {int(n) for n in _CASE_REF.findall(json.dumps(tool_results, ensure_ascii=False, default=str))}
-    flags = tuple(UNVERIFIED_NOTE.values())
-    for text in earlier_answers:
-        for match in _CASE_REF.finditer(text or ""):
-            if not text[match.end():].lstrip().startswith(flags):
-                ids.add(int(match.group(1)))
-    return ids
-
-
-def flag_unverified_references(answer: str, verified: set[int], lang: str) -> str:
-    """Marks every case reference the tools did not return, so an invented or
-    out-of-scope case is never presented as fact (external QA)."""
-    note = UNVERIFIED_NOTE["en" if lang == "en" else "ar"]
-    flagged = []
-
-    def mark(match):
-        if int(match.group(1)) in verified or answer[match.end():].lstrip().startswith(note):
-            return match.group(0)
-        flagged.append(match.group(0))
-        return f"{match.group(0)} {note}"
-
-    result = _CASE_REF.sub(mark, answer)
-    if flagged:
-        logger.warning("ai_assistant_unverified_references refs=%s", ",".join(flagged))
-    return result
 
 
 def get_or_create_conversation(user) -> AIConversation:
@@ -113,6 +78,40 @@ def _history_payload(convo) -> list[dict]:
     ]
 
 
+
+def _converse(chat_llm, messages, user, used_tools, tool_results) -> str:
+    """Run the model, executing tool calls, until it answers in text."""
+    max_iter = int(getattr(settings, "AI_MAX_TOOL_ITERATIONS", 6) or 6)
+    for _ in range(max_iter):
+        result = chat_llm.chat(messages, tools=TOOL_SCHEMAS)
+        tool_calls = result.get("tool_calls") or []
+        if not tool_calls:
+            answer = (result.get("content") or "").strip()
+            if not answer:
+                logger.error("ai_assistant_empty_answer")
+                raise AIUnavailable(USER_SAFE_UNAVAILABLE)
+            return answer
+        messages.append({"role": "assistant", "content": result.get("content") or "", "tool_calls": tool_calls})
+        for call in tool_calls:
+            fn = call.get("function") or {}
+            name = fn.get("name") or ""
+            raw_args = fn.get("arguments") or "{}"
+            try:
+                args = json.loads(raw_args) if isinstance(raw_args, str) else (raw_args or {})
+            except json.JSONDecodeError:
+                args = {}
+            if not isinstance(args, dict):
+                args = {}
+            payload = execute_tool(user, name, args)
+            used_tools.append(name)
+            tool_results[name] = payload
+            dumped = json.dumps(payload, ensure_ascii=False, default=str)
+            if len(dumped) > TOOL_RESULT_CHAR_CAP:
+                dumped = dumped[:TOOL_RESULT_CHAR_CAP] + "...[truncated]"
+            messages.append({"role": "tool", "tool_call_id": call.get("id") or "call", "content": dumped})
+    logger.error("ai_assistant_tool_loop_exhausted")
+    raise AIUnavailable(USER_SAFE_UNAVAILABLE)
+
 def run_assistant(user, message: str, language: str = "ar", conversation_id: int | None = None, context: dict | None = None) -> dict:
     lang = language_of(language)
     ar = lang != "en"
@@ -153,62 +152,33 @@ def run_assistant(user, message: str, language: str = "ar", conversation_id: int
 
     used_tools: list[str] = []
     tool_results: dict = {}
-    max_iter = int(getattr(settings, "AI_MAX_TOOL_ITERATIONS", 6) or 6)
-    answer = ""
     chat_llm = get_chat_llm()
 
     try:
-        for _ in range(max_iter):
-            result = chat_llm.chat(messages, tools=TOOL_SCHEMAS)
-            tool_calls = result.get("tool_calls") or []
-            if tool_calls:
-                messages.append(
-                    {
-                        "role": "assistant",
-                        "content": result.get("content") or "",
-                        "tool_calls": tool_calls,
-                    }
-                )
-                for call in tool_calls:
-                    fn = call.get("function") or {}
-                    name = fn.get("name") or ""
-                    raw_args = fn.get("arguments") or "{}"
-                    try:
-                        args = json.loads(raw_args) if isinstance(raw_args, str) else (raw_args or {})
-                    except json.JSONDecodeError:
-                        args = {}
-                    if not isinstance(args, dict):
-                        args = {}
-                    payload = execute_tool(user, name, args)
-                    used_tools.append(name)
-                    tool_results[name] = payload
-                    dumped = json.dumps(payload, ensure_ascii=False, default=str)
-                    if len(dumped) > TOOL_RESULT_CHAR_CAP:
-                        dumped = dumped[:TOOL_RESULT_CHAR_CAP] + "...[truncated]"
-                    messages.append(
-                        {
-                            "role": "tool",
-                            "tool_call_id": call.get("id") or "call",
-                            "content": dumped,
-                        }
-                    )
-                continue
-            answer = (result.get("content") or "").strip()
-            break
-        else:
-            logger.error("ai_assistant_tool_loop_exhausted")
-            raise AIUnavailable(USER_SAFE_UNAVAILABLE)
-        if not answer:
-            logger.error("ai_assistant_empty_answer")
-            raise AIUnavailable(USER_SAFE_UNAVAILABLE)
+        answer = _converse(chat_llm, messages, user, used_tools, tool_results)
+        # Round 2, 2.4: check the answer against the database. One retry with
+        # the problems and the correct facts; if it still fails, answer only
+        # from the records instead of showing an unverified text.
+        problems, facts = validate_answer(user, answer)
+        validation = "passed"
+        if problems:
+            logger.warning("ai_assistant_answer_rejected problems=%s", [(p.kind, p.ref) for p in problems])
+            messages.append({"role": "assistant", "content": answer})
+            messages.append({"role": "user", "content": correction_message(problems, facts, lang)})
+            retry = _converse(chat_llm, messages, user, used_tools, tool_results)
+            retry_problems, retry_facts = validate_answer(user, retry)
+            if retry_problems:
+                logger.warning("ai_assistant_retry_rejected problems=%s", [(p.kind, p.ref) for p in retry_problems])
+                answer = safe_answer({**facts, **retry_facts}, lang)
+                validation = "fallback"
+            else:
+                answer = retry
+                validation = "retried"
     except AIUnavailable:
         raise
     except Exception:
         logger.exception("ai_assistant_chat_failed")
         raise AIUnavailable(USER_SAFE_UNAVAILABLE)
-
-    earlier = [item.content for item in prior if item.role == AIMessage.Role.ASSISTANT]
-    answer = flag_unverified_references(answer, _verified_case_ids(tool_results, earlier), lang)
 
     advisory = ADVISORY_AR if ar else ADVISORY_EN
     if advisory not in answer:
@@ -222,6 +192,7 @@ def run_assistant(user, message: str, language: str = "ar", conversation_id: int
             "tools": used_tools,
             "provider": chat_llm.name,
             "model": chat_llm.model,
+            "validation": validation,
         },
     )
     convo.save(update_fields=["updated_at"])
@@ -234,5 +205,6 @@ def run_assistant(user, message: str, language: str = "ar", conversation_id: int
         "model": chat_llm.model,
         "intent": used_tools or ["chat"],
         "advisory": True,
+        "validation": validation,
         "messages": _history_payload(convo),
     }

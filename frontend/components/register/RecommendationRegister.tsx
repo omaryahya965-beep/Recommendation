@@ -11,7 +11,7 @@ import { Sheet } from "@/components/mobile/Sheet";
 import { SavedViews, viewQuery } from "@/components/register/SavedViews";
 import { Button, ProgressBar, Select, TextInput } from "@/components/ui/Base";
 import { EmptyState, TableSkeleton } from "@/components/ui/EmptyState";
-import { LedgerCell, LedgerTable, RecordId } from "@/components/ui/Ledger";
+import { CellText, LedgerCell, LedgerTable, RecordId } from "@/components/ui/Ledger";
 import { ErrorBanner } from "@/components/ui/Base";
 import { RiskBadge } from "@/components/ui/RiskBadge";
 import { StatusBadge } from "@/components/ui/StampBadge";
@@ -35,13 +35,21 @@ import { activeQueue, queueFilterKeys, queueParamKeys, queueTitle } from "@/lib/
 
 const PAGE_SIZE = 25;
 
+/**
+ * The register's sort options; the API (RecommendationOrderingFilter) does the
+ * sorting, and a deterministic tie-break (-priority_score, -created_at, -id)
+ * always follows. The first option is the default order and stays unchanged.
+ */
 function sortOptions() {
   return [
+    // The 0-100 priority score Internal Audit sets on a case (default 0), highest
+    // first; it is not the risk level, so the label names the score.
     { value: "-priority_score", label: T.register.sortPriority },
     { value: "-created_at", label: T.register.sortNewest },
     { value: "created_at", label: T.register.sortOldest },
-    // Severity, highest first (the API sorts risk by rank, not alphabetically).
-    { value: "-risk_level", label: T.register.sortRisk },
+    // Severity, highest first (by rank, not alphabetically), then the nearest
+    // binding deadline; undated cases last within each risk.
+    { value: "-risk_level,deadline", label: T.register.sortRisk },
     // The binding deadline (plan, audit-set after verification, or response).
     { value: "deadline", label: T.register.sortDeadline },
     { value: "waiting", label: T.register.sortWaiting },
@@ -119,10 +127,13 @@ function RegisterCard({
                 </span>
               ) : null}
             </div>
-            <h2 className="mt-3 font-heading text-[16px] font-semibold leading-snug text-navy group-hover:text-primary transition-colors">
+            <h2
+              className="mt-3 line-clamp-3 font-heading text-[16px] font-semibold leading-snug text-navy [overflow-wrap:anywhere] group-hover:text-primary transition-colors"
+              title={item.title}
+            >
               <bdi>{clipTitle(item.title, 130)}</bdi>
             </h2>
-            <p className="mt-1 line-clamp-2 text-[13px] text-ink-soft">
+            <p className="mt-1 line-clamp-2 text-[13px] text-ink-soft [overflow-wrap:anywhere]">
               {hideDepartment ? null : <>{item.department_name} • </>}<bdi>{item.report_title}</bdi>
             </p>
           </div>
@@ -193,6 +204,9 @@ function CompactTable({
         T.common.risk,
         T.workflow.bindingDeadline,
       ]}
+      // The title column takes the remaining width; the others keep a readable minimum.
+      widths={["7rem", undefined, ...(hideDepartment ? [] : ["8rem"]), "11rem", "9rem", "7.5rem", "10.5rem"]}
+      minWidth="63rem"
     >
       {items.map((item) => (
         <tr key={item.id} className="group transition-colors hover:bg-subtle/60" {...intentFor?.(item.id)}>
@@ -202,19 +216,23 @@ function CompactTable({
             </Link>
           </LedgerCell>
           <LedgerCell>
-            <Link href={`${detailBase}/${item.id}`} className="font-medium text-ink group-hover:text-primary transition-colors">
-              <bdi>{clipTitle(item.title, 80)}</bdi>
+            <Link href={`${detailBase}/${item.id}`} className="block min-w-0 font-medium text-ink group-hover:text-primary transition-colors">
+              <CellText text={item.title} />
             </Link>
           </LedgerCell>
-          {hideDepartment ? null : <LedgerCell>{item.department_name}</LedgerCell>}
+          {hideDepartment ? null : (
+            <LedgerCell>
+              <CellText text={item.department_name} lines={2} />
+            </LedgerCell>
+          )}
           <LedgerCell>
-            <StatusBadge status={item.status} />
+            <StatusBadge status={item.status} wrap />
           </LedgerCell>
           <LedgerCell>
             {item.waiting_on === "none" ? (
               <span className="text-muted">—</span>
             ) : (
-              <span className="text-[12.5px] text-ink-soft">{waitingText(item)}</span>
+              <CellText text={waitingText(item)} lines={2} className="text-[12.5px] text-ink-soft" />
             )}
           </LedgerCell>
           <LedgerCell>
@@ -222,7 +240,7 @@ function CompactTable({
           </LedgerCell>
           <LedgerCell mono>
             <span className="flex flex-col items-start gap-1">
-              <span className="font-mono font-medium text-muted" dir="ltr">{formatDate(item.deadline)}</span>
+              <span className="whitespace-nowrap font-mono font-medium text-muted" dir="ltr">{formatDate(item.deadline)}</span>
               {urgent(item) ? <CaseDue item={item} /> : null}
             </span>
           </LedgerCell>
@@ -844,7 +862,7 @@ function RegisterInner({
       ) : (
         <>
           <div aria-busy={isPlaceholderData} className={cn("transition-opacity", isPlaceholderData && "opacity-60")}>
-          <ul className={cn("space-y-3", view === "compact" && "md:hidden")}>
+          <ul className={cn("space-y-3", view === "compact" && "xl:hidden")}>
             {items.map((item) => (
               <RegisterCard
                 key={item.id}
@@ -857,7 +875,7 @@ function RegisterInner({
             ))}
           </ul>
           {view === "compact" ? (
-            <div className="hidden md:block">
+            <div className="hidden xl:block">
               <CompactTable items={items} detailBase={detailBase} hideDepartment={hideDepartment} intentFor={intentFor} />
             </div>
           ) : null}

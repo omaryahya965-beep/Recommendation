@@ -11,7 +11,7 @@ import {
 } from "@/components/analytics/charts";
 import { ErrorBanner } from "@/components/ui/Base";
 import { DashboardBodySkeleton } from "@/components/ui/EmptyState";
-import { LedgerCell, LedgerTable } from "@/components/ui/Ledger";
+import { CellText, LedgerCell, LedgerTable } from "@/components/ui/Ledger";
 import { PageHeader } from "@/components/ui/PageHeader";
 import {
   AGING_ORDER,
@@ -189,13 +189,15 @@ function Departments({ data, base }: { data: AnalyticsPayload; base: string }) {
           T.analytics.colHighRisk,
           T.insights.colExecution,
         ]}
+        widths={[undefined, "4.5rem", "4.5rem", "4.5rem", "5rem", "4.5rem", "9rem"]}
+        minWidth="40rem"
         empty={T.insights.empty}
       >
         {rows.map((row) => (
           <tr key={row.department} className="hover:bg-subtle/60">
             <LedgerCell>
-              <a href={`${base}?report__department=${row.department}&issued=true`} className="font-semibold text-ink hover:text-primary-dark hover:underline">
-                {row.name}
+              <a href={`${base}?report__department=${row.department}&issued=true`} className="block min-w-0 font-semibold text-ink hover:text-primary-dark hover:underline">
+                <CellText text={row.name} lines={2} />
               </a>
             </LedgerCell>
             <LedgerCell mono>{row.total}</LedgerCell>
@@ -206,7 +208,7 @@ function Departments({ data, base }: { data: AnalyticsPayload; base: string }) {
             <LedgerCell mono>{row.overdue_rate}%</LedgerCell>
             <LedgerCell mono>{row.high_risk}</LedgerCell>
             <LedgerCell>
-              <span className="flex min-w-28 items-center gap-2">
+              <span className="flex min-w-0 items-center gap-2">
                 <Meter value={row.execution_rate} label={`${T.insights.colExecution} ${row.name}`} />
                 <span className="w-12 shrink-0 text-end font-mono text-[12.5px] font-semibold text-navy" dir="ltr">
                   {row.execution_rate}%
