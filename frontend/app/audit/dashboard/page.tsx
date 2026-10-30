@@ -90,6 +90,10 @@ export default function AuditDashboard() {
         }
         aside={
           <>
+            {/* Phones reach the same feed from the bell; the home stays short. */}
+            <div className="max-md:hidden">
+              <RecentActivity role="audit" limit={3} compact />
+            </div>
             <ReportQueueCard
               title={T.queues.drafts}
               hint={T.queues.draftsHint}
@@ -101,10 +105,6 @@ export default function AuditDashboard() {
               testId="draft-reports"
               dense
             />
-            {/* Phones reach the same feed from the bell; the home stays short. */}
-            <div className="max-md:hidden">
-              <RecentActivity role="audit" limit={3} compact />
-            </div>
           </>
         }
       />

@@ -1,7 +1,10 @@
 "use client";
 
-import { BellRing, ChevronDown, ChevronLeft, ChevronRight, Stamp } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { BellRing, ChevronDown, ChevronLeft, ChevronRight, Stamp, X } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+
+import { useFocusTrap } from "@/components/mobile/useFocusTrap";
 
 import { AuditTrail } from "@/components/trail/AuditTrail";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -35,6 +38,7 @@ export function CaseSection({
   open,
   onToggle,
   variant = "card",
+  nav,
   children,
 }: {
   /** A record section, or an extra one (the phone's "details"). */
@@ -50,85 +54,29 @@ export function CaseSection({
   /** tile / tile-wide: a card in a grid of sections; the open section's
       content spans the grid's full width below the tiles. */
   variant?: "card" | "row" | "quiet" | "tile" | "tile-wide";
+  /** Tiles only: move to the neighbouring part from inside the open panel. */
+  nav?: SectionNav;
   children: ReactNode;
 }) {
   const contentId = `section-${id}-content`;
   const titleId = `section-${id}-title`;
   const summaryId = `section-${id}-summary`;
   if (variant === "tile" || variant === "tile-wide") {
-    const wide = variant === "tile-wide";
     return (
-      // display:contents keeps tile and content inside #section-<id> while both
-      // take part in the parent grid (tiles in a row, content full width below).
-      <section id={`section-${id}`} data-open={open || undefined} className="contents">
-        <h3 className="min-w-0">
-          <button
-            type="button"
-            aria-expanded={open}
-            aria-controls={contentId}
-            aria-labelledby={titleId}
-            aria-describedby={summary ? summaryId : undefined}
-            onClick={onToggle}
-            className={cn(
-              "flex h-full w-full rounded-xl border bg-surface text-start transition-colors focus-visible:outline-2 focus-visible:outline-primary",
-              wide ? "items-center gap-3 p-4" : "flex-col items-center gap-2 px-3 py-4 text-center",
-              open ? "border-primary/50 bg-primary-light/30" : "border-line hover:border-primary/30 hover:bg-subtle/40"
-            )}
-          >
-            <span
-              className={cn(
-                "flex shrink-0 items-center justify-center rounded-lg",
-                wide ? "size-10" : "size-9",
-                open ? "bg-primary-light text-primary-dark" : "bg-subtle text-primary-dark"
-              )}
-              aria-hidden
-            >
-              {icon}
-            </span>
-            <span className={cn("min-w-0", wide && "flex-1")}>
-              <span id={titleId} className="block text-[14.5px] font-semibold text-navy">
-                {title}
-              </span>
-              {summary ? (
-                <span id={summaryId} className={cn("mt-1 block text-[12.5px] leading-snug text-ink-soft", wide ? "truncate" : "line-clamp-2")}>
-                  {summary}
-                </span>
-              ) : null}
-            </span>
-            {status || count ? (
-              <span className="flex flex-wrap items-center justify-center gap-1.5">
-                {status ? (
-                  <span className={cn("rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold ring-1", STATUS_PILL[status.tone])}>
-                    {status.label}
-                  </span>
-                ) : null}
-                {count ? (
-                  <span className="rounded-full bg-subtle px-2 py-0.5 text-[11.5px] font-semibold tabular-nums text-ink-soft">
-                    {count}
-                  </span>
-                ) : null}
-              </span>
-            ) : null}
-            {wide ? (
-              <>
-                <ChevronLeft className={cn("size-5 shrink-0 text-muted ltr:hidden", open && "-rotate-90")} aria-hidden />
-                <ChevronRight className={cn("size-5 shrink-0 text-muted rtl:hidden", open && "rotate-90")} aria-hidden />
-              </>
-            ) : null}
-          </button>
-        </h3>
-        {open ? (
-          <div
-            id={contentId}
-            // Flush with the record's edges: forms and tables inside keep the
-            // full width they had before the tiles (the evidence table needs it).
-            className="order-1 col-span-full -mx-4 scroll-mt-24 border-t border-line bg-surface px-4 py-5 md:-mx-5 md:px-6"
-          >
-            <p className="mb-4 text-[14px] font-semibold text-navy">{title}</p>
-            {children}
-          </div>
-        ) : null}
-      </section>
+      <SectionTile
+        id={id}
+        title={title}
+        summary={summary}
+        count={count}
+        status={status}
+        icon={icon}
+        open={open}
+        onToggle={onToggle}
+        wide={variant === "tile-wide"}
+        nav={nav}
+      >
+        {children}
+      </SectionTile>
     );
   }
   const quiet = variant === "quiet";
@@ -209,6 +157,211 @@ export function CaseSection({
           {children}
         </div>
       ) : null}
+    </section>
+  );
+}
+
+/**
+ * A part of the record as a tile; it opens as a page inside the page: a
+ * centred panel over the case with its own header and scrolling body.
+ * Escape, the close button or a click outside closes it, focus stays inside
+ * while it is open and returns to the tile.
+ */
+type SectionNav = {
+  prev: { title: string; go: () => void } | null;
+  next: { title: string; go: () => void } | null;
+};
+
+function SectionTile({
+  nav,
+  id,
+  title,
+  summary,
+  count,
+  status,
+  icon,
+  open,
+  onToggle,
+  wide,
+  children,
+}: {
+  id: SectionId | "details";
+  title: string;
+  summary?: string | null;
+  count?: number | null;
+  status?: { label: string; tone: SectionTone } | null;
+  icon: ReactNode;
+  open: boolean;
+  onToggle: () => void;
+  wide: boolean;
+  nav?: SectionNav;
+  children: ReactNode;
+}) {
+  useI18n();
+  const contentId = `section-${id}-content`;
+  const titleId = `section-${id}-title`;
+  const summaryId = `section-${id}-summary`;
+  const dialogTitleId = `section-${id}-dialog-title`;
+  const tileRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  // On <body>, above the sidebar and header like any dialog. The case loads on
+  // the client, so a tile never renders during server rendering.
+  const host = open && typeof document !== "undefined" ? document.body : null;
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  // The page behind stays put without touching its overflow (hiding the
+  // page's scroll while scrolled breaks the sticky sidebar): wheel and touch
+  // scrolling are stopped everywhere on the overlay except the panel body,
+  // which itself never hands its scroll on to the page.
+  useEffect(() => {
+    const overlay = overlayRef.current;
+    if (!open || !overlay) return;
+    const block = (event: Event) => {
+      if (!bodyRef.current?.contains(event.target as Node)) event.preventDefault();
+    };
+    overlay.addEventListener("wheel", block, { passive: false });
+    overlay.addEventListener("touchmove", block, { passive: false });
+    return () => {
+      overlay.removeEventListener("wheel", block);
+      overlay.removeEventListener("touchmove", block);
+    };
+  }, [open, host]);
+  // No scroll lock: the overlay blocks background scrolling itself (above).
+  useFocusTrap(open, panelRef, onToggle, closeRef, tileRef, false);
+
+  const pills = status || count ? (
+    <span className="flex flex-wrap items-center justify-center gap-1.5">
+      {status ? (
+        <span className={cn("rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold ring-1", STATUS_PILL[status.tone])}>
+          {status.label}
+        </span>
+      ) : null}
+      {count ? (
+        <span className="rounded-full bg-subtle px-2 py-0.5 text-[11.5px] font-semibold tabular-nums text-ink-soft">{count}</span>
+      ) : null}
+    </span>
+  ) : null;
+
+  return (
+    // display:contents: tile and panel stay inside #section-<id> while the tile
+    // takes part in the parent grid.
+    <section id={`section-${id}`} data-open={open || undefined} className="contents">
+      <h3 className="min-w-0">
+        <button
+          ref={tileRef}
+          type="button"
+          aria-expanded={open}
+          aria-haspopup="dialog"
+          aria-controls={contentId}
+          aria-labelledby={titleId}
+          aria-describedby={summary ? summaryId : undefined}
+          onClick={onToggle}
+          className={cn(
+            "flex h-full w-full rounded-xl border bg-surface text-start transition-colors focus-visible:outline-2 focus-visible:outline-primary",
+            wide ? "items-center gap-3 p-4" : "flex-col items-center gap-2 px-3 py-4 text-center",
+            open ? "border-primary/50 bg-primary-light/30" : "border-line hover:border-primary/30 hover:bg-subtle/40"
+          )}
+        >
+          <span
+            className={cn("flex shrink-0 items-center justify-center rounded-lg bg-subtle text-primary-dark", wide ? "size-10" : "size-9")}
+            aria-hidden
+          >
+            {icon}
+          </span>
+          <span className={cn("min-w-0", wide && "flex-1")}>
+            <span id={titleId} className="block text-[14.5px] font-semibold text-navy">
+              {title}
+            </span>
+            {summary ? (
+              <span id={summaryId} className={cn("mt-1 block text-[12.5px] leading-snug text-ink-soft", wide ? "truncate" : "line-clamp-2")}>
+                {summary}
+              </span>
+            ) : null}
+          </span>
+          {pills}
+          {wide ? (
+            <>
+              <ChevronLeft className="size-5 shrink-0 text-muted ltr:hidden" aria-hidden />
+              <ChevronRight className="size-5 shrink-0 text-muted rtl:hidden" aria-hidden />
+            </>
+          ) : null}
+        </button>
+      </h3>
+      {open && host
+        ? createPortal(
+            <div ref={overlayRef} className="fixed inset-0 z-[70] flex items-center justify-center p-4 md:p-8" data-print="hide">
+              <div className="absolute inset-0 bg-navy/45 backdrop-blur-[2px] animate-fade-in" onClick={onToggle} aria-hidden />
+              <div
+                ref={panelRef}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={dialogTitleId}
+                className="relative flex max-h-full w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-line bg-bg shadow-2xl animate-scale-in"
+              >
+                <header className="flex items-start gap-3 border-b border-line bg-surface px-5 py-4 md:px-6">
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary-light text-primary-dark" aria-hidden>
+                    {icon}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <h2 id={dialogTitleId} className="text-[17px] font-semibold text-navy">
+                      {title}
+                    </h2>
+                    {summary ? <p className="mt-0.5 text-[13px] text-ink-soft">{summary}</p> : null}
+                  </div>
+                  {pills}
+                  <button
+                    ref={closeRef}
+                    type="button"
+                    onClick={onToggle}
+                    aria-label={T.nav.close}
+                    title={T.nav.close}
+                    className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg text-muted transition-colors hover:bg-subtle hover:text-ink focus-visible:outline-2 focus-visible:outline-primary"
+                  >
+                    <X className="size-5" aria-hidden />
+                  </button>
+                </header>
+                <div ref={bodyRef} id={contentId} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 md:px-6">
+                  {children}
+                </div>
+                {nav && (nav.prev || nav.next) ? (
+                  <footer className="flex items-center justify-between gap-3 border-t border-line bg-surface px-5 py-3 md:px-6">
+                    {nav.prev ? (
+                      <button
+                        type="button"
+                        onClick={nav.prev.go}
+                        className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-line px-3 text-[13.5px] font-semibold text-ink-soft transition-colors hover:border-primary/40 hover:text-primary-dark"
+                      >
+                        {/* Previous points back toward the reading start: right in Arabic. */}
+                        <ChevronRight className="size-4 ltr:hidden" aria-hidden />
+                        <ChevronLeft className="size-4 rtl:hidden" aria-hidden />
+                        <span>
+                          {T.common.prev}: {nav.prev.title}
+                        </span>
+                      </button>
+                    ) : (
+                      <span />
+                    )}
+                    {nav.next ? (
+                      <button
+                        type="button"
+                        onClick={nav.next.go}
+                        className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-primary px-3 text-[13.5px] font-semibold text-white transition-colors hover:bg-primary-dark"
+                      >
+                        <span>
+                          {T.common.next}: {nav.next.title}
+                        </span>
+                        <ChevronLeft className="size-4 ltr:hidden" aria-hidden />
+                        <ChevronRight className="size-4 rtl:hidden" aria-hidden />
+                      </button>
+                    ) : null}
+                  </footer>
+                ) : null}
+              </div>
+            </div>,
+            host
+          )
+        : null}
     </section>
   );
 }

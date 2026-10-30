@@ -11,11 +11,11 @@ test("progress history never shows [object Object]", async ({ page, request }) =
   await signIn(page, request, "audit");
   await page.goto(`/audit/recommendations/${id}`);
   await openSection(page, "history");
-  await page.locator("main").getByRole("button", { name: T.caseView.historyFilters.all, exact: true }).click();
-  const toggles = page.locator("main").getByRole("button", { name: T.trail.showMetadata });
+  await page.getByRole("dialog").getByRole("button", { name: T.caseView.historyFilters.all, exact: true }).click();
+  const toggles = page.getByRole("dialog").getByRole("button", { name: T.trail.showMetadata });
   await expect(toggles.first()).toBeVisible();
   for (let i = await toggles.count(); i > 0; i -= 1) await toggles.first().click();
-  await expect(page.locator("main").getByText(T.trail.hideMetadata).first()).toBeVisible();
-  await expect(page.locator("main")).not.toContainText("[object Object]");
-  await expect(page.locator("main").getByText(/0% → 100%/).first()).toBeVisible();
+  await expect(page.getByRole("dialog").getByText(T.trail.hideMetadata).first()).toBeVisible();
+  await expect(page.getByRole("dialog")).not.toContainText("[object Object]");
+  await expect(page.getByRole("dialog").getByText(/0% → 100%/).first()).toBeVisible();
 });

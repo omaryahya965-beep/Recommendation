@@ -72,7 +72,8 @@ test("2.3: the verification summary always shows the latest decision", async ({ 
     await expect(header).not.toContainText(PILL[latest === "partial" ? "sufficient" : "partial"]);
     return header;
   };
-  const firstDecision = () => page.locator("main li").filter({ hasText: /كافية|جزئية|غير كافية/ }).first();
+  // The verification part opens as a panel over the page.
+  const firstDecision = () => page.getByRole("dialog").locator("li").filter({ hasText: /كافية|جزئية|غير كافية/ }).first();
   await signIn(page, request, "audit");
   await expectPill("partial");
 

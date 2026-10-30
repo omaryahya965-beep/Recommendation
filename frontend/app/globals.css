@@ -478,3 +478,9 @@ select {
   font-variant-numeric: tabular-nums;
   letter-spacing: 0;
 }
+
+/* Keep the scrollbar's space when a panel locks page scrolling, so the
+   sidebar and header do not jump sideways. */
+html {
+  scrollbar-gutter: stable;
+}

@@ -71,6 +71,18 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
   const { data: policy } = useWorkflowPolicy();
   const searchParams = useSearchParams();
   const linked = sectionFromQuery(searchParams.get("section") ?? searchParams.get("tab"));
+  // The whole record on paper: render every part in a print-only block.
+  const [printing, setPrinting] = useState(false);
+  useEffect(() => {
+    if (!printing) return;
+    const done = () => setPrinting(false);
+    window.addEventListener("afterprint", done);
+    const timer = window.setTimeout(() => window.print(), 150);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("afterprint", done);
+    };
+  }, [printing]);
   // Sections the user opened or closed, per case (a different case starts fresh).
   const [toggled, setToggled] = useState<{ recId: number; open: Partial<Record<SectionId, boolean>> }>({
     recId: id,
@@ -137,19 +149,16 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
   const initial = new Set<SectionId>(linked ? [linked] : []);
   const choices = toggled.recId === id ? toggled.open : {};
   const isOpen = (section: SectionId) => choices[section] ?? initial.has(section);
-  const setOpen = (section: SectionId, open: boolean) =>
-    setToggled((current) => ({
+  // Each part opens as a page inside the page, so one at a time.
+  const openOnly = (section: SectionId | null) =>
+    setToggled({
       recId: id,
-      open: { ...(current.recId === id ? current.open : {}), [section]: open },
-    }));
-  const allOpen = SECTION_IDS.every(isOpen);
-  // The whole record on paper: open every section, let it render, then print.
+      open: Object.fromEntries(SECTION_IDS.map((item) => [item, item === section])),
+    });
   const printCase = () => {
-    setAll(true);
-    window.setTimeout(() => window.print(), 150);
+    openOnly(null);
+    setPrinting(true);
   };
-  const setAll = (open: boolean) =>
-    setToggled({ recId: id, open: Object.fromEntries(SECTION_IDS.map((section) => [section, open])) });
 
   const sectionProps = (section: SectionId) => ({
     id: section,
@@ -157,7 +166,7 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
     count: section === "evidence" ? facts.files : section === "decisions" ? facts.decisions : null,
     icon: SECTION_ICON[section],
     open: isOpen(section),
-    onToggle: () => setOpen(section, !isOpen(section)),
+    onToggle: () => openOnly(isOpen(section) ? null : section),
   });
 
   return (
@@ -184,17 +193,8 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
           <SuccessBanner message={action.success ?? (searchParams.get("saved") ? T.create.editSaved : null)} />
           {/* A refused action whose form is gone (the case moved on) still says why. */}
           {action.error && !primary ? <ErrorBanner message={action.error} /> : null}
-          <ActionCard rec={rec} role={role}>
-            {primary ? (
-              <ActionPanel rec={rec} action={action} requirePlan={policy?.require_plan_with_response ?? false} />
-            ) : null}
-          </ActionCard>
-          {isOffered(rec, "confirm_recurrence") && rec.is_recurring && !rec.recurrence_confirmed ? (
-            <RecurrencePanel action={action} />
-          ) : null}
-
-          {/* The record file, after the current action: its five parts side by
-              side, the open one below them. */}
+          {/* The record file first: its five parts side by side; each opens as a
+              page inside the page. Then the current action. */}
           <section
             aria-labelledby="case-record-title"
             className="overflow-hidden rounded-2xl border border-line bg-surface shadow-section"
@@ -204,21 +204,20 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
                 <FolderOpen className="size-5 shrink-0 text-primary-dark" aria-hidden />
                 {T.caseView.recordTitle}
               </h2>
-              <button
-                type="button"
-                onClick={() => setAll(!allOpen)}
-                data-print="hide"
-                className="min-h-9 shrink-0 rounded-md px-2 text-[12.5px] font-semibold text-primary-dark hover:underline"
-              >
-                {allOpen ? T.caseView.collapseAll : T.caseView.expandAll}
-              </button>
             </header>
             {/* The five parts of the record side by side; the open one below. */}
             <div className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 xl:grid-cols-5 md:p-5">
-              {RECORD_SECTIONS.map((section) => (
+              {RECORD_SECTIONS.map((section, index) => (
                 <CaseSection
                   key={section}
                   {...sectionProps(section)}
+                  nav={{
+                    prev: index > 0 ? { title: sectionTitle(RECORD_SECTIONS[index - 1]), go: () => openOnly(RECORD_SECTIONS[index - 1]) } : null,
+                    next:
+                      index < RECORD_SECTIONS.length - 1
+                        ? { title: sectionTitle(RECORD_SECTIONS[index + 1]), go: () => openOnly(RECORD_SECTIONS[index + 1]) }
+                        : null,
+                  }}
                   variant="tile"
                   summary={sectionRowSummary(section, rec, facts)}
                   status={sectionStatus(section, rec, facts)}
@@ -228,6 +227,15 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
               ))}
             </div>
           </section>
+
+          <ActionCard rec={rec} role={role}>
+            {primary ? (
+              <ActionPanel rec={rec} action={action} requirePlan={policy?.require_plan_with_response ?? false} />
+            ) : null}
+          </ActionCard>
+          {isOffered(rec, "confirm_recurrence") && rec.is_recurring && !rec.recurrence_confirmed ? (
+            <RecurrencePanel action={action} />
+          ) : null}
 
 
           {/* Decisions and the trail: reference material, drawn lighter. */}
@@ -255,6 +263,16 @@ export function RecommendationWorkspace({ id, role }: { id: number; role: Role }
               ))}
             </div>
           </section>
+            {printing ? (
+              <div className="hidden space-y-6 print:block">
+                {[...RECORD_SECTIONS, ...TRAIL_SECTIONS].map((section) => (
+                  <section key={section} className="break-inside-avoid-page">
+                    <h3 className="mb-3 text-[15px] font-semibold text-navy">{sectionTitle(section)}</h3>
+                    <SectionBody id={section} rec={rec} action={action} deskOpen={deskOpen} />
+                  </section>
+                ))}
+              </div>
+            ) : null}
         </div>
 
         <aside className="min-w-0" aria-label={T.caseView.detailsTitle}>

@@ -13,7 +13,6 @@ import {
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { DashboardColumns, DashboardPage } from "@/components/home/DashboardLayout";
 import { HomeHero, type HeroStat } from "@/components/home/HomeHero";
-import { TeamPanel } from "@/components/home/RoleBlocks";
 import {
   byUrgency,
   QueueListCard,
@@ -162,7 +161,6 @@ export default function DepartmentDashboard() {
               limit={5}
               testId="department-overdue"
             />
-            <TeamPanel team={data.team ?? []} registerBase={BASE} teamHref="/department/team-progress" />
           </>
         }
         aside={
@@ -182,24 +180,9 @@ export default function DepartmentDashboard() {
               testId="due-soon"
               dense
             />
-            {/* Not the department's delay: shown for follow-up only, drawn quieter. */}
-            <QueueListCard
-              title={T.home.waitingOnOthers}
-              hint={T.home.waitingOnOthersHint}
-              block={data.waiting_on_others}
-              href={HREF.waiting}
-              reason={reasons.waiting}
-              detailHref={detailHref}
-              showDepartment={false}
-              emptyLabel={T.home.noWaitingOnOthers}
-              limit={3}
-              testId="waiting-on-others"
-              dense
-              className="bg-subtle/40 [&_ul]:bg-surface/60"
-            />
             {/* Phones reach the same feed from the bell; the home stays short. */}
             <div className="max-md:hidden">
-              <RecentActivity role="department_head" limit={3} compact />
+              <RecentActivity role="department_head" limit={5} compact />
             </div>
           </>
         }

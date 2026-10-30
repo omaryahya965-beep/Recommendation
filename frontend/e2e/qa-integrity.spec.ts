@@ -18,7 +18,8 @@ test("BUG-28: a file Internal Audit assessed has no delete control and the API r
   expect(res.body.code).toBe("evidence_assessed");
   await signIn(page, request, "employee");
   await page.goto(`/employee/my-tasks/${id}?section=evidence`);
-  await expect(page.locator("main tr[data-testid=evidence-item]").filter({ hasText: "assessed" })).toBeVisible();
+  // A linked section opens as a panel over the page.
+  await expect(page.getByRole("dialog").locator("tr[data-testid=evidence-item]").filter({ hasText: "assessed" })).toBeVisible();
   await expect(page.getByRole("button", { name: /حذف الملف/ })).toHaveCount(0);
 });
 

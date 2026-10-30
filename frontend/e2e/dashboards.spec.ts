@@ -29,8 +29,10 @@ test("the department head sees what is waiting on others, apart from its own del
 
   await signIn(page, request, "head");
   await page.goto("/department/dashboard");
-  await expect(page.getByTestId("waiting-on-others")).toBeVisible();
-  await expect(page.getByTestId("home-team").getByRole("link")).toHaveCount(body.team.length);
+  // The home shows the department's own work and recent activity; what waits
+  // on audit or the council is one register link away (below).
+  await expect(page.getByTestId("waiting-on-others")).toHaveCount(0);
+  await expect(page.getByTestId("home-team")).toHaveCount(0);
 
   await page.goto("/department/recommendations?waiting_on=audit,council");
   await expect(

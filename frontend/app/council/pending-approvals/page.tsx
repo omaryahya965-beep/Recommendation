@@ -9,7 +9,6 @@ import {
   ClipboardList,
   FileCheck2,
   Gavel,
-  RotateCcw,
   ShieldCheck,
   Stamp,
 } from "lucide-react";
@@ -228,7 +227,6 @@ export default function PendingApprovalsPage() {
     ? [
         { label: T.roleHome.statToRatify, count: pendingReports.length, href: "#council-ratify", icon: Stamp, tone: "primary" },
         { label: T.roleHome.statToClose, count: closures?.count ?? 0, href: "/council/closure-reviews", icon: Gavel, tone: "primary" },
-        { label: T.roleHome.statReopened, count: dashboard.reopened?.count ?? 0, href: `${BASE}?status=reopened`, icon: RotateCcw, tone: "warning" },
       ]
     : [];
 
@@ -311,22 +309,10 @@ export default function PendingApprovalsPage() {
         aside={
           dashboard ? (
             <>
-              <QueueListCard
-                title={T.home.reopened}
-                hint={T.home.reopenedHint}
-                block={dashboard.reopened}
-                href={`${BASE}?status=reopened`}
-                reason={{ id: "reopened", label: T.home.reopened, icon: RotateCcw, tone: REASON_TONE.warning }}
-                detailHref={closureHref}
-                timing="deadline"
-                emptyLabel={T.home.noReopened}
-                limit={3}
-                dense
-              />
-              <DecisionFeed decisions={(dashboard.recent_decisions ?? []).slice(0, 5)} detailBase={BASE} />
               <div className="max-md:hidden">
                 <RecentActivity role="council" limit={3} compact />
               </div>
+              <DecisionFeed decisions={(dashboard.recent_decisions ?? []).slice(0, 5)} detailBase={BASE} />
             </>
           ) : null
         }

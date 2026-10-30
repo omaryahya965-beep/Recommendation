@@ -34,6 +34,11 @@ export type SectionId = "finding" | "response" | "plan" | "evidence" | "verifica
 /** Expands one record section of the case (no-op when already open). */
 export async function openSection(page: Page, id: SectionId) {
   const toggle = page.locator(`#section-${id} button[aria-expanded]`).first();
+  // Each part opens as a panel over the page; close another one first.
+  if ((await toggle.getAttribute("aria-expanded")) !== "true" && (await page.getByRole("dialog").count())) {
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+  }
   if ((await toggle.getAttribute("aria-expanded")) !== "true") await toggle.click();
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
 }

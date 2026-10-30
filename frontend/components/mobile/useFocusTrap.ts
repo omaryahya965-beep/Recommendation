@@ -19,6 +19,11 @@ export function useFocusTrap(
    * is clicked or tapped, so "whatever was focused" is often the body.
    */
   returnFocusRef?: RefObject<HTMLElement | null>,
+  /**
+   * Hide the page's scroll while open (phone sheets). Off for panels over a
+   * desktop page: hiding it while scrolled breaks the sticky sidebar.
+   */
+  lockScroll = true,
 ) {
   // Callers pass inline callbacks; keeping the latest in a ref stops the trap
   // from tearing down (and moving focus) on every render.
@@ -32,7 +37,7 @@ export function useFocusTrap(
 
     const previous = returnFocusRef?.current ?? (document.activeElement as HTMLElement | null);
     const overflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    if (lockScroll) document.body.style.overflow = "hidden";
 
     const focusFirst = () => {
       const preferred = initialFocusRef?.current;
@@ -70,8 +75,8 @@ export function useFocusTrap(
     return () => {
       window.cancelAnimationFrame(id);
       document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = overflow;
+      if (lockScroll) document.body.style.overflow = overflow;
       previous?.focus?.();
     };
-  }, [active, containerRef, initialFocusRef, returnFocusRef]);
+  }, [active, containerRef, initialFocusRef, returnFocusRef, lockScroll]);
 }
