@@ -15,6 +15,7 @@ from apps.ai.similarity_config import (
 )
 from apps.ai_similarity.service import _normalize, ensure_embedding, find_similar
 from apps.audits.finding import brief_excerpt, case_title, semantic_payload, structural_tokens
+from apps.core.refs import record_code
 
 ANALYSIS_VERSION = "similar_v3"
 
@@ -81,7 +82,7 @@ def explain_match(rec, other, score: float, language: str) -> dict:
     title = case_title(other.text) or brief_excerpt(other.text)
     return {
         "matched_id": other.id,
-        "matched_reference": f"REC-{other.id}",
+        "matched_reference": record_code(other.id),
         "matched_title": title,
         "matched_text": brief_excerpt(other.text, 180),
         "matched_status": other.status,

@@ -229,5 +229,5 @@ class SignedUploadParamsTests(SimpleTestCase):
         self.assertEqual(
             to_sign,
             "folder=evidence/2026/08&overwrite=false&timestamp=1787826341"
-            "&unique_filename=true&use_filename=true",
+            "&type=private&unique_filename=true&use_filename=true",
         )

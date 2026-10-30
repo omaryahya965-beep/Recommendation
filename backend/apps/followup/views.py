@@ -4,6 +4,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.accounts.models import User
+from apps.core.dedupe import reject_duplicates
 from apps.core.permissions import IsAudit, RolePermission
 
 from .models import FollowUpReport
@@ -18,13 +19,15 @@ class CanViewFollowUps(RolePermission):
 class FollowUpReportViewSet(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
+    mixins.DestroyModelMixin,
     viewsets.GenericViewSet,
 ):
     serializer_class = FollowUpReportSerializer
     permission_classes = [CanViewFollowUps]
 
     def get_permissions(self):
-        if self.action in ("generate", "preview"):
+        # Only Internal Audit creates or deletes saved follow-up reports.
+        if self.action in ("generate", "preview", "destroy"):
             return [IsAudit()]
         return super().get_permissions()
 
@@ -32,6 +35,15 @@ class FollowUpReportViewSet(
         return FollowUpReport.objects.filter(
             municipality=self.request.user.municipality
         ).select_related("generated_by", "municipality")
+
+    def perform_destroy(self, instance):
+        from apps.core.models import log_action
+
+        log_action(
+            self.request.user, "followup_report_deleted",
+            period_start=str(instance.period_start), period_end=str(instance.period_end), report_id=instance.id,
+        )
+        instance.delete()
 
     def _bounds(self, request):
         serializer = GenerateFollowUpSerializer(data=request.data)
@@ -54,6 +66,7 @@ class FollowUpReportViewSet(
         return Response(preview, status=http_status.HTTP_200_OK)
 
     @action(detail=False, methods=["post"], permission_classes=[IsAudit])
+    @reject_duplicates
     def generate(self, request):
         """Freeze the period into a stored, retrievable FollowUpReport."""
         period_start, period_end, language = self._bounds(request)

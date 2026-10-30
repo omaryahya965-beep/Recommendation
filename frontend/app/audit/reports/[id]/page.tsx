@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Building2,
   CalendarClock,
@@ -30,6 +30,7 @@ import { DirBack, DirForward } from "@/components/i18n/DirIcon";
 import { StickyActionBar } from "@/components/mobile/StickyActionBar";
 import { ReportStepper, REPORT_STATUS_FAMILY } from "@/components/reports/ReportPipeline";
 import { Button, ErrorBanner } from "@/components/ui/Base";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { RecordId } from "@/components/ui/Ledger";
 import { RiskBadge } from "@/components/ui/RiskBadge";
@@ -37,12 +38,13 @@ import { StatusBadge } from "@/components/ui/StampBadge";
 import { api, ApiError, errorMessage } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { clipTitle } from "@/lib/finding";
-import { formatDate, recordCode } from "@/lib/format";
+import { formatDate, plural, recordCode } from "@/lib/format";
 import { DECISION_LABELS, REPORT_STATUS_LABELS, REPORT_TYPE_LABELS, RISK_LABELS, T, useI18n } from "@/lib/i18n";
 import { invalidateRecommendationViews, MODERATE } from "@/lib/queryPolicy";
 import type { AuditReport, ReportRecommendationItem } from "@/lib/types";
 import { useIsPhone } from "@/lib/useMediaQuery";
 import { stageForStatus } from "@/lib/workflow";
+import { useGuardedMutation } from "@/lib/useGuardedMutation";
 
 type ReportStatus = AuditReport["status"];
 
@@ -197,6 +199,8 @@ export default function ReportDetailPage() {
   const queryClient = useQueryClient();
   const phone = useIsPhone();
   const [error, setError] = useState<string | null>(null);
+  // Irreversible report moves are confirmed first (BUG-09).
+  const [confirming, setConfirming] = useState<"submit-to-department/" | "submit-to-council/" | null>(null);
 
   const { data: report, isLoading, isError, error: loadError, refetch } = useQuery({
     queryKey: ["report", id],
@@ -204,7 +208,7 @@ export default function ReportDetailPage() {
     ...MODERATE,
   });
 
-  const reportAction = useMutation({
+  const reportAction = useGuardedMutation({
     mutationFn: (path: string) => api(`/api/reports/${id}/${path}`, { method: "POST" }),
     onSuccess: () => {
       setError(null);
@@ -242,6 +246,7 @@ export default function ReportDetailPage() {
   const isDraft = report.status === "draft";
   const canSendToDepartment = isDraft && recommendations.length > 0;
   const actionable = isDraft || report.status === "under_review";
+  const notAtCouncilGate = recommendations.filter((item) => item.status !== "pending_council").length;
   const next = nextStep(report, recommendations.length);
   const NextIcon = NEXT_ICON[report.status];
   const auditor = report.created_by_detail?.full_name_ar || report.created_by_detail?.username || "—";
@@ -278,7 +283,7 @@ export default function ReportDetailPage() {
       <>
         <Button
           className="min-h-11 w-full font-bold md:w-auto"
-          onClick={() => reportAction.mutate("submit-to-department/")}
+          onClick={() => setConfirming("submit-to-department/")}
           disabled={reportAction.isPending || !canSendToDepartment}
         >
           <Send className="size-4" />
@@ -287,14 +292,22 @@ export default function ReportDetailPage() {
         {addLink}
       </>
     ) : (
-      <Button
-        className="min-h-11 w-full font-bold md:w-auto"
-        onClick={() => reportAction.mutate("submit-to-council/")}
-        disabled={reportAction.isPending}
-      >
-        <Stamp className="size-4" />
-        {T.reports.submitToCouncil}
-      </Button>
+      <>
+        <Button
+          className="min-h-11 w-full font-bold md:w-auto"
+          onClick={() => setConfirming("submit-to-council/")}
+          disabled={reportAction.isPending || !report.ready_for_council}
+          aria-describedby={report.ready_for_council ? undefined : "council-not-ready"}
+        >
+          <Stamp className="size-4" />
+          {T.reports.submitToCouncil}
+        </Button>
+        {report.ready_for_council ? null : (
+          <p id="council-not-ready" className="text-[12.5px] font-medium text-warning-dark">
+            {plural(notAtCouncilGate, T.reports.councilNotReady)}
+          </p>
+        )}
+      </>
     )
   ) : null;
 
@@ -501,6 +514,31 @@ export default function ReportDetailPage() {
       </div>
 
       {actions && phone ? <StickyActionBar>{actions}</StickyActionBar> : null}
+      <ConfirmDialog
+        open={confirming !== null}
+        title={
+          confirming === "submit-to-council/"
+            ? T.reports.confirmCouncilTitle
+            : T.reports.confirmSendTitle.replace("{dept}", report.department_name)
+        }
+        body={
+          <div className="space-y-2">
+            <p>
+              {plural(
+                recommendations.length,
+                confirming === "submit-to-council/" ? T.reports.confirmCouncilBody : T.reports.confirmSendBody
+              )}
+            </p>
+            <p className="text-[12px] text-ink-soft">{T.confirm.irreversible}</p>
+          </div>
+        }
+        confirmLabel={confirming === "submit-to-council/" ? T.reports.submitToCouncil : T.reports.submitToDepartment}
+        busy={reportAction.isPending}
+        onConfirm={() => {
+          if (confirming) reportAction.mutate(confirming, { onSettled: () => setConfirming(null) });
+        }}
+        onCancel={() => setConfirming(null)}
+      />
     </article>
   );
 }

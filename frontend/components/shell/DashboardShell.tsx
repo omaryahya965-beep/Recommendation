@@ -14,10 +14,12 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Suspense,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
   useSyncExternalStore,
+  type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from "react";
 
@@ -37,6 +39,7 @@ import {
   navItemActive,
   pageTitle,
   profileHref,
+  registerSearchHref,
   searchBase,
   settingsFor,
 } from "@/components/shell/navigation";
@@ -48,11 +51,16 @@ import type { Paginated, RecommendationListItem, Role, User } from "@/lib/types"
 
 function GlobalSearch({ role }: { role: Role }) {
   useI18n();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [debounced, setDebounced] = useState("");
+  // Highlighted result for ArrowUp/ArrowDown, tied to the query it was made
+  // for, so new results start with nothing highlighted (BUG-21).
+  const [highlight, setHighlight] = useState({ query: "", index: -1 });
   const boxRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listId = useId();
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(q.trim()), 250);
@@ -99,6 +107,39 @@ function GlobalSearch({ role }: { role: Role }) {
 
   const results = byId ? [byId] : (data?.results ?? []);
   const base = searchBase(role);
+  const total = byId ? 1 : (data?.count ?? 0);
+  const seeAllHref = query.kind !== "case" && total > results.length ? registerSearchHref(role, debounced) : null;
+
+  const active = highlight.query === debounced && highlight.index < results.length ? highlight.index : -1;
+  const setActive = (index: number) => setHighlight({ query: debounced, index });
+
+  const go = (href: string) => {
+    setOpen(false);
+    setQ("");
+    setHighlight({ query: "", index: -1 });
+    router.push(href);
+  };
+
+  const onKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      if (!results.length) return;
+      event.preventDefault();
+      setOpen(true);
+      const step = event.key === "ArrowDown" ? 1 : -1;
+      // Cycles through the results and back to the input (-1).
+      const next = active + step;
+      setActive(next < -1 ? results.length - 1 : next >= results.length ? -1 : next);
+      return;
+    }
+    if (event.key !== "Enter") return;
+    const text = q.trim();
+    if (!text) return;
+    event.preventDefault();
+    if (active >= 0 && results[active] && text === debounced) return go(`${base}/${results[active].id}`);
+    const typed = parseSearch(text);
+    if (typed.kind === "case") return go(`${base}/${typed.id}`);
+    go(registerSearchHref(role, text));
+  };
 
   return (
     <div className="relative min-w-0 flex-1 max-w-xl" ref={boxRef}>
@@ -112,6 +153,12 @@ function GlobalSearch({ role }: { role: Role }) {
           setOpen(true);
         }}
         onFocus={() => setOpen(true)}
+        onKeyDown={onKeyDown}
+        role="combobox"
+        aria-expanded={open && debounced.length >= 2}
+        aria-controls={listId}
+        aria-autocomplete="list"
+        aria-activedescendant={active >= 0 ? `${listId}-${active}` : undefined}
         placeholder={T.nav.searchPlaceholder}
         className="h-10 w-full text-ellipsis rounded-(--radius-field) border border-line bg-surface py-2 ps-10 pe-[4.5rem] text-[13px] outline-none transition-all placeholder:text-muted focus:border-primary focus:ring-2 focus:ring-primary/20 hover:border-muted/30"
         aria-label={T.nav.search}
@@ -123,16 +170,17 @@ function GlobalSearch({ role }: { role: Role }) {
         <div className="absolute z-50 mt-2 w-full overflow-hidden rounded-(--radius-panel) border border-line bg-elevated shadow-(--shadow-panel)">
           <p className="bg-subtle px-4 py-2 text-[11px] font-semibold text-ink-soft uppercase tracking-wider">{T.nav.recommendations}</p>
           {results.length ? (
-            <ul className="py-1">
-              {results.map((item) => (
-                <li key={item.id}>
+            <ul className="py-1" role="listbox" id={listId} aria-label={T.nav.recommendations}>
+              {results.map((item, index) => (
+                <li key={item.id} id={`${listId}-${index}`} role="option" aria-selected={index === active}>
                   <Link
                     href={`${base}/${item.id}`}
                     onClick={() => {
                       setOpen(false);
                       setQ("");
                     }}
-                    className="block px-4 py-3 transition-colors hover:bg-primary-light/50"
+                    onMouseEnter={() => setActive(index)}
+                    className={cn("block px-4 py-3 transition-colors hover:bg-primary-light/50", index === active && "bg-primary-light/50")}
                   >
                     <span className="flex items-center gap-2">
                       <span className="font-mono text-[11px] font-medium text-primary-dark" dir="ltr">
@@ -153,6 +201,18 @@ function GlobalSearch({ role }: { role: Role }) {
           ) : (
             <p className="px-4 py-6 text-center text-[13px] text-ink-soft">{T.empty.search}</p>
           )}
+          {seeAllHref ? (
+            <Link
+              href={seeAllHref}
+              onClick={() => {
+                setOpen(false);
+                setQ("");
+              }}
+              className="block border-t border-line px-4 py-2.5 text-center text-[12.5px] font-semibold text-primary-dark hover:bg-primary-light/50"
+            >
+              {T.nav.searchSeeAll.replace("{n}", String(total))}
+            </Link>
+          ) : null}
         </div>
       ) : null}
     </div>
@@ -163,6 +223,8 @@ interface SidebarNavProps {
   role: Role;
   pathname: string;
   collapsed: boolean;
+  /** Badges need a session; never ask the API before the session check. */
+  signedIn: boolean;
 }
 
 const NO_SEARCH_PARAMS = new URLSearchParams();
@@ -189,6 +251,7 @@ function SidebarNavView({
   role,
   pathname,
   collapsed,
+  signedIn,
   searchParams,
 }: SidebarNavProps & { searchParams: URLSearchParams }) {
   const { locale } = useI18n();
@@ -196,7 +259,7 @@ function SidebarNavView({
   // useSearchParams Suspense boundary, after the app has switched to the saved
   // locale: build the labels in the locale the hook reports for this render.
   const { groups, badgeLabel } = inLocale(locale, () => ({ groups: navFor(role), badgeLabel: T.nav.badgeLabel }));
-  const { data: counts } = useNavCounts();
+  const { data: counts } = useNavCounts(signedIn);
 
   const itemCls = (active: boolean) =>
     cn(
@@ -239,7 +302,7 @@ function SidebarNavView({
                     {/* Light on the dark sidebar: in the tablet rail the icon is the only cue. */}
                     <Icon className={cn("size-5 transition-colors", active ? "text-sidebar-text" : "text-sidebar-muted group-hover:text-sidebar-text")} />
                     {collapsed && badge ? (
-                      <span aria-hidden className="absolute -end-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-warning px-1 font-mono text-[10px] font-bold text-white">
+                      <span aria-hidden className="absolute -end-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-warning-light px-1 font-mono text-[10px] font-bold text-warning-dark">
                         {badge > 99 ? "99+" : badge}
                       </span>
                     ) : null}
@@ -250,7 +313,7 @@ function SidebarNavView({
                       {!collapsed ? (
                         <span
                           aria-hidden
-                          className="ms-auto rounded-full bg-warning/90 px-2 py-0.5 font-mono text-[11px] font-bold leading-none text-white"
+                          className="ms-auto rounded-full bg-warning-light px-2 py-0.5 font-mono text-[11px] font-bold leading-none text-warning-dark"
                           dir="ltr"
                         >
                           {badge > 99 ? "99+" : badge}
@@ -402,7 +465,7 @@ function ShellFrame({
         </div>
       </div>
       
-      <SidebarNav role={role} pathname={pathname} collapsed={collapsed} />
+      <SidebarNav role={role} pathname={pathname} collapsed={collapsed} signedIn={user !== null} />
       
       {/* Footer Zone */}
       <div className="shrink-0 border-t border-sidebar-muted/10 bg-sidebar/95 p-3">
@@ -423,7 +486,7 @@ function ShellFrame({
           {collapsed ? <span className="sr-only">{settings.label}</span> : settings.label}
         </Link>
         
-        <div className={cn("mt-2 flex items-center gap-2 rounded-lg bg-sidebar-hover/30 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]", collapsed && "justify-center p-1.5")}>
+        <div className={cn("mt-2 flex items-center gap-2 rounded-lg bg-sidebar-hover/30 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]", collapsed && "flex-col justify-center p-1.5")}>
           <Link
             href={profile}
             title={user ? user.full_name_ar || user.username : undefined}
@@ -451,17 +514,19 @@ function ShellFrame({
               </div>
             )}
           </Link>
-          {collapsed ? null : (
-            <button
-              type="button"
-              onClick={logout}
-              title={T.nav.logout}
-              aria-label={T.nav.logout}
-              className="flex size-12 shrink-0 items-center justify-center rounded-md text-sidebar-muted hover:bg-danger-dark/20 hover:text-danger-dark transition-colors"
-            >
-              <LogOut className="size-5" />
-            </button>
-          )}
+          {/* Always present: the icon rail (tablets, collapsed sidebar) has no other way out. */}
+          <button
+            type="button"
+            onClick={logout}
+            title={T.nav.logout}
+            aria-label={T.nav.logout}
+            className={cn(
+              "flex shrink-0 items-center justify-center rounded-md text-sidebar-muted hover:bg-danger-dark/20 hover:text-danger-dark transition-colors",
+              collapsed ? "size-11" : "size-12"
+            )}
+          >
+            <LogOut className="size-5" />
+          </button>
         </div>
       </div>
     </>

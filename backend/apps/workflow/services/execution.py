@@ -1,7 +1,6 @@
 """Execution: step progress, evidence, self-assessment and head review."""
 import logging
 
-from django.db import transaction as db_transaction
 
 from apps.accounts.models import User
 from apps.audits.models import Recommendation
@@ -12,9 +11,11 @@ from apps.core.uploads import claim_uploaded_file
 from apps.notifications.models import Notification
 
 from .. import guards
-from ..models import ActionStep, ApprovalRecord, Evidence
+from ..models import ActionStep, ApprovalRecord, Evidence, VerificationDecision
 from ..transitions import transition
+from .common import locked_transition
 from .notify import (
+    msg,
     _assignee,
     _audit_users,
     _department_heads,
@@ -46,7 +47,7 @@ def _resume_if_returned(recommendation, user):
         transition(recommendation, S.IN_PROGRESS, user, "execution_resumed", system=True)
 
 
-@db_transaction.atomic
+@locked_transition
 def update_step_progress(recommendation, step, user, progress_percent=None, is_done=None,
                          comments=None):
     guards.require("update_progress", recommendation, user)
@@ -93,7 +94,7 @@ def update_step_progress(recommendation, step, user, progress_percent=None, is_d
     return step
 
 
-@db_transaction.atomic
+@locked_transition
 def add_evidence(recommendation, user, file=None, step=None, notes="", stored_name=""):
     guards.require("upload_evidence", recommendation, user)
     if step is not None and step.plan.recommendation_id != recommendation.id:
@@ -130,6 +131,14 @@ def add_evidence(recommendation, user, file=None, step=None, notes="", stored_na
     return evidence
 
 
+def evidence_was_assessed(evidence):
+    """Internal Audit recorded a verification decision after this file was
+    uploaded: that decision relied on it, so it is kept (BUG-28)."""
+    return VerificationDecision.objects.filter(
+        recommendation_id=evidence.recommendation_id, created_at__gte=evidence.uploaded_at
+    ).exists()
+
+
 def evidence_delete_blocker(recommendation, user, evidence):
     """Why this user may not delete this file now, or None if they may."""
     availability = guards.check("delete_evidence", recommendation, user)
@@ -137,10 +146,12 @@ def evidence_delete_blocker(recommendation, user, evidence):
         return "evidence_delete_not_allowed"
     if user.role == User.Role.EMPLOYEE and evidence.uploaded_by_id != user.id:
         return "evidence_not_owner"
+    if evidence_was_assessed(evidence):
+        return "evidence_assessed"
     return None
 
 
-@db_transaction.atomic
+@locked_transition
 def delete_evidence(recommendation, user, evidence):
     """Remove an uploaded evidence file during implementation.
 
@@ -151,10 +162,18 @@ def delete_evidence(recommendation, user, evidence):
         raise WorkflowError(
             "This evidence does not belong to this recommendation.", code="evidence_wrong_case"
         )
+    # A concurrent request may have removed it while this one waited for the lock.
+    if not Evidence.objects.filter(pk=evidence.pk).exists():
+        raise WorkflowError("This evidence file was already removed.", code="evidence_already_deleted")
     guards.require("delete_evidence", recommendation, user)
     if user.role == User.Role.EMPLOYEE and evidence.uploaded_by_id != user.id:
         raise WorkflowError(
             "You can only remove evidence files that you uploaded.", code="evidence_not_owner"
+        )
+    if evidence_was_assessed(evidence):
+        raise WorkflowError(
+            "Internal Audit has already assessed this file; it is kept with the verification record.",
+            code="evidence_assessed",
         )
 
     file_name = evidence.file.name if evidence.file else ""
@@ -175,7 +194,7 @@ def delete_evidence(recommendation, user, evidence):
     )
 
 
-@db_transaction.atomic
+@locked_transition
 def mark_implemented(recommendation, user):
     """Employee self-assessment. NEVER closes the recommendation and NEVER
     skips the department head: it only submits implementation for the head
@@ -189,12 +208,12 @@ def mark_implemented(recommendation, user):
         _department_heads(recommendation.report.department),
         recommendation,
         Notification.Type.ACTION_REQUIRED,
-        f"تنفيذ {_rec_ref(recommendation)} بانتظار مراجعة رئيس الدائرة قبل إرساله للرقابة الداخلية.",
+        msg("head_review_needed", f"تنفيذ {_rec_ref(recommendation)} بانتظار مراجعة رئيس الدائرة قبل إرساله للرقابة الداخلية.", ref=_rec_ref(recommendation)),
     )
     return recommendation
 
 
-@db_transaction.atomic
+@locked_transition
 def review_implementation(recommendation, user, accept, notes=""):
     """Department head reviews execution and evidence, then either returns it
     to the employee or submits it to internal audit."""
@@ -215,7 +234,7 @@ def review_implementation(recommendation, user, accept, notes=""):
             _audit_users(recommendation.report.municipality),
             recommendation,
             Notification.Type.ACTION_REQUIRED,
-            f"توصية بانتظار تحقق التدقيق الداخلي من الأدلة — {_rec_ref(recommendation)}.",
+            msg("verification_needed", f"توصية بانتظار تحقق التدقيق الداخلي من الأدلة — {_rec_ref(recommendation)}.", ref=_rec_ref(recommendation)),
         )
         assignee = _assignee(recommendation)
         if assignee:
@@ -223,7 +242,7 @@ def review_implementation(recommendation, user, accept, notes=""):
                 [assignee],
                 recommendation,
                 Notification.Type.STATUS_CHANGE,
-                f"رُفع تنفيذ {_rec_ref(recommendation)} إلى التدقيق الداخلي للتحقق.",
+                msg("submitted_to_audit", f"رُفع تنفيذ {_rec_ref(recommendation)} إلى التدقيق الداخلي للتحقق.", ref=_rec_ref(recommendation)),
             )
     else:
         if not notes.strip():
@@ -231,6 +250,14 @@ def review_implementation(recommendation, user, accept, notes=""):
                 "Returning implementation to the employee requires notes.",
                 code="review_notes_required",
             )
+        # Kept as a decision record so the reason reaches the employee's
+        # task page (workflow.outstanding_request), not only the trail.
+        ApprovalRecord.objects.create(
+            recommendation=recommendation,
+            approval_type=ApprovalRecord.ApprovalType.HEAD_IMPLEMENTATION_RETURN,
+            approved_by=user,
+            notes=notes,
+        )
         transition(
             recommendation, S.IN_PROGRESS, user,
             "implementation_returned_by_head", notes=notes,
@@ -239,6 +266,6 @@ def review_implementation(recommendation, user, accept, notes=""):
             [_assignee(recommendation)],
             recommendation,
             Notification.Type.RETURNED,
-            f"أعادت الإدارة التنفيذ للمزيد من العمل على {_rec_ref(recommendation)}: {notes}",
+            msg("implementation_returned", f"أعادت الإدارة التنفيذ للمزيد من العمل على {_rec_ref(recommendation)}: {notes}", ref=_rec_ref(recommendation), notes=notes),
         )
     return recommendation

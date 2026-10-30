@@ -5,9 +5,9 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { Button, Callout } from "@/components/ui/Base";
-import { LedgerCell, LedgerTable, RecordId } from "@/components/ui/Ledger";
+import { CellText, LedgerCell, LedgerTable, RecordId } from "@/components/ui/Ledger";
 import { RiskBadge } from "@/components/ui/RiskBadge";
-import { StampBadge } from "@/components/ui/StampBadge";
+import { StatusBadge } from "@/components/ui/StampBadge";
 import { loadAuth } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { caseTitle } from "@/lib/finding";
@@ -123,6 +123,9 @@ function CaseTable({
         T.followup.statusAsOf,
         showDeadline ? T.followup.deadlineCol : T.common.date,
       ]}
+      // Fits a 1024 px screen; narrower, the table scrolls inside its card.
+      widths={["7rem", undefined, "8rem", "7.5rem", "10rem", "10.5rem"]}
+      minWidth="52rem"
       empty={T.followup.nothing}
     >
       {items.map((item) => {
@@ -134,32 +137,34 @@ function CaseTable({
                 <RecordId id={item.id} />
               </Link>
             </LedgerCell>
-            <LedgerCell className="max-w-md">
-              <Link href={href} className="block font-medium text-ink hover:text-primary-dark hover:underline">
-                <span className="line-clamp-2">{itemTitle(item)}</span>
+            <LedgerCell>
+              <Link href={href} className="block min-w-0 font-medium text-ink hover:text-primary-dark hover:underline">
+                <CellText text={itemTitle(item)} />
               </Link>
-              {item.responsible ? <span className="mt-0.5 block text-[12px] text-muted">{item.responsible}</span> : null}
+              {item.responsible ? <CellText text={item.responsible} className="mt-0.5 text-[12px] text-muted" /> : null}
             </LedgerCell>
-            <LedgerCell>{item.department}</LedgerCell>
+            <LedgerCell>
+              <CellText text={item.department} lines={2} />
+            </LedgerCell>
             <LedgerCell>
               <RiskBadge level={item.risk_level} />
             </LedgerCell>
             <LedgerCell>
               {item.status_label ? (
-                <span className="text-[13px] font-semibold text-navy">{item.status_label}</span>
+                <CellText text={item.status_label} lines={2} className="text-[13px] font-semibold text-navy" />
               ) : (
-                <StampBadge status={item.status} />
+                <StatusBadge status={item.status} wrap />
               )}
             </LedgerCell>
             <LedgerCell mono>
               {showDeadline ? (
                 <span className="flex flex-col gap-1">
                   {/* Only a deadline that binds the department; none while it waits on audit/council. */}
-                  <time className="font-mono text-ink-soft" dir="ltr">
+                  <time className="whitespace-nowrap font-mono text-ink-soft" dir="ltr">
                     {formatDate(legacy ? item.target_date : (item.deadline ?? null))}
                   </time>
                   {item.overdue ? (
-                    <span className="inline-flex w-fit items-center gap-1 rounded-full bg-danger-light px-2 py-0.5 text-[11.5px] font-bold text-danger-dark">
+                    <span className="inline-flex w-fit items-center gap-1 whitespace-nowrap rounded-full bg-danger-light px-2 py-0.5 text-[11.5px] font-bold text-danger-dark">
                       <AlertTriangle className="size-3" aria-hidden />
                       {T.followup.daysLate.replace("{days}", dayCount(item.days_overdue ?? 0, "accusative"))}
                     </span>
@@ -267,7 +272,7 @@ export function FollowUpReportView({
             <p className="inline-flex items-center gap-2 text-[14px] font-bold text-navy">
               <CalendarRange className="size-4 text-muted" aria-hidden />
               {T.followup.period}:
-              <span className="font-mono" dir="ltr">
+              <span className="font-mono">
                 {formatDate(periodStart)} — {formatDate(periodEnd)}
               </span>
             </p>
@@ -374,11 +379,15 @@ export function FollowUpReportView({
               T.followup.colMedianDays,
               T.followup.colExecutionRate,
             ]}
+            widths={[undefined, "5rem", "5rem", "5rem", "5rem", "5rem", "5rem", "5rem"]}
+            minWidth="43rem"
             empty={T.followup.nothing}
           >
             {snapshot.departments.map((row) => (
               <tr key={row.department} className="hover:bg-subtle/60">
-                <LedgerCell className="font-semibold text-ink">{row.name}</LedgerCell>
+                <LedgerCell className="font-semibold text-ink">
+                  <CellText text={row.name} lines={2} />
+                </LedgerCell>
                 <LedgerCell mono>{row.total}</LedgerCell>
                 <LedgerCell mono>{row.open}</LedgerCell>
                 <LedgerCell mono>{row.closed_in_period}</LedgerCell>

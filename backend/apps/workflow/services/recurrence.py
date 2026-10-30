@@ -1,20 +1,25 @@
 """Recurrence confirmation (human-in-the-loop)."""
-from django.db import transaction as db_transaction
 
 from apps.audits.models import Recommendation
 from apps.core.exceptions import WorkflowError
 from apps.core.models import log_action
 
+from .common import locked_transition
+
 
 S = Recommendation.Status
 
 
-@db_transaction.atomic
+@locked_transition
 def confirm_recurrence(recommendation, user, confirmed):
     if not recommendation.is_recurring:
         raise WorkflowError(
             "This recommendation is not flagged as possibly recurring.",
             code="not_flagged_recurring",
+        )
+    if recommendation.recurrence_confirmed:
+        raise WorkflowError(
+            "This recurrence was already confirmed.", code="recurrence_already_reviewed"
         )
     recommendation.recurrence_confirmed = confirmed
     if not confirmed:

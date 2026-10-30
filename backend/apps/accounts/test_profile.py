@@ -47,7 +47,9 @@ class ProfileUpdateTests(TestCase):
             },
             format="json",
         )
-        self.assertEqual(response.status_code, 204)
+        # 200 with a fresh token pair: other sessions are revoked (BUG-17).
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("refresh", response.json())
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password("NewPass@456"))
 

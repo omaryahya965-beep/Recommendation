@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+from apps.core.refs import record_code
 
 EMAIL = re.compile(r"\b[\w.+-]+@[\w-]+\.[\w.-]+\b")
 PHONE = re.compile(r"\b(?:\+?\d[\d\s\-()]{7,}\d)\b")
@@ -21,7 +22,7 @@ def recommendation_public_facts(rec) -> dict:
     plan = getattr(rec, "action_plan", None)
     return {
         "id": rec.id,
-        "reference": f"REC-{rec.id}",
+        "reference": record_code(rec.id),
         "status": rec.status,
         "risk_level": rec.risk_level,
         "priority_score": rec.priority_score,

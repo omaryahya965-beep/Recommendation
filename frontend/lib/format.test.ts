@@ -94,3 +94,20 @@ describe("counted phrases follow the plural rules", () => {
     setLocale("ar");
   });
 });
+
+describe("date-only values (external QA)", () => {
+  it("reads YYYY-MM-DD as that calendar day in local time, not UTC midnight", async () => {
+    const { parseDate } = await import("./format");
+    const d = parseDate("2026-11-05");
+    expect([d.getFullYear(), d.getMonth(), d.getDate(), d.getHours()]).toEqual([2026, 10, 5, 0]);
+    expect(parseDate("2026-11-05T10:00:00Z").toISOString()).toBe("2026-11-05T10:00:00.000Z");
+  });
+
+  it("counts days to a date-only deadline from the local calendar", async () => {
+    const { daysUntil, localISODate } = await import("./format");
+    const today = new Date();
+    const inThree = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 3);
+    expect(daysUntil(localISODate(today))).toBe(0);
+    expect(daysUntil(localISODate(inThree))).toBe(3);
+  });
+});

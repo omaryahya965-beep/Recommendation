@@ -70,7 +70,7 @@ export function MobileRecordCard({
           {status ? <StatusBadge status={status} /> : null}
           {risk ? <RiskBadge level={risk} /> : null}
         </div>
-        <h3 className="mt-3 font-heading text-[16px] font-semibold leading-snug text-navy"><bdi>{title}</bdi></h3>
+        <h3 className="mt-3 line-clamp-3 font-heading text-[16px] font-semibold leading-snug text-navy [overflow-wrap:anywhere]" title={title}><bdi>{title}</bdi></h3>
         <dl className="mt-3 grid gap-2 text-[14px]">
           {department ? (
             <div className="min-w-0">

@@ -113,3 +113,62 @@ describe("register queues", () => {
     expect(params.get("status__in")).toBe("audit_review,action_plan_review,submitted_for_verification,closure_review");
   });
 });
+
+describe("notificationText (BUG-16)", () => {
+  const base = {
+    id: 1, recommendation: 7, report: null, recommendation_text: null, department_name: null, report_title: null,
+    type: "returned", is_read: false, sent_at: "2026-10-27T00:00:00Z",
+  };
+
+  it("renders the key in the current language with its parameters", async () => {
+    const { notificationText } = await import("./notifications");
+    const { setLocale } = await import("./i18n/store");
+    const item = { ...base, message: "أعادت الإدارة التنفيذ للمزيد من العمل على REC-0007: sign it", message_key: "implementation_returned", message_params: { ref: "REC-0007", notes: "sign it" } };
+    setLocale("en");
+    expect(notificationText(item as never)).toBe("The department returned the implementation of REC-0007 for more work: sign it");
+    setLocale("ar");
+    expect(notificationText(item as never)).toBe("أعادت الإدارة التنفيذ للمزيد من العمل على REC-0007: sign it");
+  });
+
+  it("uses real counts and days", async () => {
+    const { notificationText } = await import("./notifications");
+    const { setLocale } = await import("./i18n/store");
+    setLocale("en");
+    const report = { ...base, message: "x", message_key: "report_ratification_needed", message_params: { title: "Cash audit", count: 3 } };
+    expect(notificationText(report as never)).toBe("Report awaiting Council ratification: Cash audit (3 recommendations).");
+    const reminder = { ...base, message: "x", message_key: "reminder", message_params: { ref: "REC-0007", title: "T", anchor: "plan", days: -60, deadline: "2026-12-26" } };
+    expect(notificationText(reminder as never)).toContain("60 days left");
+    setLocale("ar");
+  });
+
+  it("states the real interval for every reminder offset and anchor, in both languages (round 2)", async () => {
+    const { notificationText } = await import("./notifications");
+    const { setLocale } = await import("./i18n/store");
+    const { plural } = await import("./format");
+    const { T: EN } = await import("./i18n/en");
+    const { T: AR } = await import("./i18n/ar");
+    for (const anchor of ["plan", "verification", "response"] as const) {
+      for (const days of [-14, -7, -5, -3, -1, 0, 1, 3, 7, 14]) {
+        const item = { ...base, message: "x", message_key: "reminder", message_params: { ref: "REC-0007", title: "T", anchor, days, deadline: "2031-06-15" } };
+        for (const [locale, T] of [["en", EN], ["ar", AR]] as const) {
+          setLocale(locale);
+          const text = notificationText(item as never);
+          expect(text, `${locale} ${anchor} ${days}`).toContain(T.notify.messages.reminderWhat[anchor]);
+          expect(text).toContain(locale === "en" ? "15 June 2031" : "15 يونيو 2031");
+          if (days === 0) expect(text.startsWith(T.notify.messages.reminderToday.split("{")[0])).toBe(true);
+          else {
+            expect(text).toContain(plural(Math.abs(days), T.notify.messages.days));
+            const lead = (days < 0 ? T.notify.messages.reminderBefore : T.notify.messages.reminderAfter).split("{")[0];
+            expect(text.startsWith(lead), `${locale} ${days}`).toBe(true);
+          }
+        }
+      }
+    }
+    setLocale("ar");
+  });
+
+  it("falls back to the stored text for older rows", async () => {
+    const { notificationText } = await import("./notifications");
+    expect(notificationText({ ...base, message: "رسالة قديمة" } as never)).toBe("رسالة قديمة");
+  });
+});

@@ -117,6 +117,8 @@ export interface WorkflowBlock {
     | { id: "submit_report_to_department" | "submit_report_to_council" | "ratify_report"; report: number }
     | null;
   combined_closure_available: boolean;
+  /** The latest decision that sent the work back, while it applies (server-computed). */
+  outstanding_request?: OutstandingRequest | null;
 }
 
 export interface RecommendationListItem {
@@ -189,7 +191,9 @@ export interface ManagementResponse {
   id: number;
   decision: "agree" | "disagree";
   justification: string;
+  /** Authorization-checked endpoint for the supporting document (never a storage URL). */
   attachment: string | null;
+  attachment_name?: string | null;
   submitted_by_detail: User;
   review_status: "pending" | "accepted" | "rejected";
   audit_review_notes: string;
@@ -306,6 +310,9 @@ export interface Department {
 
 export interface AppNotification {
   id: number;
+  /** Locale-neutral message (BUG-16); empty on older rows, which use `message`. */
+  message_key?: string;
+  message_params?: Record<string, unknown>;
   recommendation: number | null;
   /** Report-level events: one notification per report. */
   report?: number | null;
@@ -609,4 +616,16 @@ export interface TaskFacts {
   steps_done: number;
   steps_total: number;
   evidence: number;
+}
+
+export interface OutstandingRequest {
+  source: "audit" | "head" | "council";
+  decision: string;
+  by: string | null;
+  at: string;
+  notes: string;
+  rejected_items: string;
+  rejection_reason: string;
+  required_action: string;
+  action_deadline: string | null;
 }

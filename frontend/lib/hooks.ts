@@ -1,6 +1,6 @@
 "use client";
 
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { api, ApiError, errorMessage } from "./api";
@@ -15,6 +15,7 @@ import type {
   User,
   WorkflowPolicy,
 } from "./types";
+import { useGuardedMutation } from "./useGuardedMutation";
 
 function recommendationQuery(id: number) {
   return {
@@ -93,7 +94,7 @@ export function useWorkflowAction(id: number) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const mutation = useMutation({
+  const mutation = useGuardedMutation({
     mutationFn: ({ path, body, formData }: WorkflowActionInput) =>
       api(`/api/recommendations/${id}/${path}`, { method: "POST", body, formData }),
     onSuccess: (_data, variables) => {
@@ -212,7 +213,7 @@ function markReadInCache(queryClient: ReturnType<typeof useQueryClient>, id: num
 
 export function useMarkNotificationRead() {
   const queryClient = useQueryClient();
-  return useMutation({
+  return useGuardedMutation({
     mutationFn: (id: number) => api(`/api/notifications/${id}/mark-read/`, { method: "POST" }),
     onMutate: (id) => markReadInCache(queryClient, id),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
@@ -221,7 +222,7 @@ export function useMarkNotificationRead() {
 
 export function useMarkAllNotificationsRead() {
   const queryClient = useQueryClient();
-  return useMutation({
+  return useGuardedMutation({
     mutationFn: () => api("/api/notifications/mark-all-read/", { method: "POST" }),
     onMutate: () => markReadInCache(queryClient, "all"),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
@@ -230,7 +231,7 @@ export function useMarkAllNotificationsRead() {
 
 export function useDeleteNotification() {
   const queryClient = useQueryClient();
-  return useMutation({
+  return useGuardedMutation({
     mutationFn: (id: number) => api(`/api/notifications/${id}/`, { method: "DELETE" }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
   });

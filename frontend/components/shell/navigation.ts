@@ -217,6 +217,19 @@ export function searchBase(role: Role) {
   return "/council/recommendations";
 }
 
+/** The role's register, where a search can show every match (BUG-21). */
+export function registerSearchHref(role: Role, text: string) {
+  const register =
+    role === "audit"
+      ? "/audit/recommendations"
+      : role === "department_head"
+        ? "/department/recommendations"
+        : role === "employee"
+          ? "/employee/recommendations"
+          : "/council/recommendations";
+  return `${register}?search=${encodeURIComponent(text.trim())}`;
+}
+
 export function splitHref(href: string) {
   const q = href.indexOf("?");
   if (q === -1) return { path: href, params: new URLSearchParams() };

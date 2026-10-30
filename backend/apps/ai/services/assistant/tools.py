@@ -17,6 +17,9 @@ from apps.audits.serializers import is_overdue
 from apps.core.permissions import scope_recommendations, scope_reports
 from apps.followup.models import FollowUpReport
 from apps.workflow.models import VerificationDecision
+from apps.core.refs import record_code
+
+from .validation import plan_progress
 
 logger = logging.getLogger("apps.ai")
 
@@ -60,7 +63,7 @@ def _brief(rec) -> dict:
         days_overdue = (timezone.localdate() - plan.target_date).days
     return {
         "id": rec.id,
-        "reference": f"REC-{rec.id}",
+        "reference": record_code(rec.id),
         "title": _display_title(rec.text),
         "text": (rec.text or "")[:240],
         "status": rec.status,
@@ -68,6 +71,10 @@ def _brief(rec) -> dict:
         "department": rec.report.department.name,
         "overdue": overdue,
         "has_plan": plan is not None,
+        # Round 2, 2.4: the facts the answer is checked against, from the database.
+        "plan_status": plan.status if plan else None,
+        "plan_progress": plan_progress(plan) if plan else None,
+        "deadline": str(getattr(rec, "binding_deadline", None) or "") or None,
         "days_overdue": days_overdue,
         "is_recurring": rec.is_recurring,
         "recurrence_confirmed": rec.recurrence_confirmed,
@@ -142,14 +149,26 @@ def tool_get_department_statistics(user, department: str = ""):
     }
 
 
+def _issued(user):
+    """The population every dashboard figure counts: no audit drafts (BUG-27)."""
+    return _qs(user).exclude(status=S.DRAFT)
+
+
+def _overdue(qs, today):
+    # Same rule as the dashboards: the binding deadline, while the department owns the next step.
+    from apps.workflow.presentation import overdue_q
+
+    return qs.filter(overdue_q(today)).order_by("binding_deadline")
+
+
 def tool_get_overdue_recommendations(user):
-    today = timezone.localdate()
-    qs = _qs(user).filter(status__in=ACTIVE, action_plan__target_date__lt=today)
-    return [_brief(r) for r in qs.order_by("action_plan__target_date")[:20]]
+    qs = _overdue(_issued(user), timezone.localdate())
+    return [_brief(r) for r in qs[:20]]
 
 
 def tool_get_recurring_findings(user):
-    qs = _qs(user).filter(is_recurring=True)
+    # "Recurring" on the dashboards means a recurrence a human confirmed.
+    qs = _issued(user).filter(is_recurring=True, recurrence_confirmed=True)
     return [_brief(r) for r in qs[:20]]
 
 
@@ -159,16 +178,17 @@ def tool_get_action_plan_status(user, rec_id: int):
         return {"error": "not_found_or_unauthorized"}
     plan = getattr(rec, "action_plan", None)
     if plan is None:
-        return {"reference": f"REC-{rec.id}", "has_plan": False}
+        return {"reference": record_code(rec.id), "has_plan": False}
     steps = list(plan.steps.all())
     return {
-        "reference": f"REC-{rec.id}",
+        "reference": record_code(rec.id),
         "has_plan": True,
         "plan_status": plan.status,
         "target_date": str(plan.target_date),
         "revision_count": plan.revision_count,
         "steps_total": len(steps),
         "steps_done": sum(1 for s in steps if s.is_done),
+        "progress_percent": plan_progress(plan),
         "step_titles": [s.title for s in steps[:12]],
     }
 
@@ -180,7 +200,7 @@ def tool_get_evidence_status(user, rec_id: int):
     files = rec.evidence_files.all()
     latest_v = rec.verifications.order_by("-created_at").first()
     return {
-        "reference": f"REC-{rec.id}",
+        "reference": record_code(rec.id),
         "evidence_count": files.count(),
         "latest_verification": latest_v.decision if latest_v else None,
         "insufficient_count": rec.verifications.filter(
@@ -195,7 +215,7 @@ def tool_get_audit_history(user, rec_id: int):
         return {"error": "not_found_or_unauthorized"}
     entries = rec.trail_entries.select_related("user").order_by("-created_at")[:15]
     return {
-        "reference": f"REC-{rec.id}",
+        "reference": record_code(rec.id),
         "actions": [
             {"action": e.action, "at": e.created_at.isoformat(), "role": e.user.role}
             for e in entries
@@ -207,12 +227,22 @@ def tool_get_followup_reports(user):
     if user.role == "employee":
         return {"error": "not_authorized"}
     qs = FollowUpReport.objects.filter(municipality=user.municipality).order_by("-created_at")[:5]
+
+    def totals(report):
+        # Same visibility as the follow-up API (S10/S11): a department head's
+        # figures cover their own department only.
+        if user.role == "department_head":
+            from apps.followup.services import department_view
+
+            return department_view(report.snapshot or {}, user.department).get("totals")
+        return (report.snapshot or {}).get("totals")
+
     return [
         {
             "id": r.id,
             "period_start": str(r.period_start),
             "period_end": str(r.period_end),
-            "totals": (r.snapshot or {}).get("totals"),
+            "totals": totals(r),
         }
         for r in qs
     ]
@@ -241,10 +271,11 @@ def _bucket(qs, limit=12) -> dict:
 
 
 def tool_get_portfolio(user):
-    qs = _qs(user)
+    drafts = _qs(user).filter(status=S.DRAFT).count()
+    qs = _issued(user)
     today = timezone.localdate()
     until = today + timedelta(days=14)
-    overdue_qs = qs.filter(status__in=ACTIVE, action_plan__target_date__lt=today)
+    overdue_qs = _overdue(qs, today)
     approaching_qs = qs.filter(
         status__in=ACTIVE,
         action_plan__target_date__gte=today,
@@ -257,12 +288,14 @@ def tool_get_portfolio(user):
     )
     return {
         "total": qs.count(),
+        # Audit drafts are not issued and are not in any figure above or below.
+        "drafts": drafts,
         "by_status": {row["status"]: row["c"] for row in status_rows},
         "by_risk": {row["risk_level"]: row["c"] for row in risk_rows},
-        "overdue": _bucket(overdue_qs.order_by("action_plan__target_date")),
+        "overdue": _bucket(overdue_qs),
         "approaching_deadline": _bucket(approaching_qs.order_by("action_plan__target_date")),
         "high_risk_open": _bucket(
-            qs.filter(risk_level=Recommendation.RiskLevel.HIGH).exclude(status__in=(S.CLOSED,))
+            qs.filter(risk_level=Recommendation.RiskLevel.HIGH, status__in=OPEN)
         ),
         "awaiting_verification": _bucket(qs.filter(status=S.SUBMITTED_FOR_VERIFICATION)),
         "pending_response": _bucket(
@@ -283,7 +316,7 @@ def tool_get_portfolio(user):
             qs.filter(status__in=(S.PENDING_COUNCIL, S.PENDING_CLOSURE_COUNCIL))
         ),
         "closure_review": _bucket(qs.filter(status=S.CLOSURE_REVIEW)),
-        "recurring": _bucket(qs.filter(is_recurring=True)),
+        "recurring": _bucket(qs.filter(is_recurring=True, recurrence_confirmed=True)),
         "insufficient_evidence": _bucket(
             qs.filter(verifications__decision=VerificationDecision.Decision.INSUFFICIENT).distinct()
         ),

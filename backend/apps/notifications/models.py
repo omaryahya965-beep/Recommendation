@@ -72,6 +72,11 @@ class Notification(models.Model):
     )
     type = models.CharField(max_length=30, choices=Type.choices)
     message = models.TextField(blank=True)
+    # Locale-neutral form of `message` (BUG-16): the UI renders the key's
+    # template in the reader's language with these parameters. Empty on rows
+    # written before this existed; the UI then shows `message`.
+    message_key = models.CharField(max_length=60, blank=True, default="")
+    message_params = models.JSONField(default=dict, blank=True)
     # Idempotency guard: reminder jobs write a deterministic key per
     # (rule, recommendation, user, date) so re-running a job can never
     # produce duplicate notifications. NULL for ad-hoc notifications.

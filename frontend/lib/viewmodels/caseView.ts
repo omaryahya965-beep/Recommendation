@@ -5,7 +5,7 @@
  * arranges what the server said for people to read.
  */
 import { STAGE_IDS, STATUS_STAGE } from "../contract";
-import { planProgress } from "../case";
+import { latestVerification, planProgress } from "../case";
 import type {
   CaseActionId,
   RecommendationDetail,
@@ -132,12 +132,10 @@ export function casePeople(rec: RecommendationDetail): CasePerson[] {
     if (name) people.push({ key: `${part}-${user?.id ?? name}`, name, part });
   };
   const approval = (type: string) => rec.approvals?.find((item) => item.approval_type === type);
-  const verifications = rec.verifications ?? [];
   add("responsible", rec.action_plan?.responsible_employee_detail);
   add("respondent", rec.response?.submitted_by_detail);
   add("ratifier", approval("council_ratification")?.approved_by_detail);
-  // Oldest first from the API: the latest decision is the last one.
-  add("verifier", verifications[verifications.length - 1]?.reviewed_by_detail);
+  add("verifier", latestVerification(rec)?.reviewed_by_detail);
   add("closer", approval("closure_council")?.approved_by_detail);
   return people;
 }
@@ -236,7 +234,6 @@ export interface SectionFacts {
 
 export function sectionFacts(rec: RecommendationDetail): SectionFacts {
   const steps = rec.action_plan?.steps ?? [];
-  const verifications = rec.verifications ?? [];
   return {
     responseDecision: rec.response?.decision ?? null,
     responseReview: rec.response?.review_status ?? null,
@@ -244,7 +241,7 @@ export function sectionFacts(rec: RecommendationDetail): SectionFacts {
     stepsTotal: steps.length,
     progress: planProgress(rec.action_plan),
     files: rec.evidence_files?.length ?? 0,
-    latestVerification: verifications[verifications.length - 1]?.decision ?? null,
+    latestVerification: latestVerification(rec)?.decision ?? null,
     decisions: rec.approvals?.length ?? 0,
     events: rec.trail?.length ?? 0,
   };

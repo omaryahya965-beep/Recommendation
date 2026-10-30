@@ -25,10 +25,16 @@ from apps.audits.models import AuditReport, Recommendation
 from apps.audits.serializers import is_overdue
 from apps.core.permissions import scope_recommendations, scope_reports
 from apps.followup.models import FollowUpReport
+from apps.core.refs import parse_reference, record_code
 
 S = Recommendation.Status
 OPEN = [s for s, _ in S.choices if s not in (S.CLOSED, S.DRAFT)]
 
+
+def _canonical_ref(value):
+    """REC-16, rec16 or 16 from the model → REC-0016, the one written form."""
+    ref = parse_reference(str(value))
+    return record_code(ref[1], "REC" if ref[0] == "case" else "RPT") if ref else str(value)
 
 def _scoped_recs(user):
     from apps.workflow.presentation import annotate_workflow
@@ -70,7 +76,7 @@ def _stats_from_qs(qs):
                 themes[token] = themes.get(token, 0) + 1
         items.append({
             "id": rec.id,
-            "reference": f"REC-{rec.id}",
+            "reference": record_code(rec.id),
             "status": rec.status,
             "department": dept,
             "risk_level": rec.risk_level,
@@ -144,7 +150,7 @@ def _case_summary(rec, language: str) -> tuple[str, list[str], dict]:
     required_action = sections.get("required_action", "")
     title = case_title(rec.text)
     overdue = is_overdue(rec)
-    heading = f"ملخص REC-{rec.id}" if ar else f"Summary — REC-{rec.id}"
+    heading = f"ملخص {record_code(rec.id)}" if ar else f"Summary — {record_code(rec.id)}"
     placeholder = is_repeated_placeholder(rec.text)
 
     if ar:
@@ -177,7 +183,7 @@ def _case_summary(rec, language: str) -> tuple[str, list[str], dict]:
         parts.append(f"Required now: {next_action(rec.status, language)}")
 
     highlights = [
-        f"REC-{rec.id} — {title}",
+        f"{record_code(rec.id)} — {title}",
         rec.report.department.name,
         status_label(rec.status, language),
         f"{('خطورة' if ar else 'Risk')}: {risk_label(rec.risk_level, language)}",
@@ -189,14 +195,14 @@ def _case_summary(rec, language: str) -> tuple[str, list[str], dict]:
         "open": 0 if rec.status == S.CLOSED else 1,
         "overdue": 1 if overdue else 0,
         "scope": "recommendation",
-        "reference": f"REC-{rec.id}",
+        "reference": record_code(rec.id),
         "title": title,
         "department": rec.report.department.name,
         "status": rec.status,
         "risk_level": rec.risk_level,
         "facts": recommendation_public_facts(rec),
         "focus_text": scrub_text(rec.text, 800),
-        "items": [{"id": rec.id, "reference": f"REC-{rec.id}", "status": rec.status, "department": rec.report.department.name}],
+        "items": [{"id": rec.id, "reference": record_code(rec.id), "status": rec.status, "department": rec.report.department.name}],
     }
     return " ".join(parts).strip(), highlights, stats
 
@@ -284,7 +290,7 @@ def generate_summary(user, payload: dict, language: str = "ar") -> AIAnalysis:
                 "theme_hints": {},
                 "top_theme": None,
                 "items": [
-                    {"id": i.get("id"), "reference": f"REC-{i.get('id')}", "status": i.get("status"),
+                    {"id": i.get("id"), "reference": record_code(i["id"]) if i.get("id") else "", "status": i.get("status"),
                      "department": i.get("department"), "overdue": i.get("overdue")}
                     for i in (snap.get("items") or [])[:80]
                 ],
@@ -430,7 +436,7 @@ def generate_summary(user, payload: dict, language: str = "ar") -> AIAnalysis:
     llm_out["limitations"] = []
 
     # Filter out hallucinated source IDs
-    allowed_ids = {f"REC-{item['id']}" for item in stats.get("items") or [] if item.get("id")}
+    allowed_ids = {record_code(item['id']) for item in stats.get("items") or [] if item.get("id")}
     if scope == "recommendation" and stats.get("reference"):
         allowed_ids.add(stats["reference"])
 
@@ -440,7 +446,9 @@ def generate_summary(user, payload: dict, language: str = "ar") -> AIAnalysis:
             for idx in range(len(items_list)):
                 item = items_list[idx]
                 if isinstance(item, dict) and "source_ids" in item:
-                    item["source_ids"] = [sid for sid in item["source_ids"] if sid in allowed_ids]
+                    item["source_ids"] = [
+                        ref for ref in (_canonical_ref(sid) for sid in item["source_ids"]) if ref in allowed_ids
+                    ]
 
     llm_out["language"] = lang
     llm_out["provider"] = meta["provider"]

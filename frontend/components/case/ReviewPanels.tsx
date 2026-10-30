@@ -10,6 +10,8 @@ import type { WorkflowAction } from "@/lib/hooks";
 import { DECISION_LABELS, T, useI18n } from "@/lib/i18n";
 import type { RecommendationDetail } from "@/lib/types";
 import { cn } from "@/lib/cn";
+import { NOTE_MAX } from "@/lib/limits";
+import { ProtectedFileLink } from "@/components/evidence/ProtectedFileLink";
 
 /**
  * Every accept/reject step in the backend uses the same `{ accept, notes }`
@@ -70,7 +72,7 @@ export function DecisionPanel({
       <div className={cn("space-y-4", children ? "mt-5 border-t border-line pt-5" : "mt-1")}>
         <p className="font-heading text-sm font-bold text-navy uppercase tracking-wider">{T.case.officialDecision}</p>
         <Field label={notesLabel ?? T.common.notes}>
-          <TextArea rows={4} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder={notesHint} />
+          <TextArea maxLength={NOTE_MAX} rows={4} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder={notesHint} />
         </Field>
 
         <ErrorBanner message={localError ?? action.error} />
@@ -149,14 +151,13 @@ export function ResponseComparison({ rec }: { rec: RecommendationDetail }) {
               {response.justification || T.common.none}
             </p>
             {response.attachment ? (
-              <a
-                href={response.attachment}
-                target="_blank"
-                rel="noreferrer"
+              <ProtectedFileLink
+                url={response.attachment}
+                fileName={response.attachment_name ?? "attachment"}
                 className="inline-flex items-center gap-1.5 rounded bg-surface border border-line px-3 py-1.5 text-xs font-bold text-primary-dark hover:border-primary/45 transition-colors shadow-sm"
               >
                 {T.evidenceRegister.supporting}
-              </a>
+              </ProtectedFileLink>
             ) : null}
             <dl className="grid grid-cols-1 gap-3 text-xs sm:grid-cols-2 bg-surface/50 border border-line rounded-lg p-2.5">
               {proposed ? (

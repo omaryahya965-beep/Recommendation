@@ -24,6 +24,8 @@ import { DECISION_LABELS, REVIEW_STATUS_LABELS, T, useI18n } from "@/lib/i18n";
 import type { RecommendationDetail } from "@/lib/types";
 import { prepareFileSubmission } from "@/lib/upload";
 import { useUnsavedChanges } from "@/lib/useUnsavedChanges";
+import { NOTE_MAX } from "@/lib/limits";
+import { ProtectedFileLink } from "@/components/evidence/ProtectedFileLink";
 
 const REVIEW_TONE = {
   pending: "info",
@@ -108,15 +110,14 @@ export function ResponseRecord({
         )}
 
         {response.attachment ? (
-          <a
-            href={response.attachment}
-            target="_blank"
-            rel="noreferrer"
+          <ProtectedFileLink
+            url={response.attachment}
+            fileName={response.attachment_name ?? "attachment"}
             className="mt-4 inline-flex items-center gap-2 rounded-lg border border-line bg-subtle px-4 py-2.5 text-[13.5px] font-bold text-primary-dark hover:border-primary/45 transition-colors shadow-sm"
           >
             <Paperclip className="size-4 shrink-0" />
             {T.evidenceRegister.supporting}
-          </a>
+          </ProtectedFileLink>
         ) : null}
 
         <dl className="mt-5 grid grid-cols-1 gap-4 border-t border-line pt-5 bg-subtle/30 rounded-xl p-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -262,7 +263,7 @@ export function RespondForm({
         </fieldset>
 
         <Field label={T.response.notes}>
-          <TextArea
+          <TextArea maxLength={NOTE_MAX}
             rows={6}
             value={justification}
             onChange={(event) => setJustification(event.target.value)}
@@ -274,7 +275,11 @@ export function RespondForm({
         <FilePicker
           label={`${T.response.attachment}${needsAttachment ? " *" : ""}`}
           file={attachment}
-          onChange={setAttachment}
+          onChange={(next) => {
+            setAttachment(next);
+            setLocalError(null);
+            action.clearError();
+          }}
           required={needsAttachment}
           hint={needsAttachment ? T.response.attachmentRequired : T.evidenceRegister.allowedTypes}
           className="max-w-md"

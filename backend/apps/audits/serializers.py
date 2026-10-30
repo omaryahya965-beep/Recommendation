@@ -1,3 +1,6 @@
+from datetime import timedelta
+
+from django.utils import timezone
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
@@ -9,6 +12,8 @@ from apps.workflow.serializers import (
     ManagementResponseSerializer,
     VerificationDecisionSerializer,
 )
+
+from apps.core.limits import NOTE_MAX, RECOMMENDATION_TEXT_MAX
 
 from .finding import brief_excerpt, case_title
 from .models import AuditReport, Recommendation
@@ -208,6 +213,10 @@ class RecommendationCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Recommendation
         fields = ["id", "report", "text", "root_cause", "risk_level", "priority_score"]
+        extra_kwargs = {
+            "text": {"max_length": RECOMMENDATION_TEXT_MAX},
+            "root_cause": {"max_length": NOTE_MAX},
+        }
 
     def validate_text(self, value):
         if not (value or "").strip():
@@ -235,6 +244,10 @@ class RecommendationUpdateSerializer(serializers.ModelSerializer):
         model = Recommendation
         fields = ["id", "text", "root_cause", "risk_level", "priority_score"]
         read_only_fields = ["id"]
+        extra_kwargs = {
+            "text": {"max_length": RECOMMENDATION_TEXT_MAX},
+            "root_cause": {"max_length": NOTE_MAX},
+        }
 
     def validate_text(self, value):
         if not (value or "").strip():
@@ -286,6 +299,18 @@ class AuditReportSerializer(serializers.ModelSerializer):
             total = report.recommendations.count()
             gate = report.recommendations.filter(status=Recommendation.Status.PENDING_COUNCIL).count()
         return total > 0 and gate == total
+
+    def validate_response_deadline(self, value):
+        """Not before today, and within two years. An unchanged existing value
+        is accepted, so old reports stay editable."""
+        if value is None or (self.instance is not None and value == self.instance.response_deadline):
+            return value
+        today = timezone.localdate()
+        if value < today:
+            raise serializers.ValidationError("The response deadline cannot be in the past.", code="date_in_past")
+        if value > today + timedelta(days=730):
+            raise serializers.ValidationError("The response deadline is too far in the future.", code="date_too_far")
+        return value
 
     def validate_department(self, department):
         user = self.context["request"].user

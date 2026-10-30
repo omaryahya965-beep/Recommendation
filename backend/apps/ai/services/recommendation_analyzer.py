@@ -30,6 +30,7 @@ from apps.audits.finding import (
     semantic_payload,
 )
 from apps.audits.models import Recommendation
+from apps.core.refs import record_code
 
 ANALYSIS_VERSION = "analysis_v3"
 
@@ -277,14 +278,14 @@ def local_recommendation_analysis(rec, language: str) -> dict:
     found = clip(condition if condition and not placeholder else statement, 160)
     if ar:
         brief = (
-            f"REC-{rec.id} — {clip(title, 72)}. الدائرة: {dept}. "
+            f"{record_code(rec.id)} — {clip(title, 72)}. الدائرة: {dept}. "
             f"{'ما وُجد: ' + found + '. ' if found else ''}"
             f"الخطورة {risk_label(rec.risk_level, language)}، والحالة «{status_label(rec.status, language)}». "
             f"المطلوب الآن: {next_action(rec.status, language)}."
         )
     else:
         brief = (
-            f"REC-{rec.id} — {clip(title, 72)}. Department: {dept}. "
+            f"{record_code(rec.id)} — {clip(title, 72)}. Department: {dept}. "
             f"{'Found: ' + found + '. ' if found else ''}"
             f"Risk {risk_label(rec.risk_level, language)}; status “{status_label(rec.status, language)}”. "
             f"Required now: {next_action(rec.status, language)}."

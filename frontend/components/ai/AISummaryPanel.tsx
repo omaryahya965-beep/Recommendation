@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { AIPanel } from "@/components/ai/AIPrimitives";
@@ -9,6 +9,7 @@ import { uiLanguage } from "@/lib/ai";
 import { api, errorMessage } from "@/lib/api";
 import { T, useI18n } from "@/lib/i18n";
 import type { AIAnalysisEnvelope, AIJob, Role } from "@/lib/types";
+import { useGuardedMutation } from "@/lib/useGuardedMutation";
 
 interface SummaryItem {
   text?: string;
@@ -50,7 +51,7 @@ export function AISummaryPanel({
     retry: false,
   });
 
-  const mutation = useMutation({
+  const mutation = useGuardedMutation({
     mutationFn: () =>
       api<AIJob>("/api/ai/summaries/", {
         method: "POST",

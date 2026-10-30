@@ -76,6 +76,14 @@ class NavCountsView(APIView):
         return Response(nav_counts(request.user, scoped))
 
 
+def _completion_rate(completed, open_count):
+    """Whole percent of assigned cases closed, rounded down: never 100 while one is open."""
+    total = completed + open_count
+    if not total:
+        return 0
+    return (completed * 100) // total
+
+
 class TeamWorkloadView(APIView):
     """Per-employee workload for one department, computed in SQL.
 
@@ -141,6 +149,18 @@ class TeamWorkloadView(APIView):
                 nearest=Min("binding_deadline", filter=department_q),
             )
         }
+        # Completion from real statuses (round 2, 2.2): closed cases against all
+        # cases assigned to the employee. Work submitted or under review is
+        # still open, so the rate can only reach 100% when nothing is open.
+        completed = {
+            row["action_plan__responsible_employee"]: row["c"]
+            for row in scope_recommendations(
+                Recommendation.objects.filter(
+                    report__department=department, action_plan__isnull=False, status=S.CLOSED
+                ),
+                user,
+            ).values("action_plan__responsible_employee").annotate(c=Count("id"))
+        }
         employees = User.objects.filter(
             role=User.Role.EMPLOYEE, department=department, is_active=True
         ).order_by("full_name_ar", "username")
@@ -159,6 +179,8 @@ class TeamWorkloadView(APIView):
                 "returned": row.get("returned", 0),
                 "awaiting_head_review": row.get("awaiting_head_review", 0),
                 "in_review": row.get("in_review", 0),
+                "completed": completed.get(employee.id, 0),
+                "completion_rate": _completion_rate(completed.get(employee.id, 0), row.get("open", 0)),
                 "nearest_deadline": row["nearest"].isoformat() if row.get("nearest") else None,
                 "items": RecommendationListSerializer(items, many=True, context={"request": request}).data,
             })

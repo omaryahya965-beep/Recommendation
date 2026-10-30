@@ -23,12 +23,16 @@ test("a reviewer sees whose turn it is, where the case stands, and its record", 
   // The timeline marks the stage the case is in.
   await expect(page.locator('[aria-current="step"]')).toContainText(T.workflow.stages.execution);
 
-  // The plan is the open part of the record; the history starts collapsed.
-  await expect(page.locator("#section-plan button[aria-expanded]")).toHaveAttribute("aria-expanded", "true");
-  await expect(page.locator("#section-history button[aria-expanded]")).toHaveAttribute("aria-expanded", "false");
+  // The record file starts as closed tiles (the action and dates stay in view);
+  // a tile opens its part below the row.
+  for (const id of ["finding", "response", "plan", "evidence", "verification", "history"]) {
+    await expect(page.locator(`#section-${id} button[aria-expanded]`).first()).toHaveAttribute("aria-expanded", "false");
+  }
+  await openSection(page, "plan");
+  await expect(page.locator("#section-plan-content")).toBeVisible();
 
   await openSection(page, "history");
-  const history = page.locator("#section-history");
+  const history = page.locator("#section-history-content");
   const everything = history.getByRole("button", { name: T.caseView.historyFilters.all });
   await everything.click();
   await expect(everything).toHaveAttribute("aria-pressed", "true");
@@ -53,8 +57,8 @@ test("the responsible employee works from one execution desk", async ({ page, re
   await expect(desk.locator('input[type="file"]')).toHaveCount(1);
   // The uploader lives in the desk only; the evidence section lists files.
   // The section's own toggle (evidence cards hold their own, for the AI review).
-  await expect(page.locator("#section-evidence button[aria-expanded]").first()).toHaveAttribute("aria-expanded", "true");
-  await expect(page.locator('#section-evidence input[type="file"]')).toHaveCount(0);
+  await openSection(page, "evidence");
+  await expect(page.locator('#section-evidence-content input[type="file"]')).toHaveCount(0);
 });
 
 test("a case outside the viewer's scope says so and leads back to the register", async ({ page, request }) => {
@@ -95,7 +99,7 @@ test("the evidence ledger keeps View and Download inside its column", async ({ p
     const item = page.getByTestId("evidence-item").filter({ visible: true }).first();
     const view = item.getByRole("button", { name: T.evidence.view });
     await expect(view).toBeVisible();
-    const section = await page.locator("#section-evidence").boundingBox();
+    const section = await page.locator("#section-evidence-content").boundingBox();
     const button = await view.boundingBox();
     const viewport = page.viewportSize()!;
     expect(button && button.x >= 0 && button.x + button.width <= viewport.width, `View button inside the page at ${width}px`).toBe(true);
@@ -104,4 +108,19 @@ test("the evidence ledger keeps View and Download inside its column", async ({ p
       expect(button.x + button.width).toBeLessThanOrEqual(section.x + section.width + 1);
     }
   }
+});
+
+test("inside an open part, next and previous walk the record parts", async ({ page, request }) => {
+  const rec = await firstRecommendationOf(request, "audit", FIXTURES.financeInProgress);
+  await signIn(page, request, "audit");
+  await openCase(page, "audit", rec.id);
+  await openSection(page, "finding");
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toHaveCount(1);
+  await expect(dialog.getByRole("button", { name: new RegExp(T.common.prev) })).toHaveCount(0);
+  await dialog.getByRole("button", { name: new RegExp(`^${T.common.next}:`) }).click();
+  await expect(page.locator("#section-response button[aria-expanded]")).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByRole("dialog")).toHaveCount(1);
+  await page.getByRole("dialog").getByRole("button", { name: new RegExp(`^${T.common.prev}:`) }).click();
+  await expect(page.locator("#section-finding button[aria-expanded]")).toHaveAttribute("aria-expanded", "true");
 });

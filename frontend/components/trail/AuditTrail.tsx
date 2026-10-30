@@ -18,6 +18,19 @@ const TRANSITION_KEYS = new Set(["from_status", "to_status", "system"]);
  * the file's own name, the step, the plan's date and owner. Internal values
  * (ids, storage paths, codes) stay in the "details" view only.
  */
+/** A metadata value for the details view: nested objects and lists as text, never "[object Object]". */
+export function metaValueText(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "—";
+  if (Array.isArray(value)) return value.map(metaValueText).join(", ");
+  if (typeof value === "object") {
+    return Object.keys(value as Record<string, unknown>)
+      .sort()
+      .map((key) => `${key}: ${metaValueText((value as Record<string, unknown>)[key])}`)
+      .join(", ");
+  }
+  return String(value);
+}
+
 export function detailText(metadata: Record<string, unknown>): string | null {
   const parts: string[] = [];
   const text = (key: string) => {
@@ -28,6 +41,14 @@ export function detailText(metadata: Record<string, unknown>): string | null {
   if (decision) parts.push(DECISION_LABELS[decision] ?? VERIFICATION_LABELS[decision] ?? decision);
   const step = text("step_title");
   if (step) parts.push(step);
+  // Step progress: "0% → 100%" instead of the raw before/after objects.
+  const percent = (key: string) => {
+    const value = (metadata[key] as { progress_percent?: unknown } | null | undefined)?.progress_percent;
+    return typeof value === "number" ? value : null;
+  };
+  const before = percent("previous");
+  const after = percent("current");
+  if (before !== null && after !== null && before !== after) parts.push(`${before}% → ${after}%`);
   const file = text("file_name");
   if (file) parts.push(file.split("/").pop() ?? file);
   const owner = text("responsible_employee");
@@ -122,7 +143,7 @@ function TrailRow({ entry, isLast }: { entry: TrailEntry; isLast: boolean }) {
                     <dt className="font-mono font-bold text-muted" dir="ltr">
                       {key}
                     </dt>
-                    <dd className="break-words text-ink font-medium">{String(metadata[key])}</dd>
+                    <dd className="break-words text-ink font-medium">{metaValueText(metadata[key])}</dd>
                   </div>
                 ))}
               </dl>

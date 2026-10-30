@@ -99,7 +99,7 @@ function Fact({
         />
         {label}
       </dt>
-      <dd className={cn("mt-0.5 text-[13.5px] font-bold", tone === "mine" ? "text-white" : "text-ink")}>{children}</dd>
+      <dd className={cn("mt-0.5 text-[13px] font-semibold", tone === "mine" ? "text-white" : "text-ink")}>{children}</dd>
     </div>
   );
 }
@@ -153,7 +153,7 @@ export function ActionCard({
     >
       <div
         className={cn(
-          "px-5 py-4 md:px-6",
+          "px-4 py-3 md:px-5",
           tone === "mine"
             ? "bg-inverse text-on-inverse"
             : tone === "closed"
@@ -161,10 +161,10 @@ export function ActionCard({
               : "bg-primary-light/30"
         )}
       >
-        <div className="flex flex-wrap items-start gap-x-3.5 gap-y-2.5">
+        <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
           <span
             className={cn(
-              "flex size-10 shrink-0 items-center justify-center rounded-xl",
+              "flex size-8 shrink-0 items-center justify-center rounded-lg",
               tone === "mine"
                 ? "bg-white/12 text-white ring-1 ring-inset ring-white/15"
                 : tone === "closed"
@@ -173,7 +173,7 @@ export function ActionCard({
             )}
             aria-hidden
           >
-            <ToneIcon className="size-5" />
+            <ToneIcon className="size-4" />
           </span>
           <div className="min-w-0 flex-1">
             <p
@@ -187,7 +187,7 @@ export function ActionCard({
             <h2
               id="case-action-title"
               className={cn(
-                "mt-0.5 font-heading text-[1.05rem] font-bold leading-snug md:text-[1.15rem]",
+                "mt-0.5 font-heading text-[15px] font-semibold leading-snug md:text-[16px]",
                 tone === "mine" ? "text-white" : tone === "closed" ? "text-success-dark" : "text-navy"
               )}
             >
@@ -211,7 +211,7 @@ export function ActionCard({
         {!closed ? (
           <dl
             className={cn(
-              "mt-3.5 grid gap-x-6 gap-y-3 border-t pt-3.5 sm:grid-cols-3",
+              "mt-2.5 grid gap-x-6 gap-y-2 border-t pt-2.5 sm:grid-cols-3",
               tone === "mine" ? "border-white/12" : "border-primary/12"
             )}
           >

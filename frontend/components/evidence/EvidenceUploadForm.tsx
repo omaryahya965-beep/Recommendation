@@ -12,6 +12,7 @@ import type { WorkflowAction } from "@/lib/hooks";
 import { T, useI18n } from "@/lib/i18n";
 import type { RecommendationDetail } from "@/lib/types";
 import { prepareFileSubmission } from "@/lib/upload";
+import { NOTE_MAX } from "@/lib/limits";
 
 /**
  * Attach one evidence file to the case (optionally to one plan step). Uses
@@ -56,6 +57,8 @@ export function EvidenceUploadForm({
     setFile(next);
     setFailed(false);
     setLocalError(null);
+    // The previous upload's server error no longer describes this file.
+    action.clearError();
   };
 
   const upload = async (event: React.FormEvent) => {
@@ -146,7 +149,7 @@ export function EvidenceUploadForm({
         ) : null}
       </div>
       <Field label={T.evidenceRegister.description}>
-        <TextArea
+        <TextArea maxLength={NOTE_MAX}
           rows={2}
           value={notes}
           onChange={(event) => setNotes(event.target.value)}

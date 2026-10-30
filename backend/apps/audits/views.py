@@ -17,6 +17,7 @@ from rest_framework.views import APIView
 
 from apps.core.exceptions import WorkflowError
 from apps.core.models import log_action
+from apps.core.dedupe import reject_duplicates
 from apps.core.permissions import (
     IsAudit,
     IsCouncil,
@@ -32,12 +33,13 @@ from apps.workflow.serializers import (
     ActionPlanInputSerializer,
     EvidenceInputSerializer,
     RespondInputSerializer,
+    NotesInputSerializer,
     ReviewInputSerializer,
     StepProgressInputSerializer,
     VerifyInputSerializer,
 )
 
-from .filters import RecommendationFilterSet, RecommendationOrderingFilter
+from .filters import ReferenceSearchFilter, RecommendationFilterSet, RecommendationOrderingFilter
 from .models import AuditReport, Recommendation
 from .serializers import (
     AuditReportDetailSerializer,
@@ -58,11 +60,22 @@ def _clip_for_log(value, limit=500):
     return value
 
 
+# A spreadsheet treats a cell starting with one of these as a formula.
+_FORMULA_TRIGGERS = ("=", "+", "-", "@", chr(9), chr(13))
+
+
 def _csv_cell(value):
     """CSV text for one value. Only a missing value becomes an empty cell:
-    `value or ""` used to blank out legitimate zeros (priority score 0)."""
+    `value or ""` used to blank out legitimate zeros (priority score 0).
+
+    Text that starts like a formula is prefixed with a quote (OWASP CSV
+    injection guidance, S16): Excel/Sheets then show it as text instead of
+    evaluating `=HYPERLINK(...)` typed into a finding. Numbers stay numbers.
+    """
     if value is None:
         return ""
+    if isinstance(value, str) and value.startswith(_FORMULA_TRIGGERS):
+        return "'" + value
     return value
 
 
@@ -139,6 +152,10 @@ class AuditReportViewSet(viewsets.ModelViewSet):
             return [IsCouncil()]
         return [IsAuthenticated()]
 
+    @reject_duplicates
+    def create(self, request, *args, **kwargs):
+        return super().create(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         report = serializer.save(
             created_by=self.request.user, municipality=self.request.user.municipality
@@ -162,8 +179,10 @@ class AuditReportViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"])
     def ratify(self, request, pk=None):
+        serializer = NotesInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         report = services.ratify_report(
-            self.get_object(), request.user, notes=request.data.get("notes", "")
+            self.get_object(), request.user, notes=serializer.validated_data.get("notes", "")
         )
         return Response(AuditReportSerializer(report, context={"request": request}).data)
 
@@ -176,7 +195,7 @@ class RecommendationViewSet(viewsets.ModelViewSet):
     parser_classes = [JSONParser, MultiPartParser, FormParser]
     # Consumed by the throttled `export` action below.
     throttle_scope = "export"
-    filter_backends = [DjangoFilterBackend, SearchFilter, RecommendationOrderingFilter]
+    filter_backends = [DjangoFilterBackend, ReferenceSearchFilter, RecommendationOrderingFilter]
     filterset_class = RecommendationFilterSet
     # The report title too: the global search promises "number, report or words".
     search_fields = ["text", "root_cause", "report__title"]
@@ -222,6 +241,10 @@ class RecommendationViewSet(viewsets.ModelViewSet):
         if self.action == "council_closure":
             return [IsCouncil()]
         return [IsAuthenticated()]
+
+    @reject_duplicates
+    def create(self, request, *args, **kwargs):
+        return super().create(request, *args, **kwargs)
 
     def perform_create(self, serializer):
         recommendation = serializer.save()
@@ -398,6 +421,7 @@ class RecommendationViewSet(viewsets.ModelViewSet):
         return self._detail(request, recommendation)
 
     @action(detail=True, methods=["post"])
+    @reject_duplicates
     def evidence(self, request, pk=None):
         recommendation = self.get_object()
         serializer = EvidenceInputSerializer(data=request.data)
@@ -427,6 +451,23 @@ class RecommendationViewSet(viewsets.ModelViewSet):
             return Response({"detail": "Evidence not found."}, status=status.HTTP_404_NOT_FOUND)
         services.delete_evidence(recommendation, request.user, evidence)
         return self._detail(request, recommendation)
+
+    @action(detail=True, methods=["get"], url_path="response-attachment")
+    def response_attachment(self, request, pk=None):
+        """The management response's supporting document, for callers who may
+        see this case (row scoping via get_object); every access is logged."""
+        from apps.core.media_views import serve_protected_file
+        from apps.core.models import log_action
+
+        recommendation = self.get_object()
+        response = getattr(recommendation, "response", None)
+        if response is None or not response.attachment:
+            return Response({"detail": "No attachment.", "code": "not_found"}, status=404)
+        log_action(
+            request.user, "response_attachment_downloaded", recommendation=recommendation,
+            report=recommendation.report, file_name=response.attachment.name,
+        )
+        return serve_protected_file(response.attachment, request)
 
     @action(detail=True, methods=["post"], url_path="mark-implemented")
     def mark_implemented(self, request, pk=None):
@@ -474,8 +515,10 @@ class RecommendationViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], url_path="submit-for-closure")
     def submit_for_closure(self, request, pk=None):
         recommendation = self.get_object()
+        serializer = NotesInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         services.submit_for_closure(
-            recommendation, request.user, notes=request.data.get("notes", "")
+            recommendation, request.user, notes=serializer.validated_data.get("notes", "")
         )
         return self._detail(request, recommendation)
 

@@ -19,16 +19,26 @@ import { T, useI18n } from "@/lib/i18n";
  * reachable only by hovering.
  */
 
-/** "How is this calculated?" — the metric's definition on hover and focus. */
+/**
+ * "How is this calculated?" — the metric's definition on hover and focus,
+ * and on tap (touch screens have no hover; BUG-24).
+ */
 export function DefinitionHint({ text }: { text: string }) {
   useI18n();
   const id = useId();
+  const [open, setOpen] = useState(false);
   return (
     <span className="group/hint relative inline-flex">
       <button
         type="button"
         aria-label={T.insights.howCalculated}
         aria-describedby={id}
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+        onBlur={() => setOpen(false)}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") setOpen(false);
+        }}
         className="inline-flex size-6 items-center justify-center rounded-full text-muted hover:bg-subtle hover:text-ink focus-visible:bg-subtle"
       >
         <Info className="size-3.5" aria-hidden />
@@ -36,7 +46,10 @@ export function DefinitionHint({ text }: { text: string }) {
       <span
         id={id}
         role="tooltip"
-        className="pointer-events-none invisible absolute top-full z-30 mt-1 w-64 rounded-lg border border-line bg-elevated p-3 text-start text-[12px] font-medium leading-relaxed text-ink opacity-0 shadow-lg transition-opacity group-hover/hint:visible group-hover/hint:opacity-100 group-focus-within/hint:visible group-focus-within/hint:opacity-100 start-0"
+        className={cn(
+          "pointer-events-none invisible absolute top-full z-30 mt-1 w-64 rounded-lg border border-line bg-elevated p-3 text-start text-[12px] font-medium leading-relaxed text-ink opacity-0 shadow-lg transition-opacity group-hover/hint:visible group-hover/hint:opacity-100 group-focus-within/hint:visible group-focus-within/hint:opacity-100 start-0",
+          open && "visible opacity-100"
+        )}
       >
         {text}
       </span>
@@ -65,14 +78,31 @@ export function StatTile({
   testId?: string;
 }) {
   const alerting = alert && value > 0;
+  const labelContent = (
+    <>
+      {alerting ? <AlertTriangle className="size-3.5 text-danger" aria-hidden /> : null}
+      {label}
+    </>
+  );
+  const labelClass = "inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-ink-soft";
+  // A linked tile is a "stretched link": the label is the link and its
+  // ::after covers the card, so the whole tile still opens the list while
+  // the definition button sits beside it, not inside the <a> (BUG-24).
   const body = (
     <>
       <div className="flex items-center justify-between gap-2">
-        <span className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-ink-soft">
-          {alerting ? <AlertTriangle className="size-3.5 text-danger" aria-hidden /> : null}
-          {label}
-        </span>
-        {definition ? <DefinitionHint text={definition} /> : null}
+        {href ? (
+          <Link href={href} className={cn(labelClass, "outline-none after:absolute after:inset-0 after:rounded-xl after:content-['']")}>
+            {labelContent}
+          </Link>
+        ) : (
+          <span className={labelClass}>{labelContent}</span>
+        )}
+        {definition ? (
+          <span className="relative z-10">
+            <DefinitionHint text={definition} />
+          </span>
+        ) : null}
       </div>
       <p className="mt-2 font-heading text-[1.75rem] font-semibold leading-none text-navy">
         <span dir="ltr">{formatNumber(value)}</span>
@@ -84,13 +114,9 @@ export function StatTile({
   const className = cn(
     "block rounded-xl border bg-surface p-4 transition-colors",
     alerting ? "border-s-4 border-line border-s-danger" : "border-line",
-    href && "hover:border-primary/40 focus-visible:border-primary"
+    href && "relative hover:border-primary/40 has-[a:focus-visible]:border-primary has-[a:focus-visible]:ring-2 has-[a:focus-visible]:ring-primary/20"
   );
-  return href ? (
-    <Link href={href} className={className} data-testid={testId}>
-      {body}
-    </Link>
-  ) : (
+  return (
     <div className={className} data-testid={testId}>
       {body}
     </div>
@@ -194,13 +220,18 @@ export function ColumnChart({
 }) {
   useI18n();
   const [active, setActive] = useState<string | null>(null);
-  const { max, ticks } = niceMax(Math.max(0, ...data.flatMap((point) => point.values)));
-  const height = 168;
+  // Months before the first activity are empty space: start at the first
+  // month with data (keeping at least three) so the columns start where the
+  // reader starts and fill the chart.
+  const firstUsed = data.findIndex((point) => point.values.some((value) => value > 0));
+  const shown = firstUsed <= 0 ? data : data.slice(Math.max(0, Math.min(firstUsed, data.length - 3)));
+  const { max, ticks } = niceMax(Math.max(0, ...shown.flatMap((point) => point.values)));
+  const height = 184;
 
   return (
     <figure className="space-y-3" aria-label={label}>
       {series.length > 1 ? (
-        <ul className="flex flex-wrap gap-4 text-[12.5px] font-medium text-ink-soft" aria-hidden>
+        <ul className="mb-2 flex flex-wrap gap-4 text-[12.5px] font-medium text-ink-soft" aria-hidden>
           {series.map((item) => (
             <li key={item.name} className="inline-flex items-center gap-1.5">
               <span className={cn("size-2.5 rounded-[3px]", item.colorClass)} />
@@ -211,7 +242,7 @@ export function ColumnChart({
       ) : null}
 
       {/* pt-2 keeps the top tick label inside the figure */}
-      <div className="flex gap-2 pt-2">
+      <div className="flex gap-2 pt-5">
         {/* y axis */}
         <div className="relative w-8 shrink-0" style={{ height }} aria-hidden>
           {ticks.map((tick) => (
@@ -238,7 +269,7 @@ export function ColumnChart({
           </div>
           {/* columns */}
           <div className="relative flex items-end" style={{ height }}>
-            {data.map((point) => {
+            {shown.map((point) => {
               const readout = `${formatMonth(point.key, "long")}: ${series
                 .map((item, index) => `${item.name} ${point.values[index] ?? 0}`)
                 .join("، ")}`;
@@ -260,12 +291,19 @@ export function ColumnChart({
                   {series.map((item, index) => (
                     <span
                       key={item.name}
-                      className={cn("w-full max-w-[14px] rounded-t-[4px]", item.colorClass)}
+                      className={cn("relative w-full max-w-[22px] rounded-t-[4px]", item.colorClass)}
                       style={{
                         height: `${((point.values[index] ?? 0) / max) * 100}%`,
                         minHeight: point.values[index] ? 3 : 0,
                       }}
-                    />
+                    >
+                      {/* The value on the column: readable without hovering. */}
+                      {point.values[index] ? (
+                        <span className="absolute bottom-full start-1/2 mb-0.5 -translate-x-1/2 text-[10.5px] font-semibold tabular-nums text-ink-soft rtl:translate-x-1/2" aria-hidden>
+                          {point.values[index]}
+                        </span>
+                      ) : null}
+                    </span>
                   ))}
                   {isActive ? (
                     <span
@@ -292,11 +330,11 @@ export function ColumnChart({
           </div>
           {/* x axis */}
           <div className="mt-1.5 flex" aria-hidden>
-            {data.map((point, index) => (
+            {shown.map((point, index) => (
               <span
                 key={point.key}
                 className={cn(
-                  "min-w-0 flex-1 truncate text-center text-[10.5px] text-muted",
+                  "min-w-0 flex-1 truncate text-center text-[11px] text-ink-soft",
                   index % 2 === 1 && "max-sm:invisible"
                 )}
               >

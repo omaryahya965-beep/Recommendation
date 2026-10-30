@@ -35,12 +35,15 @@ class CloudinaryUrlShapeTests(SimpleTestCase):
 
     def test_pdf_url_uses_raw_upload_path(self):
         url = self.storage.url("evidence/2026/08/deposit-slip.pdf")
-        self.assertIn("/raw/upload/", url)
+        # A signed, expiring download of a private asset (S6), never the CDN URL.
+        self.assertIn("/raw/download", url)
+        self.assertIn("signature=", url)
         self.assertTrue(url.startswith("https://"))
 
     def test_jpeg_url_uses_image_upload_path(self):
         url = self.storage.url("evidence/2026/08/photo.jpg")
-        self.assertIn("/image/upload/", url)
+        self.assertIn("/image/download", url)
+        self.assertIn("format=jpg", url)
         self.assertTrue(url.startswith("https://"))
 
 

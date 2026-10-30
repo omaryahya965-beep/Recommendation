@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Check, FileText, Save, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -10,6 +10,7 @@ import {
   Button,
   Callout,
   Card,
+  CharCount,
   ChoiceCards,
   DataField,
   ErrorBanner,
@@ -35,6 +36,8 @@ import { formatDate } from "@/lib/format";
 import { REPORT_TYPE_LABELS, RISK_LABELS, T, useI18n } from "@/lib/i18n";
 import type { AuditReport, RecommendationDetail } from "@/lib/types";
 import { useUnsavedChanges } from "@/lib/useUnsavedChanges";
+import { useGuardedMutation } from "@/lib/useGuardedMutation";
+import { NOTE_MAX, RECOMMENDATION_TEXT_MAX } from "@/lib/limits";
 
 type StepId = "context" | "finding" | "recommendation" | "risk" | "review";
 
@@ -168,6 +171,8 @@ export function RecommendationWizard({
   useUnsavedChanges(dirty);
 
   const missing: string[] = [];
+  // The sections are saved as one text; the API caps it (lib/limits.ts).
+  const tooLong = text.length > RECOMMENDATION_TEXT_MAX;
   if (!reportId) missing.push(T.create.report);
   for (const section of sections) {
     if (section.required && !finding[section.id].trim()) missing.push(section.label);
@@ -177,7 +182,7 @@ export function RecommendationWizard({
     .filter((section) => !section.required && !finding[section.id].trim())
     .map((section) => section.label);
 
-  const create = useMutation({
+  const create = useGuardedMutation({
     mutationFn: () =>
       editing && recommendation
         ? api<{ id: number }>(`/api/recommendations/${recommendation.id}/`, {
@@ -354,6 +359,7 @@ export function RecommendationWizard({
                 rows={3}
                 value={rootCause}
                 onChange={(event) => setRootCause(event.target.value)}
+                maxLength={NOTE_MAX}
               />
               <p className="mt-1.5 text-xs text-muted">{T.create.causeHint}</p>
             </Field>
@@ -436,6 +442,12 @@ export function RecommendationWizard({
       {step === 4 ? (
         <div className="space-y-5">
           <Card title={T.create.completeness} className="p-6">
+            {tooLong ? (
+              <Callout tone="danger" icon={<AlertTriangle className="size-4.5" />} title={T.create.textTooLongTitle} className="mb-4 border-s-4 shadow-sm">
+                {T.create.textTooLong.replace("{n}", text.length.toLocaleString("en-US")).replace("{max}", RECOMMENDATION_TEXT_MAX.toLocaleString("en-US"))}
+              </Callout>
+            ) : null}
+            <CharCount length={text.length} max={RECOMMENDATION_TEXT_MAX} />
             {missing.length ? (
               <Callout tone="danger" icon={<AlertTriangle className="size-4.5" />} title={T.create.missingFields} className="border-s-4 shadow-sm">
                 <ul className="list-disc space-y-1.5 ps-5 text-[13.5px] font-medium">
@@ -509,7 +521,7 @@ export function RecommendationWizard({
         ) : (
           <Button
             onClick={() => create.mutate()}
-            disabled={missing.length > 0 || create.isPending || (editing && !dirty)}
+            disabled={missing.length > 0 || tooLong || create.isPending || (editing && !dirty)}
             className="min-h-12 w-full font-bold gap-2 shadow-md sm:w-auto"
           >
             <Save className="size-4.5" />

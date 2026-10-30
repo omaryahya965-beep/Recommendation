@@ -19,7 +19,7 @@ export function LoginHero() {
   return (
     <aside
       aria-label={T.login.heroTitle}
-      className="relative isolate flex h-auto min-h-0 shrink-0 flex-col overflow-hidden lg:absolute lg:inset-0 lg:h-full lg:w-full transition-colors duration-250 ease-in-out"
+      className="relative isolate flex h-auto min-h-0 shrink-0 flex-col overflow-hidden lg:absolute lg:inset-0 lg:h-full lg:w-full"
       style={{ backgroundColor: "var(--login-hero-bg)" }}
     >
 
@@ -115,7 +115,9 @@ export function LoginHero() {
           {/* Main teal wave fill */}
           <path
             d="M 0,45 C 200,100 400,10 600,55 L 600,100 L 0,100 Z"
-            style={{ fill: "var(--login-hero-bg)", transition: "fill 250ms ease-in-out" }}
+            // No colour fade: the wave and the panel below must switch theme in the
+            // same frame, or a strip of the photo shows between them.
+            style={{ fill: "var(--login-hero-bg)" }}
           />
           {/* Accent line along the curve boundary */}
           <path
@@ -123,7 +125,6 @@ export function LoginHero() {
             fill="none"
             stroke="var(--login-hero-icon-border)"
             strokeWidth="2"
-            style={{ transition: "stroke 250ms ease-in-out" }}
           />
         </svg>
       </div>
@@ -131,7 +132,7 @@ export function LoginHero() {
       {/* ── Teal information section (Desktop Only) ── */}
       <div
         dir={dir}
-        className="relative z-10 hidden lg:flex min-h-0 flex-1 flex-col items-center justify-evenly px-4 pb-6 pt-2 lg:px-6 lg:pb-4 xl:px-10 xl:pb-6 lg:[@media(max-height:760px)]:pb-2 transition-colors duration-250 ease-in-out"
+        className="relative z-10 hidden lg:flex min-h-0 flex-1 flex-col items-center justify-evenly px-4 pb-6 pt-2 lg:px-6 lg:pb-4 xl:px-10 xl:pb-6 lg:[@media(max-height:760px)]:pb-2"
         style={{ backgroundColor: "var(--login-hero-bg)" }}
       >
         {/* Decorative artwork from the supplied ornament sheet. */}

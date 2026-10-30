@@ -52,6 +52,8 @@ WORKFLOW_ERROR_CODES = (
     "evidence_wrong_step",
     "evidence_wrong_case",
     "evidence_not_owner",
+    "evidence_assessed",
+    "evidence_already_deleted",
     "file_required",
     "not_markable",
     "required_steps_incomplete",
@@ -61,12 +63,15 @@ WORKFLOW_ERROR_CODES = (
     "not_submitted_for_verification",
     "verification_fields_required",
     "deadline_in_past",
+    "target_date_in_past",
+    "target_date_too_far",
     "send_to_council_requires_sufficient",
     "not_in_closure_review",
     "not_pending_closure_council",
     "reopen_notes_required",
     # recurrence and drafts
     "not_flagged_recurring",
+    "recurrence_already_reviewed",
     "draft_only",
     # uploads and storage
     "invalid_upload",
@@ -75,6 +80,7 @@ WORKFLOW_ERROR_CODES = (
     "upload_not_found",
     "direct_upload_unavailable",
     "storage_unavailable",
+    "duplicate_request",
     # AI (advisory)
     "ai_error",
     "ai_unavailable",
@@ -109,6 +115,17 @@ FIELD_ERROR_CODES = (
     "min_length",
     "does_not_exist",
     "unique",
+    "date_in_past",
+    "date_too_far",
+    "offset_out_of_range",
+    "current_password_incorrect",
+    "password_mismatch",
+    "password_too_short",
+    "password_too_common",
+    "password_entirely_numeric",
+    "password_too_similar",
+    "period_order",
+    "empty",
 )
 
 ERROR_CODES = WORKFLOW_ERROR_CODES + API_ERROR_CODES

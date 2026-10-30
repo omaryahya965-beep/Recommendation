@@ -3,6 +3,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { SessionNotice } from "@/components/shell/SessionNotice";
+import { UnsavedChangesDialog } from "@/components/shell/UnsavedChangesDialog";
 import { LocaleBridge } from "@/lib/i18n";
 import { GC_TIME } from "@/lib/queryPolicy";
 
@@ -19,7 +21,11 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   );
   return (
     <QueryClientProvider client={client}>
-      <LocaleBridge>{children}</LocaleBridge>
+      <LocaleBridge>
+        <SessionNotice />
+        <UnsavedChangesDialog />
+        {children}
+      </LocaleBridge>
     </QueryClientProvider>
   );
 }

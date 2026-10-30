@@ -11,7 +11,7 @@ import {
 } from "@/components/analytics/charts";
 import { ErrorBanner } from "@/components/ui/Base";
 import { DashboardBodySkeleton } from "@/components/ui/EmptyState";
-import { LedgerCell, LedgerTable } from "@/components/ui/Ledger";
+import { CellText, LedgerCell, LedgerTable } from "@/components/ui/Ledger";
 import { PageHeader } from "@/components/ui/PageHeader";
 import {
   AGING_ORDER,
@@ -133,7 +133,8 @@ function Stages({ data, base }: { data: AnalyticsPayload; base: string }) {
           label: stage.label,
           sublabel: stage.actor,
           value: stage.count,
-          href: `${base}?stage=${stage.id}`,
+          // Analytics counts issued cases only; so does the list (BUG-23).
+          href: `${base}?stage=${stage.id}&issued=true`,
         }))}
       />
     </Panel>
@@ -161,7 +162,13 @@ function Aging({ data, base }: { data: AnalyticsPayload; base: string }) {
     <Panel title={T.insights.agingTitle} hint={T.insights.agingHint}>
       <div className="grid grid-cols-3 gap-3">
         {AGING_ORDER.map((bucket, index) => (
-          <StatTile key={bucket} label={labels[index]} value={data.overdue_aging[bucket] ?? 0} alert href={`${base}?overdue=1`} />
+          <StatTile
+            key={bucket}
+            label={labels[index]}
+            value={data.overdue_aging[bucket] ?? 0}
+            alert
+            href={`${base}?overdue_age=${encodeURIComponent(bucket)}&issued=true`}
+          />
         ))}
       </div>
     </Panel>
@@ -182,13 +189,15 @@ function Departments({ data, base }: { data: AnalyticsPayload; base: string }) {
           T.analytics.colHighRisk,
           T.insights.colExecution,
         ]}
+        widths={[undefined, "4.5rem", "4.5rem", "4.5rem", "5rem", "4.5rem", "9rem"]}
+        minWidth="40rem"
         empty={T.insights.empty}
       >
         {rows.map((row) => (
           <tr key={row.department} className="hover:bg-subtle/60">
             <LedgerCell>
-              <a href={`${base}?report__department=${row.department}`} className="font-semibold text-ink hover:text-primary-dark hover:underline">
-                {row.name}
+              <a href={`${base}?report__department=${row.department}&issued=true`} className="block min-w-0 font-semibold text-ink hover:text-primary-dark hover:underline">
+                <CellText text={row.name} lines={2} />
               </a>
             </LedgerCell>
             <LedgerCell mono>{row.total}</LedgerCell>
@@ -199,7 +208,7 @@ function Departments({ data, base }: { data: AnalyticsPayload; base: string }) {
             <LedgerCell mono>{row.overdue_rate}%</LedgerCell>
             <LedgerCell mono>{row.high_risk}</LedgerCell>
             <LedgerCell>
-              <span className="flex min-w-28 items-center gap-2">
+              <span className="flex min-w-0 items-center gap-2">
                 <Meter value={row.execution_rate} label={`${T.insights.colExecution} ${row.name}`} />
                 <span className="w-12 shrink-0 text-end font-mono text-[12.5px] font-semibold text-navy" dir="ltr">
                   {row.execution_rate}%
@@ -235,7 +244,7 @@ function Recurrence({ data, base }: { data: AnalyticsPayload; base: string }) {
   return (
     <Panel title={T.insights.recurrenceTitle}>
       <div className="grid grid-cols-2 gap-3">
-        <StatTile label={T.insights.recurrenceConfirmed} value={data.recurrence.confirmed} href={`${base}?is_recurring=true&recurrence_confirmed=true`} />
+        <StatTile label={T.insights.recurrenceConfirmed} value={data.recurrence.confirmed} href={`${base}?is_recurring=true&recurrence_confirmed=true&issued=true`} />
         <StatTile label={T.insights.recurrenceAwaiting} value={data.recurrence.awaiting_confirmation} />
       </div>
     </Panel>

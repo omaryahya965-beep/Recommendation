@@ -122,7 +122,30 @@ export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
 export function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   useI18n();
   const fallbackId = useId();
-  return <textarea rows={3} {...props} id={props.id ?? fallbackId} className={cn(FIELD_CLASS, "resize-y", props.className)} />;
+  const field = <textarea rows={3} {...props} id={props.id ?? fallbackId} className={cn(FIELD_CLASS, "resize-y", props.className)} />;
+  if (!props.maxLength) return field;
+  // A visible count against the limit the API enforces (lib/limits.ts).
+  return (
+    <div className="space-y-1">
+      {field}
+      <CharCount length={String(props.value ?? "").length} max={props.maxLength} />
+    </div>
+  );
+}
+
+/** "used / limit", amber near the limit. Numbers only, so both locales read it. */
+export function CharCount({ length, max }: { length: number; max: number }) {
+  return (
+    <p
+      className={cn(
+        "text-end font-mono text-[11px]",
+        length > max ? "font-bold text-danger" : length > max * 0.9 ? "text-warning-dark" : "text-muted"
+      )}
+      dir="ltr"
+    >
+      {length.toLocaleString("en-US")} / {max.toLocaleString("en-US")}
+    </p>
+  );
 }
 
 export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
@@ -257,9 +280,34 @@ export function ProseBlock({
     <div className={cn("rounded-md border border-line bg-surface p-4 shadow-sm relative overflow-hidden", className)}>
       <div className="absolute start-0 top-0 bottom-0 w-1 bg-line" aria-hidden />
       <p className="mb-2 text-[13px] font-bold text-muted">{label}</p>
-      <div className="whitespace-pre-wrap text-[14px] leading-relaxed text-ink" dir="auto">{children}</div>
+      <div className="whitespace-pre-wrap text-[14px] leading-relaxed text-ink" dir="auto">
+        {typeof children === "string" ? <LongText text={children} /> : children}
+      </div>
       {hint ? <p className="mt-3 border-t border-line pt-2 text-[12px] text-muted">{hint}</p> : null}
     </div>
+  );
+}
+
+/** Characters shown before "Show all": long findings stay fast to lay out. */
+const LONG_TEXT_PREVIEW = 2_000;
+
+/** Long free text, collapsed to a preview with a toggle. */
+export function LongText({ text }: { text: string }) {
+  useI18n();
+  const [expanded, setExpanded] = useState(false);
+  if (text.length <= LONG_TEXT_PREVIEW) return <>{text}</>;
+  return (
+    <>
+      {expanded ? text : `${text.slice(0, LONG_TEXT_PREVIEW)}…`}
+      <button
+        type="button"
+        onClick={() => setExpanded((value) => !value)}
+        aria-expanded={expanded}
+        className="mt-2 block text-[13px] font-bold text-primary-dark underline-offset-2 hover:underline"
+      >
+        {expanded ? T.common.showLess : T.common.showAll.replace("{n}", text.length.toLocaleString("en-US"))}
+      </button>
+    </>
   );
 }
 

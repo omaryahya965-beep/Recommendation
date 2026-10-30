@@ -28,6 +28,9 @@ interface EmployeeLoad {
   returned: number;
   awaiting_head_review: number;
   in_review: number;
+  /** Assigned cases already closed, and closed / (closed + open), rounded down. */
+  completed: number;
+  completion_rate: number;
   nearest_deadline: string | null;
   items: RecommendationListItem[];
 }
@@ -51,7 +54,7 @@ function Count({ label, value, tone }: { label: string; value: number; tone?: "d
   );
 }
 
-function WorkloadCard({ load, maxLoad, limit }: { load: EmployeeLoad; maxLoad: number; limit: number }) {
+function WorkloadCard({ load, limit }: { load: EmployeeLoad; limit: number }) {
   useI18n();
   return (
     <Card>
@@ -91,12 +94,20 @@ function WorkloadCard({ load, maxLoad, limit }: { load: EmployeeLoad; maxLoad: n
         <Count label={T.team.inReview} value={load.in_review} />
       </dl>
 
-      <ProgressBar
-        value={Math.round((load.open / Math.max(maxLoad, 1)) * 100)}
-        label={`${T.team.load} — ${load.employee.name}`}
-        className="mt-3"
-        tone={load.overdue ? "danger" : "primary"}
-      />
+      {/* Completion from real statuses (closed of all assigned), never the
+          relative load: a full bar must mean nothing is left open. */}
+      <div className="mt-3">
+        <p className="mb-1 text-[12px] font-medium text-ink-soft">
+          {T.team.completion
+            .replace("{done}", String(load.completed))
+            .replace("{total}", String(load.completed + load.open))}
+        </p>
+        <ProgressBar
+          value={load.completion_rate}
+          label={`${T.team.completionLabel} — ${load.employee.name}`}
+          tone={load.overdue ? "danger" : "primary"}
+        />
+      </div>
 
       {load.items.length ? (
         <ul className="mt-3 divide-y divide-line border-t border-line">
@@ -145,7 +156,6 @@ export default function TeamProgressPage() {
   });
 
   const employees = data?.employees ?? [];
-  const maxLoad = employees.reduce((max, load) => Math.max(max, load.open), 0);
 
   return (
     <div className="animate-fade-in space-y-4">
@@ -157,7 +167,7 @@ export default function TeamProgressPage() {
       ) : employees.length ? (
         <div className="space-y-4" data-testid="team-workload">
           {employees.map((load) => (
-            <WorkloadCard key={load.employee.id} load={load} maxLoad={maxLoad} limit={data?.item_limit ?? 10} />
+            <WorkloadCard key={load.employee.id} load={load} limit={data?.item_limit ?? 10} />
           ))}
         </div>
       ) : (

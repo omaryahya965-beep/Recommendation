@@ -23,6 +23,7 @@ from apps.audits.finding import case_title
 from apps.audits.models import Recommendation
 from apps.audits.serializers import is_overdue
 from apps.workflow.models import VerificationDecision
+from apps.core.refs import record_code
 
 ANALYSIS_VERSION = "risk_v3"
 
@@ -75,7 +76,7 @@ def collect_risk_inputs(rec) -> dict:
     response_revisions = response.revision_count if response else 0
 
     return {
-        "reference": f"REC-{rec.id}",
+        "reference": record_code(rec.id),
         "title": case_title(rec.text),
         "department": rec.report.department.name,
         "status": rec.status,

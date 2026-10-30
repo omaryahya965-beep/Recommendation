@@ -1,5 +1,6 @@
 import { caseTitle } from "./finding";
-import { dayCount, recordCode } from "./format";
+import { dayCount, formatDate, plural, recordCode } from "./format";
+import { DECISION_LABELS } from "./i18n";
 import { currentT } from "./i18n/messages";
 import type { AppNotification, NotificationType, RecommendationStatus, Role } from "./types";
 import { isWaitingOn, stageForStatus, STATUS_NEXT_ACTION } from "./workflow";
@@ -154,7 +155,7 @@ export function notificationTitle(item: AppNotification): string {
   if (item.recommendation) {
     return caseTitle(item.recommendation_text ?? "", 90) || recordCode(item.recommendation);
   }
-  return item.report_title || item.message.split(":")[0] || T.notify.title;
+  return item.report_title || notificationText(item).split(":")[0] || T.notify.title;
 }
 
 export function requiredAction(item: AppNotification, role?: Role): string | null {
@@ -211,6 +212,7 @@ export function filterNotifications(
     const recId = item.recommendation ? recordCode(item.recommendation).toLowerCase() : "";
     const hay = [
       item.message,
+      notificationText(item),
       item.recommendation_text ?? "",
       item.department_name ?? "",
       item.responsible_employee ?? "",
@@ -261,4 +263,42 @@ export function groupByTime(
   return (["today", "week", "older"] as const)
     .map((id) => ({ id, label: labels[id], items: sorted.filter((item) => timeGroupOf(item, now) === id) }))
     .filter((group) => group.items.length);
+}
+
+/**
+ * The notification's text in the reader's language (BUG-16). The server
+ * stores a message key and parameters; rows from before that have only the
+ * Arabic text the server wrote, which is shown as it is.
+ */
+export function notificationText(item: AppNotification): string {
+  const T = currentT();
+  const key = item.message_key;
+  const params = item.message_params ?? {};
+  const templates = T.notify.messages as unknown as Record<string, unknown>;
+  const template = key ? templates[key] : undefined;
+  if (typeof template !== "string") return item.message;
+  const text = (value: unknown) => (value === undefined || value === null ? "" : String(value));
+  const values: Record<string, string> = {};
+  for (const [name, value] of Object.entries(params)) values[name] = text(value);
+  if (typeof params.count === "number") values.recs = plural(params.count, T.notify.messages.recs);
+  if (key === "report_sent_to_department") {
+    values.deadline = params.deadline ? T.notify.messages.report_sent_deadline.replace("{date}", formatDate(text(params.deadline))) : "";
+  } else if (typeof params.deadline === "string" && params.deadline) {
+    values.deadline = formatDate(params.deadline);
+  }
+  if (key === "verification_returned" && typeof params.decision === "string") {
+    values.decision = (DECISION_LABELS as Record<string, string>)[params.decision] ?? params.decision;
+  }
+  if (key === "reminder") {
+    const days = Number(params.days);
+    const what = T.notify.messages.reminderWhat[params.anchor as "plan" | "verification" | "response"] ?? "";
+    const base = days < 0 ? T.notify.messages.reminderBefore : days === 0 ? T.notify.messages.reminderToday : T.notify.messages.reminderAfter;
+    return base
+      .replace("{days}", plural(Math.abs(days), T.notify.messages.days))
+      .replace("{what}", what)
+      .replace("{deadline}", values.deadline ?? "")
+      .replace("{title}", values.title ?? "")
+      .replace("{ref}", values.ref ?? "");
+  }
+  return template.replace(/\{(\w+)\}/g, (_, name: string) => values[name] ?? "");
 }

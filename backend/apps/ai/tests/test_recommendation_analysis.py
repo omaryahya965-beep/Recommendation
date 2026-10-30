@@ -6,6 +6,7 @@ from rest_framework.test import APIClient
 
 from apps.ai.models import AIAnalysis, AIJob
 from apps.workflow.tests import make_world
+from apps.core.refs import record_code
 
 
 class RecommendationAnalysisAPITests(TestCase):
@@ -78,7 +79,7 @@ class RecommendationAnalysisAPITests(TestCase):
         self.assertEqual(res.status_code, 200)
         out = res.data["output"]
         self.assertIn("brief", out)
-        self.assertIn(f"REC-{self.rec.id}", out["brief"])
+        self.assertIn(record_code(self.rec.id), out["brief"])
         self.assertTrue(out["next_action"])
         self.assertNotIn("lack of information", " ".join(out.get("issues") or []).lower())
 

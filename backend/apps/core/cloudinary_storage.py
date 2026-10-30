@@ -54,6 +54,12 @@ def configure_cloudinary(
         cloudinary.config(secure=True)
 
 
+def delivery_type() -> str:
+    from django.conf import settings
+
+    return getattr(settings, "CLOUDINARY_DELIVERY_TYPE", "private") or "private"
+
+
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".tif", ".tiff"}
 
 
@@ -87,6 +93,7 @@ class CloudinaryMediaStorage(Storage):
             content.seek(0)
         options = {
             "resource_type": resource_type,
+            "type": delivery_type(),
             "use_filename": True,
             "unique_filename": True,
             "overwrite": False,
@@ -127,19 +134,30 @@ class CloudinaryMediaStorage(Storage):
             return name[: -len(suffix)]
         return name
 
-    def url(self, name):
-        from cloudinary import CloudinaryResource
+    def url(self, name, attachment=False):
+        """A signed download link that expires (CLOUDINARY_SIGNED_URL_SECONDS).
+
+        Never the plain CDN URL: evidence is confidential, and a leaked link
+        must stop working. Only the authorization-checked API endpoints
+        call this.
+        """
+        import time
+
+        import cloudinary.utils
+        from django.conf import settings
 
         configure_cloudinary()
         name = name.replace("\\", "/")
         resource_type = resource_type_for_name(name)
-        options = {"resource_type": resource_type, "type": "upload"}
-        if resource_type != "raw":
-            fmt = Path(name).suffix.lstrip(".").lower()
-            if fmt:
-                options["format"] = fmt
-        resource = CloudinaryResource(self._cloudinary_public_id(name), **options)
-        return resource.build_url(secure=True)
+        fmt = "" if resource_type == "raw" else Path(name).suffix.lstrip(".").lower()
+        return cloudinary.utils.private_download_url(
+            self._cloudinary_public_id(name),
+            fmt,
+            resource_type=resource_type,
+            type=delivery_type(),
+            expires_at=int(time.time()) + int(getattr(settings, "CLOUDINARY_SIGNED_URL_SECONDS", 300)),
+            attachment=attachment,
+        )
 
     def exists(self, name):
         # Collision handling is Cloudinary unique_filename. Do not HEAD the CDN.
@@ -152,6 +170,7 @@ class CloudinaryMediaStorage(Storage):
         cloudinary.uploader.destroy(
             self._cloudinary_public_id(name),
             resource_type=resource_type_for_name(name),
+            type=delivery_type(),
             invalidate=True,
         )
 

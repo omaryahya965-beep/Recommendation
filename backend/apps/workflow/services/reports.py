@@ -1,5 +1,4 @@
 """Report-level actions: issue to the department, submit to and ratify by the council."""
-from django.db import transaction as db_transaction
 from django.utils import timezone
 
 from apps.audits.models import AuditReport, Recommendation
@@ -14,8 +13,9 @@ from ..models import (
     ManagementResponse,
 )
 from ..transitions import transition
-from .common import _policy
+from .common import _policy, locked_transition
 from .notify import (
+    msg,
     _audit_users,
     _council_users,
     _count_phrase,
@@ -28,7 +28,7 @@ from .notify import (
 S = Recommendation.Status
 
 
-@db_transaction.atomic
+@locked_transition
 def submit_report_to_department(report, user):
     report.refresh_from_db()
     if report.status != AuditReport.Status.DRAFT:
@@ -48,7 +48,7 @@ def submit_report_to_department(report, user):
         report,
         issued,
         Notification.Type.RESPONSE_NEEDED,
-        f"تقرير رقابي جديد بانتظار رد الدائرة: {report.title} ({_count_phrase(len(issued))}){deadline}.",
+        msg("report_sent_to_department", f"تقرير رقابي جديد بانتظار رد الدائرة: {report.title} ({_count_phrase(len(issued))}){deadline}.", title=report.title, count=len(issued), deadline=str(report.response_deadline) if report.response_deadline else ""),
     )
 
     report.status = AuditReport.Status.PENDING_RESPONSE
@@ -57,7 +57,7 @@ def submit_report_to_department(report, user):
     return report
 
 
-@db_transaction.atomic
+@locked_transition
 def submit_report_to_council(report, user):
     report.refresh_from_db()
     if report.status != AuditReport.Status.UNDER_REVIEW:
@@ -81,12 +81,12 @@ def submit_report_to_council(report, user):
         report,
         recommendations,
         Notification.Type.ACTION_REQUIRED,
-        f"تقرير بانتظار مصادقة المجلس: {report.title} ({_count_phrase(len(recommendations))}).",
+        msg("report_ratification_needed", f"تقرير بانتظار مصادقة المجلس: {report.title} ({_count_phrase(len(recommendations))}).", title=report.title, count=len(recommendations)),
     )
     return report
 
 
-@db_transaction.atomic
+@locked_transition
 def ratify_report(report, user, notes=""):
     """COUNCIL_RATIFICATION: the only event that sets the reminder anchor date."""
     report.refresh_from_db()
@@ -125,7 +125,7 @@ def ratify_report(report, user, notes=""):
                 [plan.responsible_employee],
                 rec,
                 Notification.Type.ACTION_REQUIRED,
-                f"بدأ تنفيذ التوصية المسندة إليك — {_rec_ref(rec)}.",
+                msg("execution_started_assignee", f"بدأ تنفيذ التوصية المسندة إليك — {_rec_ref(rec)}.", ref=_rec_ref(rec)),
             )
             started.append(rec)
         else:
@@ -138,21 +138,21 @@ def ratify_report(report, user, notes=""):
         report,
         plans_needed,
         Notification.Type.ACTION_REQUIRED,
-        f"صادق المجلس على التقرير {report.title} — المطلوب تقديم خطة العمل لـ {_count_phrase(len(plans_needed))}.",
+        msg("report_ratified_plans_needed", f"صادق المجلس على التقرير {report.title} — المطلوب تقديم خطة العمل لـ {_count_phrase(len(plans_needed))}.", title=report.title, count=len(plans_needed)),
     )
     _notify_report(
         heads,
         report,
         started,
         Notification.Type.STATUS_CHANGE,
-        f"صادق المجلس على التقرير {report.title} وبدأ تنفيذ {_count_phrase(len(started))}.",
+        msg("report_ratified_started", f"صادق المجلس على التقرير {report.title} وبدأ تنفيذ {_count_phrase(len(started))}.", title=report.title, count=len(started)),
     )
     _notify_report(
         heads + list(_audit_users(report.municipality)),
         report,
         disagreements,
         Notification.Type.STATUS_CHANGE,
-        f"أغلق المجلس {_count_phrase(len(disagreements))} في التقرير {report.title} بعد قبول عدم الاتفاق.",
+        msg("disagreements_closed", f"أغلق المجلس {_count_phrase(len(disagreements))} في التقرير {report.title} بعد قبول عدم الاتفاق.", title=report.title, count=len(disagreements)),
     )
 
     report.status = AuditReport.Status.RATIFIED

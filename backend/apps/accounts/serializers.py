@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 from rest_framework_simplejwt.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer
@@ -29,15 +30,23 @@ class ChangePasswordSerializer(serializers.Serializer):
     def validate_current_password(self, value):
         user = self.context["request"].user
         if not user.check_password(value):
-            raise serializers.ValidationError("Current password is incorrect.")
+            raise serializers.ValidationError("Current password is incorrect.", code="current_password_incorrect")
         return value
 
     def validate(self, attrs):
         if attrs["new_password"] != attrs["new_password_confirm"]:
             raise serializers.ValidationError(
-                {"new_password_confirm": "The new passwords do not match."}
+                {"new_password_confirm": serializers.ErrorDetail("The new passwords do not match.", code="password_mismatch")}
             )
-        validate_password(attrs["new_password"], self.context["request"].user)
+        try:
+            validate_password(attrs["new_password"], self.context["request"].user)
+        except DjangoValidationError as exc:
+            # Keep Django's own codes (password_too_short, password_too_common,
+            # password_entirely_numeric, password_too_similar) on the field, so
+            # the UI can say exactly why in the reader's language.
+            raise serializers.ValidationError(
+                {"new_password": [serializers.ErrorDetail(str(e.message % (e.params or {})), code=e.code) for e in exc.error_list]}
+            ) from exc
         return attrs
 
     def save(self, **kwargs):

@@ -60,3 +60,22 @@ frontend/.next-e2e/
 frontend/playwright-report/
 frontend/test-results/
 frontend/e2e/.auth/
+
+# QA / fix-run reports and evidence: kept locally, never committed
+QA-*.md
+FIX*.md
+EXTERNAL-QA.md
+CLEANUP.md
+QA-EVIDENCE/
+
+# Test artifacts: screenshots, traces, videos, coverage, DB dumps.
+# No image snapshot baselines in the repo: tests use DOM assertions and
+# screenshots are written outside the repository.
+*-snapshots/
+__screenshots__/
+*.trace.zip
+*.webm
+coverage/
+.coverage
+htmlcov/
+*.dump

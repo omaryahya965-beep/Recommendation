@@ -454,6 +454,70 @@ def _next_actor(rec):
     return {"role": role, "side": ROLE_SIDE.get(role), "user": person}
 
 
+# Statuses in which the department works on something that was sent back.
+_OUTSTANDING_STATUSES = (
+    "in_progress", "partial", "returned_insufficient", "reopened", "pending_head_review",
+)
+
+
+def outstanding_request(rec):
+    """The latest decision that sent the work back to the department, while
+    it still applies (BUG-15).
+
+    Candidates are a partial/insufficient verification (audit), the head
+    returning the implementation, and a council reopen. A later sufficient
+    verification clears them; a later send-back replaces an earlier one. The
+    decision lists are read in full and ordered by time here, never by list
+    position, so a superseded verification can never be shown.
+    """
+    if rec.status not in _OUTSTANDING_STATUSES:
+        return None
+    from .models import ApprovalRecord
+
+    events = []
+    for decision in rec.verifications.all():
+        events.append((decision.created_at, "verification", decision))
+    for record in rec.approvals.all():
+        if record.approval_type == ApprovalRecord.ApprovalType.HEAD_IMPLEMENTATION_RETURN:
+            events.append((record.created_at, "head", record))
+        elif record.approval_type == ApprovalRecord.ApprovalType.CLOSURE_COUNCIL:
+            # Closing is terminal, so on an open case every council closure
+            # decision was a reopen.
+            events.append((record.created_at, "council", record))
+    if not events:
+        return None
+    at, kind, item = max(events, key=lambda event: (event[0], event[2].pk))
+
+    def who(person):
+        return (person.full_name_ar or person.username) if person else None
+
+    if kind == "verification":
+        if item.decision == "sufficient":
+            return None
+        return {
+            "source": "audit",
+            "decision": item.decision,
+            "by": who(item.reviewed_by),
+            "at": at.isoformat(),
+            "notes": item.notes,
+            "rejected_items": item.rejected_items,
+            "rejection_reason": item.rejection_reason,
+            "required_action": item.required_action,
+            "action_deadline": item.action_deadline.isoformat() if item.action_deadline else None,
+        }
+    return {
+        "source": kind,
+        "decision": "returned" if kind == "head" else "reopened",
+        "by": who(item.approved_by),
+        "at": at.isoformat(),
+        "notes": item.notes,
+        "rejected_items": "",
+        "rejection_reason": "",
+        "required_action": "",
+        "action_deadline": None,
+    }
+
+
 def workflow_block(rec, user) -> dict:
     """The `workflow` object of the case detail API."""
     data = facts(rec)
@@ -486,6 +550,7 @@ def workflow_block(rec, user) -> dict:
         "primary_action": _primary_action(actions),
         "report_action": _report_action(rec, user),
         "combined_closure_available": any(item.id == "verify" and item.enabled for item in actions),
+        "outstanding_request": outstanding_request(rec),
     }
 
 

@@ -15,6 +15,20 @@ _VERIFICATION_LABELS_AR = {
 }
 
 
+class LocalizedMessage(str):
+    """Arabic text plus the key and parameters to render it in any language."""
+
+    def __new__(cls, key, text, **params):
+        obj = super().__new__(cls, text)
+        obj.key = key
+        obj.params = params
+        return obj
+
+
+def msg(key, text, **params):
+    return LocalizedMessage(key, text, **params)
+
+
 def _notify(users, recommendation, ntype, message, report=None):
     seen = set()
     rows = []
@@ -26,7 +40,8 @@ def _notify(users, recommendation, ntype, message, report=None):
         seen.add(user.pk)
         rows.append(
             Notification(
-                user=user, recommendation=recommendation, report=report, type=ntype, message=message
+                user=user, recommendation=recommendation, report=report, type=ntype, message=message,
+                message_key=getattr(message, "key", ""), message_params=getattr(message, "params", {}),
             )
         )
     if rows:

@@ -10,10 +10,13 @@ export function StatusBadge({
   status,
   size = "sm",
   label,
+  wrap = false,
 }: {
   status: string;
   size?: "sm" | "lg";
   label?: string;
+  /** In a narrow table column: wrap to two lines instead of overflowing. */
+  wrap?: boolean;
 }) {
   useI18n();
   const tone: StatusTone = (STATUS_TONE as Record<string, StatusTone>)[status] ?? "neutral";
@@ -22,7 +25,8 @@ export function StatusBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border font-semibold whitespace-nowrap shadow-sm transition-colors",
+        "inline-flex items-center gap-1.5 rounded-full border font-semibold shadow-sm transition-colors",
+        wrap ? "max-w-full whitespace-normal text-start leading-tight" : "whitespace-nowrap",
         size === "lg" ? "px-3.5 py-1.5 text-[13px]" : "px-2.5 py-0.5 text-[11px]",
         classes.fg,
         classes.bg,
@@ -30,7 +34,8 @@ export function StatusBadge({
       )}
     >
       <span className={cn("size-2 shrink-0 rounded-full", classes.dot)} aria-hidden />
-      {text}
+      {/* In a table cell: at most two lines, the full label on hover. */}
+      {wrap ? <span className="line-clamp-2 min-w-0" title={text}>{text}</span> : text}
     </span>
   );
 }

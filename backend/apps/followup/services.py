@@ -111,6 +111,20 @@ def build_followup_snapshot(municipality, period_start, period_end):
             "history_incomplete": state["history_incomplete"],
         })
 
+    return _aggregate(
+        items,
+        as_of=as_of,
+        as_of_date=as_of_date,
+        period_start=period_start,
+        period_end=period_end,
+    )
+
+
+def _aggregate(items, *, as_of, as_of_date, period_start, period_end, generated_at=None):
+    """Totals, department rows and ranked lists for a set of snapshot items.
+
+    Used to build a snapshot and to build a department's view of one (S11).
+    """
     closed_items = [item for item in items if item["status"] == S.CLOSED]
     open_items = [item for item in items if item["status"] != S.CLOSED]
     closed_in_period = [item for item in items if item["closed_in_period"]]
@@ -180,9 +194,9 @@ def build_followup_snapshot(municipality, period_start, period_end):
 
     return {
         "methodology_version": METHODOLOGY_VERSION,
-        "generated_at": timezone.now().isoformat(),
-        "as_of": as_of.isoformat(),
-        "as_of_date": as_of_date.isoformat(),
+        "generated_at": generated_at or timezone.now().isoformat(),
+        "as_of": as_of if isinstance(as_of, str) else as_of.isoformat(),
+        "as_of_date": as_of_date if isinstance(as_of_date, str) else as_of_date.isoformat(),
         "period_start": str(period_start),
         "period_end": str(period_end),
         "totals": totals,
@@ -196,6 +210,34 @@ def build_followup_snapshot(municipality, period_start, period_end):
         "major_risks": [item["id"] for item in major_risks[:10]],
         "items": items,
     }
+
+
+
+
+def department_view(snapshot, department):
+    """One department's part of a stored snapshot (S11).
+
+    Snapshots are municipality-wide; a department head sees only the items of
+    their own department, with every total recomputed from those items, so
+    no other department's names, titles or figures appear.
+    """
+    items = [
+        item for item in snapshot.get("items") or []
+        if item.get("department_id") == department.id
+        or (item.get("department_id") is None and item.get("department") == department.name)
+    ]
+    view = _aggregate(
+        items,
+        as_of=snapshot.get("as_of") or "",
+        as_of_date=snapshot.get("as_of_date") or "",
+        period_start=snapshot.get("period_start"),
+        period_end=snapshot.get("period_end"),
+        generated_at=snapshot.get("generated_at"),
+    )
+    view["methodology_version"] = snapshot.get("methodology_version")
+    view["scope"] = "department"
+    view["scope_department"] = department.id
+    return view
 
 
 def _clip(text, limit=140):
