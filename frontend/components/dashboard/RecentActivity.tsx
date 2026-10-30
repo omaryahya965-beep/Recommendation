@@ -8,7 +8,7 @@ import { NotificationItem } from "@/components/notifications/NotificationItem";
 import { CardSkeleton } from "@/components/ui/EmptyState";
 import { api } from "@/lib/api";
 import { T, useI18n } from "@/lib/i18n";
-import { notificationsCenter } from "@/lib/notifications";
+import { notificationsCenter, notificationsLoadError } from "@/lib/notifications";
 import type { AppNotification, Paginated, Role } from "@/lib/types";
 
 /**
@@ -25,7 +25,7 @@ export function RecentActivity({
   compact?: boolean;
 }) {
   const { locale } = useI18n();
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["notifications", "recent"],
     queryFn: () => api<Paginated<AppNotification>>("/api/notifications/?page_size=25"),
     staleTime: 30_000,
@@ -34,7 +34,6 @@ export function RecentActivity({
   const DirForward = locale === "ar" ? ChevronLeft : ChevronRight;
 
   if (isLoading) return <CardSkeleton />;
-  if (isError) return null;
 
   const items = (data?.results ?? [])
     .slice()
@@ -54,7 +53,15 @@ export function RecentActivity({
         </div>
       </header>
 
-      {items.length ? (
+      {isError ? (
+        // Only this card fails; the rest of the home page keeps working.
+        <div role="alert" className="flex flex-col items-center gap-2 px-6 py-10 text-center" data-testid="recent-activity-error">
+          <p className="text-[13.5px] font-semibold text-ink-soft">{notificationsLoadError(error)}</p>
+          <button type="button" onClick={() => refetch()} className="min-h-11 text-[13.5px] font-bold text-primary-dark">
+            {T.common.retry}
+          </button>
+        </div>
+      ) : items.length ? (
         <>
           <ul className="divide-y divide-line/60">
             {items.map((item) => (

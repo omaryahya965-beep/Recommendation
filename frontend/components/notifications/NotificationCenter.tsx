@@ -17,6 +17,7 @@ import {
   filterNotifications,
   groupByTime,
   nextPathFromUrl,
+  notificationsLoadError,
   notifyMeta,
   type ReadFilter,
 } from "@/lib/notifications";
@@ -59,7 +60,7 @@ function InboxSkeleton() {
  */
 export function NotificationCenter({ role }: { role: Role }) {
   useI18n();
-  const { data, isLoading, isError, refetch } = useNotifications();
+  const { data, isLoading, isError, error, refetch } = useNotifications();
   const markAll = useMarkAllNotificationsRead();
   const removeNote = useDeleteNotification();
   const [read, setRead] = useState<ReadFilter>("all");
@@ -124,7 +125,7 @@ export function NotificationCenter({ role }: { role: Role }) {
       {isLoading ? (
         <InboxSkeleton />
       ) : isError ? (
-        <ErrorBanner message={T.common.error} onRetry={() => refetch()} />
+        <ErrorBanner message={notificationsLoadError(error)} onRetry={() => refetch()} />
       ) : (
         <>
           <div className="space-y-3 rounded-2xl border border-line bg-surface p-3 shadow-sm md:p-4">

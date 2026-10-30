@@ -16,7 +16,7 @@ import {
   useUnreadCount,
 } from "@/lib/hooks";
 import { T, useI18n } from "@/lib/i18n";
-import { groupByTime, notificationsCenter } from "@/lib/notifications";
+import { groupByTime, notificationsCenter, notificationsLoadError } from "@/lib/notifications";
 import { useIsPhone } from "@/lib/useMediaQuery";
 import type { Role } from "@/lib/types";
 
@@ -44,7 +44,7 @@ export function NotificationBell({ role }: { role: Role }) {
   const { data: count } = useUnreadCount();
   // The full list is only needed while the panel is open; the badge runs off
   // the lightweight unread count, the one poll mounted on every page.
-  const { data: list, isLoading, isError, refetch } = useNotifications(open);
+  const { data: list, isLoading, isError, error, refetch } = useNotifications(open);
   const prefetchList = usePrefetchNotifications();
   const markAll = useMarkAllNotificationsRead();
 
@@ -158,7 +158,7 @@ export function NotificationBell({ role }: { role: Role }) {
           <p className="px-4 py-10 text-center text-[14px] font-semibold text-ink-soft">{T.common.loading}</p>
         ) : isError ? (
           <div className="px-4 py-8 text-center">
-            <p className="text-[14px] font-semibold text-ink-soft">{T.common.error}</p>
+            <p role="alert" className="text-[14px] font-semibold text-ink-soft">{notificationsLoadError(error)}</p>
             <button type="button" onClick={() => refetch()} className="mt-2 min-h-11 text-[14px] font-bold text-primary-dark">
               {T.common.retry}
             </button>

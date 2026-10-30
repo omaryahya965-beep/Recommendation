@@ -1,3 +1,4 @@
+import { errorMessage } from "./api";
 import { caseTitle } from "./finding";
 import { dayCount, formatDate, plural, recordCode } from "./format";
 import { DECISION_LABELS } from "./i18n";
@@ -98,6 +99,11 @@ export function notifyMeta(type: string): NotifyMeta {
   const key = (type in NOTIFY_BASE ? type : "status_change") as NotificationType;
   const base = NOTIFY_BASE[key];
   return { ...base, label: labels[key] };
+}
+
+/** What failed (the notification list) and why, in the reader's language. */
+export function notificationsLoadError(error: unknown): string {
+  return `${currentT().notify.loadError} ${errorMessage(error)}`;
 }
 
 /** The notifications inbox of each role. */

@@ -1461,6 +1461,7 @@ export const T = {
     },
     title: "Notifications",
     subtitle: "Alerts and actions related to audit work",
+    loadError: "Notifications could not be loaded.",
     today: "Today",
     yesterday: "Yesterday",
     thisWeek: "This week",
